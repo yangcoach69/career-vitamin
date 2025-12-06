@@ -28,7 +28,7 @@ import {
   MessageSquare, Sparkles, Award, Search, BookOpen, Quote, Download, TrendingUp, Calendar, Target, 
   Edit3, MonitorPlay, Zap, LayoutList, Split, Mic, BarChart3, Link as LinkIcon, 
   Globe, Trophy, Stethoscope, Key, AlertCircle, ExternalLink,
-  Info, ArrowRight, PenTool, Lightbulb
+  Info, ArrowRight, PenTool, Lightbulb, Users, ThumbsUp
 } from 'lucide-react';
 
 // =============================================================================
@@ -102,7 +102,7 @@ const renderText = (content) => {
   return content;
 };
 
-// [수정됨] PNG 저장 함수: 래퍼(Wrapper) 방식 도입으로 배경 잘림 완벽 해결
+// PNG 저장 함수 (Wrapper 방식 - 배경 잘림 해결)
 const saveAsPng = async (elementRef, fileName, showToast) => {
   if (!elementRef.current) return;
   
@@ -127,8 +127,8 @@ const saveAsPng = async (elementRef, fileName, showToast) => {
     container.style.left = '-9999px';
     container.style.top = '0';
     container.style.width = `${width}px`;
-    container.style.minHeight = `${height}px`; // 최소 높이 확보
-    container.style.backgroundColor = '#ffffff'; // 강력한 흰색 배경
+    container.style.minHeight = `${height}px`; 
+    container.style.backgroundColor = '#ffffff'; 
     container.style.display = 'flex';
     container.style.flexDirection = 'column';
     document.body.appendChild(container);
@@ -151,11 +151,11 @@ const saveAsPng = async (elementRef, fileName, showToast) => {
     await new Promise(resolve => setTimeout(resolve, 100));
 
     const canvas = await window.html2canvas(container, {
-      scale: 2, // 고해상도
+      scale: 2, 
       useCORS: true,
       logging: false,
       allowTaint: true,
-      backgroundColor: '#ffffff', // 캔버스 배경도 흰색
+      backgroundColor: '#ffffff',
       width: width,
       height: container.scrollHeight, 
       windowWidth: width,
@@ -180,7 +180,6 @@ const saveAsPng = async (elementRef, fileName, showToast) => {
   }
 };
 
-// [수정됨] Google Search Tool 연동 및 JSON 모드 충돌 해결
 const fetchGemini = async (prompt) => {
   const apiKey = localStorage.getItem("custom_gemini_key");
   if (!apiKey) {
@@ -190,7 +189,6 @@ const fetchGemini = async (prompt) => {
   const models = ["gemini-2.5-flash-preview-09-2025", "gemini-2.5-pro"];
   let lastError = null;
 
-  // JSON 포맷 강제 프롬프트 추가 (responseMimeType 대신 사용)
   const jsonInstruction = `
   IMPORTANT: You must return the result strictly as a valid JSON string. 
   Do not wrap the JSON in markdown code blocks (like \`\`\`json ... \`\`\`).
@@ -208,7 +206,6 @@ const fetchGemini = async (prompt) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: finalPrompt }] }],
-          // 도구 사용: 구글 검색 (최신 정보 반영)
           tools: [{ google_search: {} }],
         })
       });
@@ -251,6 +248,7 @@ const EditableContent = ({ value, onSave, className }) => {
   );
 };
 
+// ... (Constants & Sub Apps) ...
 const SERVICES = {
   gpt_guide: { name: "[GPT] 직업 탐색 가이드", desc: "관심 있는 직업/직무 입력 시 가이드 생성", link: "https://chatgpt.com/g/g-Uch9gJR4b-job-explorer-guide-report", internal: false, icon: Compass, color: "emerald" },
   card_bot: { name: "[노트북LM] 커리어스타일 챗봇", desc: "유료 프로그램 전용 챗봇", link: "https://notebooklm.google.com/notebook/595da4c0-fcc1-4064-82c8-9901e6dd8772", internal: false, icon: MessageSquare, color: "violet" },
@@ -276,8 +274,7 @@ const COLOR_VARIANTS = {
   orange: "bg-orange-100 text-orange-600",
 };
 
-// --- Sub Components ---
-
+// [수정됨] 기업분석 앱 - 구조 확장
 function CompanyAnalysisApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', url: '', job: '' });
   const [result, setResult] = useState(null);
@@ -291,7 +288,38 @@ function CompanyAnalysisApp({ onClose }) {
     if (!inputs.company || !inputs.job) return showToast("기업명과 직무를 입력해주세요.");
     setLoading(true);
     try {
-      const prompt = `당신은 전문 커리어 코치입니다. 기업명: ${inputs.company}, 직무: ${inputs.job}. 심층 기업 분석 리포트 작성. JSON 포맷: { "overview": { "vision": "...", "values": "..." }, "business": { "history": "...", "biz_area": "...", "issues": ["...", "..."] }, "market": { "trends": "...", "swot": { "s": "...", "w": "...", "o": "...", "t": "..." } }, "competitor": "...", "strategy": "..." }`;
+      const prompt = `당신은 전문 커리어 컨설턴트입니다. 기업: ${inputs.company}, 지원직무: ${inputs.job}.
+      해당 기업에 대한 심층 분석 리포트를 작성해줘. 분량 제한 없이 최대한 상세하고 구체적으로 작성해야 함.
+      
+      다음 JSON 구조를 반드시 따를 것:
+      {
+        "overview": {
+          "summary": "기업 개요 (설립일, 대표자, 본사 위치 등 기본 정보 상세 서술)",
+          "history": "주요 연혁 (창립부터 현재까지 주요 마일스톤 나열)",
+          "vision": "비전 및 미션 (상세히)",
+          "coreValues": "핵심 가치 (상세히)",
+          "talent": "인재상 (상세히)"
+        },
+        "business": {
+          "mainBiz": "주요 사업 영역 및 제품/서비스 상세 설명",
+          "swot": { 
+            "s": "강점 (Strength) - 구체적인 수치나 근거 포함", 
+            "w": "약점 (Weakness)", 
+            "o": "기회 (Opportunity)", 
+            "t": "위협 (Threat)" 
+          }
+        },
+        "industry": {
+          "trend": "국내외 해당 산업의 최신 동향, 시장 규모, 미래 전망 등 상세 분석"
+        },
+        "competitor": {
+          "diff": "경쟁사 대비 ${inputs.company}만의 긍정적 차별점 및 경쟁 우위 요소 (기술력, 브랜드, 문화 등)"
+        },
+        "strategy": {
+          "guide": "이 기업과 직무(${inputs.job})에 지원하는 지원자를 위한 구체적인 취업 전략 및 어필 포인트"
+        }
+      }`;
+      
       const parsed = await fetchGemini(prompt);
       if (parsed) setResult(parsed);
     } catch (e) { showToast(e.message); } finally { setLoading(false); }
@@ -300,17 +328,12 @@ function CompanyAnalysisApp({ onClose }) {
   const handleEdit = (section, key, value) => {
     setResult(prev => {
       const newData = { ...prev };
-      if (section) newData[section][key] = value;
-      else newData[key] = value; 
+      if (section && prev[section]) {
+        newData[section][key] = value;
+      } else {
+        newData[key] = value; 
+      }
       return newData;
-    });
-  };
-
-  const handleIssueEdit = (index, value) => {
-    setResult(prev => {
-      const newIssues = [...prev.business.issues];
-      newIssues[index] = value;
-      return { ...prev, business: { ...prev.business, issues: newIssues } };
     });
   };
 
@@ -328,7 +351,7 @@ function CompanyAnalysisApp({ onClose }) {
           <div className="space-y-5">
             <h3 className="font-bold text-sm text-indigo-700 flex items-center uppercase tracking-wider"><Settings size={16} className="mr-2"/> 분석 설정</h3>
             <input value={inputs.company} onChange={e=>setInputs({...inputs, company:e.target.value})} className="w-full p-3 border rounded-lg" placeholder="기업명" />
-            <input value={inputs.url} onChange={e=>setInputs({...inputs, url:e.target.value})} className="w-full p-3 border rounded-lg" placeholder="홈페이지 URL" />
+            <input value={inputs.url} onChange={e=>setInputs({...inputs, url:e.target.value})} className="w-full p-3 border rounded-lg" placeholder="홈페이지 URL (참고용)" />
             <input value={inputs.job} onChange={e=>setInputs({...inputs, job:e.target.value})} className="w-full p-3 border rounded-lg" placeholder="지원 직무" />
             <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-indigo-600 text-white py-3.5 rounded-xl hover:bg-indigo-700 font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading ? <Loader2 className="animate-spin mx-auto"/> : "AI 분석 실행"}</button>
           </div>
@@ -339,60 +362,86 @@ function CompanyAnalysisApp({ onClose }) {
               <div className="border-b-4 border-indigo-600 pb-6 mb-8">
                  <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">COMPANY REPORT</span>
                  <h1 className="text-4xl font-extrabold text-slate-900 mt-2">{inputs.company}</h1>
-                 <p className="text-lg text-slate-500 mt-2">기업분석 리포트</p>
+                 <p className="text-lg text-slate-500 mt-2">Premium Corporate Analysis</p>
               </div>
+              
               <div className="space-y-10 flex-1">
+                {/* 1. 기업 개요 (확장됨) */}
                 <section>
-                  <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center"><Star size={24} className="mr-2"/> 1. 기업 개요</h3>
-                  <div className="grid grid-cols-2 gap-6">
-                     <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100">
-                       <h4 className="font-bold text-xs text-slate-400 mb-2 tracking-wider">VISION</h4>
-                       <EditableContent className="text-sm text-slate-700" value={result.overview?.vision} onSave={(v)=>handleEdit('overview', 'vision', v)} />
+                  <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center border-b-2 border-indigo-100 pb-2"><Building2 size={24} className="mr-2"/> 1. 기업 개요 및 현황</h3>
+                  <div className="space-y-4">
+                     <div className="bg-slate-50 p-5 rounded-xl border border-slate-200">
+                       <h4 className="font-bold text-sm text-slate-500 mb-2">기업 개요</h4>
+                       <EditableContent className="text-sm text-slate-700 leading-relaxed" value={result.overview?.summary} onSave={(v)=>handleEdit('overview', 'summary', v)} />
                      </div>
-                     <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100">
-                       <h4 className="font-bold text-xs text-slate-400 mb-2 tracking-wider">VALUES</h4>
-                       <EditableContent className="text-sm text-slate-700" value={result.overview?.values} onSave={(v)=>handleEdit('overview', 'values', v)} />
+                     <div className="bg-white p-5 rounded-xl border border-slate-200">
+                       <h4 className="font-bold text-sm text-slate-500 mb-2">주요 연혁</h4>
+                       <EditableContent className="text-sm text-slate-700 leading-relaxed" value={result.overview?.history} onSave={(v)=>handleEdit('overview', 'history', v)} />
+                     </div>
+                     <div className="grid grid-cols-3 gap-4">
+                        <div className="bg-indigo-50 p-4 rounded-xl">
+                            <h4 className="font-bold text-indigo-700 text-xs mb-2">VISION</h4>
+                            <EditableContent className="text-xs text-slate-700" value={result.overview?.vision} onSave={(v)=>handleEdit('overview', 'vision', v)} />
+                        </div>
+                        <div className="bg-indigo-50 p-4 rounded-xl">
+                            <h4 className="font-bold text-indigo-700 text-xs mb-2">CORE VALUES</h4>
+                            <EditableContent className="text-xs text-slate-700" value={result.overview?.coreValues} onSave={(v)=>handleEdit('overview', 'coreValues', v)} />
+                        </div>
+                        <div className="bg-indigo-50 p-4 rounded-xl">
+                            <h4 className="font-bold text-indigo-700 text-xs mb-2 flex items-center"><Users size={12} className="mr-1"/> 인재상</h4>
+                            <EditableContent className="text-xs text-slate-700" value={result.overview?.talent} onSave={(v)=>handleEdit('overview', 'talent', v)} />
+                        </div>
                      </div>
                   </div>
                 </section>
+
+                {/* 2. 주요 사업 및 SWOT */}
                 <section>
-                  <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center"><Building2 size={24} className="mr-2"/> 2. 사업 현황</h3>
-                  <div className="mb-4 bg-white border p-5 rounded-2xl shadow-sm">
-                    <EditableContent className="text-slate-700 text-sm" value={result.business?.history} onSave={(v)=>handleEdit('business', 'history', v)} />
+                  <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center border-b-2 border-indigo-100 pb-2"><BarChart3 size={24} className="mr-2"/> 2. 주요 사업 & SWOT</h3>
+                  <div className="mb-6">
+                    <h4 className="font-bold text-sm text-slate-600 mb-2">주요 사업 영역</h4>
+                    <EditableContent className="text-sm text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-200" value={result.business?.mainBiz} onSave={(v)=>handleEdit('business', 'mainBiz', v)} />
                   </div>
-                  <div className="space-y-3">
-                    {result.business?.issues?.map((iss, idx) => (
-                      <div key={idx} className="text-sm bg-indigo-50 p-4 rounded-xl border border-indigo-100 flex items-start">
-                        <span className="bg-white text-indigo-600 px-2 py-0.5 rounded text-xs font-bold mr-3 border border-indigo-200 shrink-0 mt-0.5">ISSUE {idx+1}</span>
-                        <EditableContent className="text-slate-700 flex-1" value={iss} onSave={(v)=>handleIssueEdit(idx, v)} />
-                      </div>
-                    ))}
-                  </div>
-                </section>
-                <section>
-                  <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center"><Globe size={24} className="mr-2"/> 3. SWOT</h3>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     {['s', 'w', 'o', 't'].map((key) => (
-                      <div key={key} className={`p-5 rounded-2xl border ${key==='s'?'bg-blue-50 border-blue-100':key==='w'?'bg-orange-50 border-orange-100':key==='o'?'bg-emerald-50 border-emerald-100':'bg-red-50 border-red-100'}`}>
-                        <span className={`font-bold text-lg block mb-2 uppercase ${key==='s'?'text-blue-700':key==='w'?'text-orange-700':key==='o'?'text-emerald-700':'text-red-700'}`}>{key === 's' ? 'Strength' : key === 'w' ? 'Weakness' : key === 'o' ? 'Opportunity' : 'Threat'}</span>
-                        <EditableContent className="text-slate-700" value={result.market?.swot?.[key]} onSave={(v)=>{
-                          const newSwot = { ...result.market.swot, [key]: v };
-                          handleEdit('market', 'swot', newSwot);
+                      <div key={key} className={`p-4 rounded-xl border ${key==='s'?'bg-blue-50 border-blue-100':key==='w'?'bg-orange-50 border-orange-100':key==='o'?'bg-emerald-50 border-emerald-100':'bg-red-50 border-red-100'}`}>
+                        <span className={`font-bold text-base block mb-2 uppercase ${key==='s'?'text-blue-700':key==='w'?'text-orange-700':key==='o'?'text-emerald-700':'text-red-700'}`}>{key === 's' ? 'Strength' : key === 'w' ? 'Weakness' : key === 'o' ? 'Opportunity' : 'Threat'}</span>
+                        <EditableContent className="text-slate-700 leading-relaxed" value={result.business?.swot?.[key]} onSave={(v)=>{
+                          const newSwot = { ...result.business.swot, [key]: v };
+                          handleEdit('business', 'swot', newSwot);
                         }} />
                       </div>
                     ))}
                   </div>
                 </section>
+
+                {/* 3. 산업 동향 & 경쟁 우위 (신설) */}
                 <section>
-                   <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center"><Target size={24} className="mr-2"/> 4. 전략</h3>
-                   <div className="bg-indigo-600 p-8 rounded-2xl shadow-xl shadow-indigo-200">
-                     <EditableContent className="text-white font-medium leading-loose text-lg" value={result.strategy} onSave={(v)=>handleEdit(null, 'strategy', v)} />
+                   <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center border-b-2 border-indigo-100 pb-2"><Globe size={24} className="mr-2"/> 3. 시장 및 경쟁 분석</h3>
+                   <div className="space-y-4">
+                     <div>
+                        <h4 className="font-bold text-sm text-slate-600 mb-2">국내외 산업 동향</h4>
+                        <EditableContent className="text-sm text-slate-700 leading-relaxed p-4 border rounded-xl bg-white" value={result.industry?.trend} onSave={(v)=>handleEdit('industry', 'trend', v)} />
+                     </div>
+                     <div>
+                        <h4 className="font-bold text-sm text-slate-600 mb-2 flex items-center"><ThumbsUp size={14} className="mr-1 text-indigo-500"/> 경쟁사 대비 긍정적 차별점</h4>
+                        <EditableContent className="text-sm text-slate-700 leading-relaxed p-4 border border-indigo-200 bg-indigo-50/50 rounded-xl" value={result.competitor?.diff} onSave={(v)=>handleEdit('competitor', 'diff', v)} />
+                     </div>
+                   </div>
+                </section>
+
+                {/* 4. 취업 전략 */}
+                <section>
+                   <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center border-b-2 border-indigo-100 pb-2"><Target size={24} className="mr-2"/> 4. 지원자 취업 전략</h3>
+                   <div className="bg-slate-800 p-6 rounded-xl shadow-lg text-white">
+                     <EditableContent className="font-medium leading-loose text-sm" value={result.strategy?.guide} onSave={(v)=>handleEdit('strategy', 'guide', v)} />
                    </div>
                 </section>
               </div>
+
               <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto">
                 <div className="flex items-center"><BarChart3 className="w-4 h-4 mr-1 text-indigo-500" /><span>Career Vitamin</span></div>
-                <span>AI-Powered Analysis Report</span>
+                <span>AI-Generated Analysis Report</span>
               </div>
             </div>
           ) : <div className="flex flex-col items-center justify-center h-full text-slate-400"><BarChart3 size={64} className="mb-4 opacity-20"/><p>정보를 입력하고 분석을 시작하세요.</p></div>}
@@ -492,14 +541,11 @@ function CareerRoadmapApp({ onClose }) {
 
 // [수정됨] PT 면접 앱 - 2가지 모드 (주제 추천 / 직접 입력) 및 본론 생성 강화
 function PtInterviewApp({ onClose }) {
-  const [mode, setMode] = useState('recommend'); // 'recommend' | 'manual'
+  const [mode, setMode] = useState('recommend'); 
   const [inputs, setInputs] = useState({ company: '', job: '', request: '' });
   
-  // 추천 모드용
   const [topics, setTopics] = useState([]);
   const [selectedTopic, setSelectedTopic] = useState('');
-  
-  // 직접 입력 모드용
   const [manualTopic, setManualTopic] = useState('');
 
   const [script, setScript] = useState(null);
@@ -528,16 +574,13 @@ function PtInterviewApp({ onClose }) {
   };
   
   const handleGenerateScript = async () => {
-    // 모드에 따라 타겟 주제 결정
     const targetTopic = mode === 'recommend' ? selectedTopic : manualTopic;
 
     if (!targetTopic) return showToast(mode === 'recommend' ? "주제를 선택해주세요." : "주제를 입력해주세요.");
-    // 기업/직무 정보는 컨텍스트 파악을 위해 필수
     if (!inputs.company) return showToast("기업 정보가 필요합니다.");
 
     setLoading(true);
     try {
-      // 본론(Body) 생성을 위한 프롬프트 강화
       const prompt = `PT주제: "${targetTopic}", 기업:${inputs.company}, 직무:${inputs.job}. 
       이 주제에 대한 전문적인 PT 발표 대본을 작성해줘.
       
@@ -551,7 +594,7 @@ function PtInterviewApp({ onClose }) {
       Body 부분은 절대 비워두지 말고, 구체적인 수치나 예시를 들어서 풍부하게 작성할 것.`;
       
       const parsed = await fetchGemini(prompt);
-      if(parsed && parsed.body) { // body 체크
+      if(parsed && parsed.body) { 
         setScript(parsed); 
       } else {
         throw new Error("스크립트 생성 중 오류가 발생했습니다. (Body 누락)");
@@ -570,32 +613,18 @@ function PtInterviewApp({ onClose }) {
         <button onClick={onClose} className="flex items-center text-sm hover:text-rose-200 transition-colors"><ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기</button>
       </header>
       <div className="flex flex-1 overflow-hidden">
-        {/* 좌측 사이드바 */}
         <aside className="w-96 bg-white border-r flex flex-col shrink-0">
-           {/* 상단 탭 (모드 전환) */}
            <div className="flex border-b">
-             <button 
-               onClick={() => setMode('recommend')}
-               className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 ${mode === 'recommend' ? 'text-rose-600 border-b-2 border-rose-600 bg-rose-50' : 'text-slate-500 hover:bg-slate-50'}`}
-             >
-               <Lightbulb size={16}/> AI 주제 추천
-             </button>
-             <button 
-               onClick={() => setMode('manual')}
-               className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 ${mode === 'manual' ? 'text-rose-600 border-b-2 border-rose-600 bg-rose-50' : 'text-slate-500 hover:bg-slate-50'}`}
-             >
-               <PenTool size={16}/> 직접 입력
-             </button>
+             <button onClick={() => setMode('recommend')} className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 ${mode === 'recommend' ? 'text-rose-600 border-b-2 border-rose-600 bg-rose-50' : 'text-slate-500 hover:bg-slate-50'}`}><Lightbulb size={16}/> AI 주제 추천</button>
+             <button onClick={() => setMode('manual')} className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 ${mode === 'manual' ? 'text-rose-600 border-b-2 border-rose-600 bg-rose-50' : 'text-slate-500 hover:bg-slate-50'}`}><PenTool size={16}/> 직접 입력</button>
            </div>
 
-           {/* 공통 설정 (기업/직무) */}
            <div className="p-6 pb-2 space-y-3 bg-white">
              <h3 className="font-bold text-xs text-slate-400 uppercase tracking-wider mb-2">기본 정보 (필수)</h3>
              <input value={inputs.company} onChange={e=>setInputs({...inputs, company:e.target.value})} className="w-full p-3 border rounded-lg text-sm bg-slate-50 focus:bg-white transition-colors" placeholder="지원 기업명"/>
              <input value={inputs.job} onChange={e=>setInputs({...inputs, job:e.target.value})} className="w-full p-3 border rounded-lg text-sm bg-slate-50 focus:bg-white transition-colors" placeholder="지원 직무"/>
            </div>
 
-           {/* 모드별 콘텐츠 */}
            <div className="flex-1 overflow-y-auto p-4 pt-0">
              {mode === 'recommend' ? (
                <div className="space-y-4 pt-2">
@@ -603,17 +632,9 @@ function PtInterviewApp({ onClose }) {
                    <textarea value={inputs.request} onChange={e=>setInputs({...inputs, request:e.target.value})} className="w-full p-2 border rounded-lg text-sm h-16 resize-none mb-2 bg-white" placeholder="추가 요구사항 (예: 신사업 위주로)"/>
                    <button onClick={handleGenerateTopics} disabled={loading} className="w-full bg-rose-600 text-white py-2.5 rounded-lg font-bold shadow-sm hover:bg-rose-700 text-xs">{loading && topics.length === 0 ? <Loader2 className="animate-spin mx-auto w-4 h-4"/> : "주제 15개 추출하기"}</button>
                  </div>
-                 
                  <div className="space-y-2">
                    {topics.length > 0 ? topics.map((t, i) => (
-                     <button 
-                       key={i} 
-                       onClick={() => setSelectedTopic(t)}
-                       className={`w-full text-left p-3 rounded-xl text-sm transition-all border ${selectedTopic === t ? 'bg-rose-50 border-rose-500 text-rose-900 shadow-sm ring-1 ring-rose-200' : 'bg-white border-slate-100 text-slate-600 hover:bg-slate-50'}`}
-                     >
-                       <span className="font-bold text-rose-500 mr-2 text-xs">Q{i+1}.</span>
-                       <span className="line-clamp-2">{t}</span>
-                     </button>
+                     <button key={i} onClick={() => setSelectedTopic(t)} className={`w-full text-left p-3 rounded-xl text-sm transition-all border ${selectedTopic === t ? 'bg-rose-50 border-rose-500 text-rose-900 shadow-sm ring-1 ring-rose-200' : 'bg-white border-slate-100 text-slate-600 hover:bg-slate-50'}`}><span className="font-bold text-rose-500 mr-2 text-xs">Q{i+1}.</span><span className="line-clamp-2">{t}</span></button>
                    )) : <div className="text-center text-slate-400 py-8 text-xs">설정 입력 후 주제를 추출하세요.</div>}
                  </div>
                </div>
@@ -621,33 +642,17 @@ function PtInterviewApp({ onClose }) {
                <div className="pt-4 space-y-4">
                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                    <h3 className="font-bold text-sm text-slate-700 mb-2 flex items-center"><PenTool size={14} className="mr-2"/> 주제 직접 입력</h3>
-                   <textarea 
-                     value={manualTopic} 
-                     onChange={e=>setManualTopic(e.target.value)} 
-                     className="w-full p-3 border rounded-lg h-40 resize-none text-sm focus:ring-2 focus:ring-rose-200 outline-none" 
-                     placeholder="기출 주제나 준비 중인 주제를 상세히 입력하세요.&#13;&#10;(예: 우리 회사의 2030 타겟 마케팅 전략 수립)"
-                   />
-                 </div>
-                 <div className="text-xs text-slate-500 bg-white p-3 rounded-lg border border-slate-100">
-                   💡 Tip: 주제가 구체적일수록 더 완성도 높은 스크립트가 생성됩니다. 상황(Scenario)과 해결 과제를 명확히 적어주세요.
+                   <textarea value={manualTopic} onChange={e=>setManualTopic(e.target.value)} className="w-full p-3 border rounded-lg h-40 resize-none text-sm focus:ring-2 focus:ring-rose-200 outline-none" placeholder="기출 주제나 준비 중인 주제를 상세히 입력하세요.&#13;&#10;(예: 우리 회사의 2030 타겟 마케팅 전략 수립)"/>
                  </div>
                </div>
              )}
            </div>
 
-           {/* 하단 생성 버튼 (공통) */}
            <div className="p-4 border-t bg-white">
-             <button 
-               onClick={handleGenerateScript} 
-               disabled={loading || (mode === 'recommend' && !selectedTopic) || (mode === 'manual' && !manualTopic)}
-               className="w-full bg-slate-800 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-slate-900 disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all active:scale-95"
-             >
-               {loading ? <Loader2 className="animate-spin w-5 h-5"/> : <>스크립트 생성 <ArrowRight size={18}/></>}
-             </button>
+             <button onClick={handleGenerateScript} disabled={loading || (mode === 'recommend' && !selectedTopic) || (mode === 'manual' && !manualTopic)} className="w-full bg-slate-800 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-slate-900 disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all active:scale-95">{loading ? <Loader2 className="animate-spin w-5 h-5"/> : <>스크립트 생성 <ArrowRight size={18}/></>}</button>
            </div>
         </aside>
 
-        {/* 우측 메인: 콘텐츠 */}
         <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
            {script ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-2xl p-12 flex flex-col animate-in fade-in slide-in-from-bottom-4">
              <div className="border-b-4 border-rose-500 pb-6 mb-8">
@@ -847,8 +852,11 @@ function ExperienceStructuringApp({ onClose }) {
   );
 }
 
+// [수정됨] 롤모델 분석 앱 - 추가 입력 필드(어록, 책) 및 프롬프트 반영
 function RoleModelGuideApp({ onClose }) {
-  const [data, setData] = useState({ name: '', role: '', intro: '', quotes: '', media: '', reason: '' });
+  // [수정] 입력 상태 분리: userQuotes, userBooks 추가
+  const [inputs, setInputs] = useState({ name: '', userQuotes: '', userBooks: '' });
+  const [result, setResult] = useState(null); // 결과 데이터는 result에 저장
   const [loading, setLoading] = useState(false);
   const [toastMsg, setToastMsg] = useState(null);
   const reportRef = useRef(null);
@@ -856,16 +864,33 @@ function RoleModelGuideApp({ onClose }) {
   const showToast = (msg) => setToastMsg(msg);
 
   const handleAIAnalysis = async () => {
-    if (!data.name) return showToast("이름을 입력해주세요.");
+    if (!inputs.name) return showToast("이름을 입력해주세요.");
     setLoading(true);
     try {
-      const prompt = `롤모델 '${data.name}' 분석. 이 인물의 최신 근황과 업적을 포함하여 분석해줘. JSON: { "role": "...", "intro": "...", "quotes": "...", "media": "...", "reason": "..." }`;
+      // [수정] 프롬프트에 사용자 입력 정보 추가
+      const prompt = `롤모델 '${inputs.name}' 분석. 
+      [사용자 추가 정보]
+      - 감명 깊게 본 어록: ${inputs.userQuotes || '없음'}
+      - 관련 책/매체: ${inputs.userBooks || '없음'}
+
+      위 인물의 최신 근황과 업적을 포함하여 분석해줘.
+      특히 사용자가 입력한 어록이나 책이 있다면, 해당 내용이 왜 중요한지, 어떤 교훈을 주는지 '명언(quotes)'이나 '매체(media)' 섹션에 잘 녹여내줘.
+      
+      JSON: { 
+        "role": "인물의 대표 직함 또는 수식어", 
+        "intro": "인물 소개 및 주요 업적 (최신 근황 포함)", 
+        "quotes": "주요 명언 (사용자 입력 어록이 있다면 포함하여 구성)", 
+        "media": "추천 도서나 매체 (사용자 입력 책이 있다면 포함)", 
+        "reason": "면접에서 이 인물을 롤모델로 언급할 때의 활용 포인트 및 본받을 점" 
+      }`;
       const parsed = await fetchGemini(prompt);
-      setData(prev => ({ ...prev, ...parsed }));
+      // [수정] 결과에 이름 포함하여 저장
+      setResult({ ...parsed, name: inputs.name }); 
     } catch (e) { showToast(e.message); } finally { setLoading(false); }
   };
-  const handleEdit = (key, value) => setData(prev => ({ ...prev, [key]: value }));
-  const handleDownload = () => saveAsPng(reportRef, `롤모델_${data.name}`, showToast);
+
+  const handleEdit = (key, value) => setResult(prev => ({ ...prev, [key]: value }));
+  const handleDownload = () => saveAsPng(reportRef, `롤모델_${result?.name || inputs.name}`, showToast);
   
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
@@ -877,11 +902,75 @@ function RoleModelGuideApp({ onClose }) {
       <div className="flex flex-1 overflow-hidden">
         <aside className="w-80 bg-white border-r p-6 shrink-0"><div className="space-y-5">
           <h3 className="font-bold text-sm text-orange-700 flex items-center uppercase tracking-wider"><Search size={16} className="mr-2"/> 인물 검색</h3>
-          <input value={data.name} onChange={e=>setData({...data, name:e.target.value})} className="w-full p-3 border border-slate-300 rounded-xl font-bold text-lg focus:ring-2 focus:ring-orange-500 outline-none" placeholder="예: 스티브 잡스" onKeyDown={(e) => e.key === 'Enter' && handleAIAnalysis()}/>
+          {/* [수정] 입력 필드 바인딩 변경 data -> inputs */}
+          <input value={inputs.name} onChange={e=>setInputs({...inputs, name:e.target.value})} className="w-full p-3 border border-slate-300 rounded-xl font-bold text-lg focus:ring-2 focus:ring-orange-500 outline-none" placeholder="예: 스티브 잡스"/>
+          
+          <div className="pt-4 border-t border-slate-100 space-y-3">
+            <h4 className="text-xs font-bold text-slate-400 uppercase">선택 옵션 (Optional)</h4>
+            <div>
+              <label className="text-xs text-slate-500 mb-1 block">감명 깊은 어록</label>
+              <textarea 
+                value={inputs.userQuotes} 
+                onChange={e=>setInputs({...inputs, userQuotes:e.target.value})} 
+                className="w-full p-3 border rounded-lg text-sm h-20 resize-none bg-slate-50 focus:bg-white" 
+                placeholder="인상 깊었던 명언이 있다면 적어주세요."
+              />
+            </div>
+            <div>
+              <label className="text-xs text-slate-500 mb-1 block">관련 책 / 영상</label>
+              <input 
+                value={inputs.userBooks} 
+                onChange={e=>setInputs({...inputs, userBooks:e.target.value})} 
+                className="w-full p-3 border rounded-lg text-sm bg-slate-50 focus:bg-white" 
+                placeholder="책 제목이나 영상 등"
+              />
+            </div>
+          </div>
+
           <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-orange-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"분석 시작"}</button>
         </div></aside>
-        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{data.role ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-lg p-10 flex flex-col animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-orange-500 pb-6"><span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-xs font-bold">ROLE MODEL</span><h1 className="text-4xl font-extrabold mt-3">{data.name}</h1><EditableContent className="text-slate-500 text-lg mt-1" value={data.role} onSave={(v)=>handleEdit('role', v)} /></div><div className="flex-1 space-y-8 mt-8"><div className="flex gap-8 items-start"><div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center shrink-0"><User className="w-8 h-8 text-orange-600"/></div><EditableContent className="text-slate-700 leading-loose text-lg flex-1" value={data.intro} onSave={(v)=>handleEdit('intro', v)} /></div><div className="bg-orange-50 p-8 rounded-2xl italic text-orange-900 font-serif text-xl border-l-8 border-orange-400 leading-relaxed"><EditableContent className="text-center" value={data.quotes} onSave={(v)=>handleEdit('quotes', v)} /></div><div className="border-t border-slate-200 pt-8"><h3 className="font-bold text-xl mb-4 flex items-center text-slate-800"><MessageSquare className="mr-2 text-orange-500"/> 면접 활용 Tip</h3><EditableContent className="text-slate-600 leading-relaxed text-lg" value={data.reason} onSave={(v)=>handleEdit('reason', v)} /></div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><Award className="w-4 h-4 mr-1 text-orange-500" /><span>Career Vitamin</span></div><span>AI-Powered Role Model Analysis</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Award size={64} className="mb-4 opacity-20"/><p>롤모델 이름을 입력하세요.</p></div>}</main>
-        {data.role && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
+        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
+          {/* [수정] 결과 표시 로직 data -> result */}
+          {result ? (
+            <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-lg p-10 flex flex-col animate-in fade-in zoom-in-95 duration-500">
+              <div className="border-b-4 border-orange-500 pb-6">
+                <span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-xs font-bold">ROLE MODEL</span>
+                <h1 className="text-4xl font-extrabold mt-3">{result.name}</h1>
+                <EditableContent className="text-slate-500 text-lg mt-1" value={result.role} onSave={(v)=>handleEdit('role', v)} />
+              </div>
+              <div className="flex-1 space-y-8 mt-8">
+                <div className="flex gap-8 items-start">
+                  <div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center shrink-0"><User className="w-8 h-8 text-orange-600"/></div>
+                  <EditableContent className="text-slate-700 leading-loose text-lg flex-1" value={result.intro} onSave={(v)=>handleEdit('intro', v)} />
+                </div>
+                <div className="bg-orange-50 p-8 rounded-2xl italic text-orange-900 font-serif text-xl border-l-8 border-orange-400 leading-relaxed">
+                  <EditableContent className="text-center" value={result.quotes} onSave={(v)=>handleEdit('quotes', v)} />
+                </div>
+                {/* [추가] 미디어 섹션이 있으면 표시 */}
+                {result.media && (
+                  <div className="bg-slate-50 p-6 rounded-xl border border-slate-200">
+                    <h4 className="font-bold text-sm text-slate-500 mb-2 flex items-center"><BookOpen size={16} className="mr-2"/> 추천 자료</h4>
+                    <EditableContent className="text-slate-700" value={result.media} onSave={(v)=>handleEdit('media', v)} />
+                  </div>
+                )}
+                <div className="border-t border-slate-200 pt-8">
+                  <h3 className="font-bold text-xl mb-4 flex items-center text-slate-800"><MessageSquare className="mr-2 text-orange-500"/> 면접 활용 Tip</h3>
+                  <EditableContent className="text-slate-600 leading-relaxed text-lg" value={result.reason} onSave={(v)=>handleEdit('reason', v)} />
+                </div>
+              </div>
+              <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto">
+                <div className="flex items-center"><Award className="w-4 h-4 mr-1 text-orange-500" /><span>Career Vitamin</span></div>
+                <span>AI-Powered Role Model Analysis</span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-slate-400">
+              <Award size={64} className="mb-4 opacity-20"/>
+              <p>롤모델 이름을 입력하세요.</p>
+            </div>
+          )}
+        </main>
+        {result && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
       </div>
     </div>
   );
@@ -944,6 +1033,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [role, setRole] = useState('guest'); 
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [expertName, setExpertName] = useState(''); // 전문가 실명 상태 추가
   const [experts, setExperts] = useState([]);
   const [newExpertEmail, setNewExpertEmail] = useState('');
   const [newExpertName, setNewExpertName] = useState(''); 
@@ -963,6 +1053,13 @@ export default function App() {
           const s = await getDocs(q);
           if (!s.empty) {
             setRole('expert');
+            // [수정] 전문가 인증 시 등록된 이름 가져와서 저장
+            const expertDoc = s.docs[0];
+            const expertData = expertDoc.data();
+            if (expertData.displayName) {
+              setExpertName(expertData.displayName);
+            }
+
             s.docs.forEach(async (docSnapshot) => {
               if (docSnapshot.data().uid !== u.uid) {
                 await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts', docSnapshot.id), {
@@ -971,9 +1068,16 @@ export default function App() {
                 }).catch(console.error);
               }
             });
-          } else setRole('guest');
+          } else {
+            setRole('guest');
+            setExpertName('');
+          }
         }
-      } else { setUser(null); setRole('guest'); }
+      } else { 
+        setUser(null); 
+        setRole('guest'); 
+        setExpertName('');
+      }
     });
     return () => unsubscribe();
   }, []);
@@ -1034,7 +1138,10 @@ export default function App() {
           {role === 'owner' && <button onClick={()=>setActiveTab('admin')} className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-colors ${activeTab==='admin'?'bg-indigo-600 text-white':'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Settings size={18}/> 시스템 관리</button>}
         </nav>
         <div className="p-4 border-t border-slate-700">
-          <div className="text-xs text-slate-500 mb-2 px-2">{user.displayName}님 ({role === 'owner' ? '관리자' : '전문가'})</div>
+          <div className="text-xs text-slate-500 mb-2 px-2">
+            {role === 'expert' && expertName ? expertName : user.displayName}님 
+            ({role === 'owner' ? '관리자' : '전문가'})
+          </div>
           <button onClick={()=>signOut(auth)} className="w-full border border-slate-600 text-slate-400 py-2 rounded hover:bg-slate-800 hover:text-white transition-colors flex items-center justify-center gap-2"><LogOut size={16}/> 로그아웃</button>
           <div className="mt-4 text-xs text-center text-slate-600 opacity-50">v7.2 (Toast Updated)</div>
         </div>

@@ -19,7 +19,9 @@ import {
   query, 
   where,
   getDocs,
-  updateDoc 
+  updateDoc,
+  setDoc,
+  getDoc
 } from "firebase/firestore";
 import { 
   LayoutDashboard, Map, Building2, LogOut, Plus, Trash2, 
@@ -73,9 +75,7 @@ const safeJsonParse = (str) => {
   if (!str) return null;
   try { return JSON.parse(str); } catch (e) {
     try {
-      // 마크다운 코드 블록 제거 및 정제
       let cleaned = str.replace(/```json/g, '').replace(/```/g, '').trim();
-      // 중괄호로 시작하고 끝나는 부분만 추출 시도
       const firstBrace = cleaned.indexOf('{');
       const lastBrace = cleaned.lastIndexOf('}');
       const firstBracket = cleaned.indexOf('[');
@@ -102,7 +102,7 @@ const renderText = (content) => {
   return content;
 };
 
-// PNG 저장 함수 (Wrapper 방식 - 배경 잘림 해결)
+// PNG 저장 함수 (Wrapper 방식)
 const saveAsPng = async (elementRef, fileName, showToast) => {
   if (!elementRef.current) return;
   
@@ -121,7 +121,6 @@ const saveAsPng = async (elementRef, fileName, showToast) => {
     const width = originalElement.offsetWidth;
     const height = originalElement.scrollHeight; 
 
-    // 1. 캡처용 임시 컨테이너 생성 (흰색 배경 보장)
     const container = document.createElement('div');
     container.style.position = 'absolute';
     container.style.left = '-9999px';
@@ -133,10 +132,8 @@ const saveAsPng = async (elementRef, fileName, showToast) => {
     container.style.flexDirection = 'column';
     document.body.appendChild(container);
 
-    // 2. 요소 복제 및 컨테이너 삽입
     const clone = originalElement.cloneNode(true);
     
-    // 복제본 스타일 초기화 (스크롤 제거, 전체 펼치기)
     clone.style.height = 'auto';
     clone.style.maxHeight = 'none';
     clone.style.overflow = 'visible';
@@ -147,7 +144,6 @@ const saveAsPng = async (elementRef, fileName, showToast) => {
     
     container.appendChild(clone);
 
-    // 3. 캡처 실행 (컨테이너 기준)
     await new Promise(resolve => setTimeout(resolve, 100));
 
     const canvas = await window.html2canvas(container, {
@@ -166,7 +162,6 @@ const saveAsPng = async (elementRef, fileName, showToast) => {
       scrollY: 0
     });
     
-    // 4. 정리
     document.body.removeChild(container);
     
     const link = document.createElement('a');
@@ -180,10 +175,26 @@ const saveAsPng = async (elementRef, fileName, showToast) => {
   }
 };
 
+// [수정됨] API 키 관리 로직: DB 우선 조회
 const fetchGemini = async (prompt) => {
-  const apiKey = localStorage.getItem("custom_gemini_key");
+  // 1. 브라우저 저장소 확인 (개발자 오버라이드용)
+  let apiKey = localStorage.getItem("custom_gemini_key");
+
+  // 2. 없으면 Firestore에서 공용 키 조회
   if (!apiKey) {
-    throw new Error("API 키가 없습니다. [시스템 관리]에서 키를 등록해주세요.");
+    try {
+      const docRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'system_config');
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists() && docSnap.data().shared_api_key) {
+        apiKey = docSnap.data().shared_api_key;
+      }
+    } catch (dbError) {
+      console.error("DB Key Fetch Error:", dbError);
+    }
+  }
+
+  if (!apiKey) {
+    throw new Error("시스템에 AI 키가 설정되지 않았습니다. 관리자에게 문의하세요.");
   }
   
   const models = ["gemini-2.5-flash-preview-09-2025", "gemini-2.5-pro"];
@@ -274,7 +285,7 @@ const COLOR_VARIANTS = {
   orange: "bg-orange-100 text-orange-600",
 };
 
-// [수정됨] 기업분석 앱 - 구조 확장
+// [수정됨] 기업분석 앱
 function CompanyAnalysisApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', url: '', job: '' });
   const [result, setResult] = useState(null);
@@ -366,7 +377,7 @@ function CompanyAnalysisApp({ onClose }) {
               </div>
               
               <div className="space-y-10 flex-1">
-                {/* 1. 기업 개요 (확장됨) */}
+                {/* 1. 기업 개요 */}
                 <section>
                   <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center border-b-2 border-indigo-100 pb-2"><Building2 size={24} className="mr-2"/> 1. 기업 개요 및 현황</h3>
                   <div className="space-y-4">
@@ -415,7 +426,7 @@ function CompanyAnalysisApp({ onClose }) {
                   </div>
                 </section>
 
-                {/* 3. 산업 동향 & 경쟁 우위 (신설) */}
+                {/* 3. 산업 동향 & 경쟁 우위 */}
                 <section>
                    <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center border-b-2 border-indigo-100 pb-2"><Globe size={24} className="mr-2"/> 3. 시장 및 경쟁 분석</h3>
                    <div className="space-y-4">
@@ -539,7 +550,6 @@ function CareerRoadmapApp({ onClose }) {
   );
 }
 
-// [수정됨] PT 면접 앱 - 2가지 모드 (주제 추천 / 직접 입력) 및 본론 생성 강화
 function PtInterviewApp({ onClose }) {
   const [mode, setMode] = useState('recommend'); 
   const [inputs, setInputs] = useState({ company: '', job: '', request: '' });

@@ -175,8 +175,8 @@ const fetchGemini = async (prompt) => {
     throw new Error("API 키가 없습니다. [시스템 관리]에서 키를 등록해주세요.");
   }
   
-  // Google Search Grounding을 지원하는 모델 위주로 구성
-  const models = ["gemini-2.5-pro", "gemini-1.5-pro", "gemini-1.5-flash"];
+  // 시도할 모델 목록 (순서대로 시도)
+  const models = ["gemini-2.5-flash-lite", "gemini-2.5-pro"];
   let lastError = null;
 
   for (const model of models) {

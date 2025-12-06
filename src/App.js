@@ -31,7 +31,7 @@ import {
   Info
 } from 'lucide-react';
 
-// html2canvas import 제거 (CDN 동적 로드로 변경)
+// html2canvas import 제거 (CDN 동적 로드 유지)
 
 // =============================================================================
 // [설정 구역]
@@ -57,7 +57,6 @@ const db = getFirestore(app);
 
 // --- Helpers ---
 
-// 간단한 토스트 메시지 컴포넌트 (alert 대체)
 const Toast = ({ message, onClose }) => {
   useEffect(() => {
     const timer = setTimeout(onClose, 3000);
@@ -83,7 +82,6 @@ const safeJsonParse = (str) => {
   }
 };
 
-// 텍스트 렌더링 (줄바꿈 처리 강화)
 const renderText = (content) => {
   if (!content) return '';
   if (Array.isArray(content)) return content.join('\n');
@@ -91,12 +89,11 @@ const renderText = (content) => {
   return content;
 };
 
-// PNG 저장 함수 개선 (배경 잘림 방지 강화)
+// [수정됨] PNG 저장 함수 개선 (높이 계산 및 배경 처리 강화)
 const saveAsPng = async (elementRef, fileName, showToast) => {
   if (!elementRef.current) return;
   
   try {
-    // html2canvas 동적 로드
     if (!window.html2canvas) {
       await new Promise((resolve, reject) => {
         const script = document.createElement('script');
@@ -109,56 +106,62 @@ const saveAsPng = async (elementRef, fileName, showToast) => {
 
     const element = elementRef.current;
     
-    // 1. 현재 스타일 백업
+    // 1. 스타일 백업
     const originalStyle = {
       height: element.style.height,
       minHeight: element.style.minHeight,
       maxHeight: element.style.maxHeight,
       overflow: element.style.overflow,
       backgroundColor: element.style.backgroundColor,
-      width: element.style.width,
-      position: element.style.position
+      borderRadius: element.style.borderRadius,
+      boxShadow: element.style.boxShadow
     };
 
-    // 2. 캡처를 위한 스타일 강제 조정 (전체 내용 표시 및 배경 확보)
-    element.style.backgroundColor = '#ffffff'; // 배경을 강제로 흰색으로 설정
-    element.style.height = 'auto'; // 높이를 내용에 맞게 자동으로 늘림
-    element.style.minHeight = 'auto'; 
-    element.style.maxHeight = 'none'; // 최대 높이 제한 해제
-    element.style.overflow = 'visible'; // 스크롤 없이 전체 표시
-    // element.style.width = '210mm'; // 너비 고정 (A4 규격 유지 시 필요하다면 주석 해제)
+    // 2. 캡처용 스타일 강제 적용
+    // 전체 내용을 포함하도록 높이를 scrollHeight로 고정하고, 배경을 흰색으로 덮음
+    const fullHeight = element.scrollHeight;
+    element.style.height = `${fullHeight}px`;
+    element.style.minHeight = `${fullHeight}px`;
+    element.style.maxHeight = 'none';
+    element.style.overflow = 'visible';
+    element.style.backgroundColor = '#ffffff'; 
+    element.style.borderRadius = '0'; // 저장 시 둥근 모서리 제거 (선택사항)
+    element.style.boxShadow = 'none'; // 그림자 제거하여 깔끔하게
 
-    // 3. 캡처 실행
+    // 3. html2canvas 실행
     const canvas = await window.html2canvas(element, {
-      scale: 2, // 고해상도
-      useCORS: true, 
-      allowTaint: true, // 크로스 오리진 이미지 허용 시도
+      scale: 2, // 해상도 2배
+      useCORS: true,
       logging: false,
-      backgroundColor: '#ffffff', // 캔버스 배경색
-      width: element.scrollWidth,
-      height: element.scrollHeight,
-      scrollY: 0, // 스크롤 위치 초기화 (위쪽 잘림 방지)
-      windowWidth: document.documentElement.scrollWidth, // 전체 너비 확보
-      windowHeight: document.documentElement.scrollHeight // 전체 높이 확보
+      allowTaint: true,
+      backgroundColor: '#ffffff', // 캔버스 배경색 흰색
+      width: element.offsetWidth, 
+      height: fullHeight, // 전체 높이 명시
+      windowWidth: element.scrollWidth, // 가상 윈도우 너비 확보
+      windowHeight: fullHeight + 1000, // 가상 윈도우 높이를 충분히 확보하여 잘림 방지
+      x: 0,
+      y: 0,
+      scrollX: 0,
+      scrollY: 0
     });
     
-    // 4. 스타일 원상 복구
+    // 4. 스타일 원복
     element.style.height = originalStyle.height;
     element.style.minHeight = originalStyle.minHeight;
     element.style.maxHeight = originalStyle.maxHeight;
     element.style.overflow = originalStyle.overflow;
     element.style.backgroundColor = originalStyle.backgroundColor;
-    element.style.width = originalStyle.width;
-    element.style.position = originalStyle.position;
+    element.style.borderRadius = originalStyle.borderRadius;
+    element.style.boxShadow = originalStyle.boxShadow;
     
     const link = document.createElement('a');
     link.download = `${fileName}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
-    if(showToast) showToast("이미지가 저장되었습니다.");
+    if(showToast) showToast("성공적으로 저장되었습니다.");
   } catch (error) {
     console.error("이미지 저장 실패:", error);
-    if(showToast) showToast("이미지 저장 중 오류가 발생했습니다.");
+    if(showToast) showToast("저장 중 오류가 발생했습니다. 다시 시도해주세요.");
   }
 };
 
@@ -168,7 +171,6 @@ const fetchGemini = async (prompt) => {
     throw new Error("API 키가 없습니다. [시스템 관리]에서 키를 등록해주세요.");
   }
   
-  // 상위 버전 모델 우선 시도
   const models = ["gemini-2.5-flash-lite", "gemini-2.5-pro", "gemini-1.5-flash"];
   let lastError = null;
 
@@ -203,7 +205,6 @@ const fetchGemini = async (prompt) => {
   throw lastError || new Error("모든 AI 모델이 응답하지 않습니다.");
 };
 
-// --- UI Components for Editing ---
 const EditableContent = ({ value, onSave, className }) => {
   return (
     <div
@@ -217,7 +218,6 @@ const EditableContent = ({ value, onSave, className }) => {
   );
 };
 
-// --- Constants ---
 const SERVICES = {
   gpt_guide: { name: "[GPT] 직업 탐색 가이드", desc: "관심 있는 직업/직무 입력 시 가이드 생성", link: "https://chatgpt.com/g/g-Uch9gJR4b-job-explorer-guide-report", internal: false, icon: Compass, color: "emerald" },
   card_bot: { name: "[노트북LM] 커리어스타일 챗봇", desc: "유료 프로그램 전용 챗봇", link: "https://notebooklm.google.com/notebook/595da4c0-fcc1-4064-82c8-9901e6dd8772", internal: false, icon: MessageSquare, color: "violet" },
@@ -243,9 +243,8 @@ const COLOR_VARIANTS = {
   orange: "bg-orange-100 text-orange-600",
 };
 
-// --- Sub Components (Apps) ---
+// --- Sub Components ---
 
-// 1. 기업분석 앱
 function CompanyAnalysisApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', url: '', job: '' });
   const [result, setResult] = useState(null);
@@ -371,7 +370,6 @@ function CompanyAnalysisApp({ onClose }) {
   );
 }
 
-// 2. 커리어 로드맵 앱
 function CareerRoadmapApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', job: '', years: '5' });
   const [roadmapData, setRoadmapData] = useState(null); 
@@ -459,7 +457,7 @@ function CareerRoadmapApp({ onClose }) {
   );
 }
 
-// 3. PT 면접 앱
+// [수정됨] PT 면접 앱 - 프롬프트 강화
 function PtInterviewApp({ onClose }) {
   const [step, setStep] = useState('input'); 
   const [inputs, setInputs] = useState({ company: '', job: '', request: '' });
@@ -476,7 +474,12 @@ function PtInterviewApp({ onClose }) {
     if (!inputs.company) return showToast("기업명을 입력해주세요.");
     setLoading(true);
     try {
-      const prompt = `기업:${inputs.company}, 직무:${inputs.job}, 요구사항:${inputs.request}. PT 면접 주제 5개 추천. JSON Array only: ["주제1", "주제2"...]`;
+      // 프롬프트 수정: 기업 특화 및 구체적 주제 요구
+      const prompt = `지원 기업: ${inputs.company}, 지원 직무: ${inputs.job}, 추가 요구사항: ${inputs.request}. 
+      해당 기업의 최신 이슈, 비즈니스 과제, 그리고 해당 직무에서 실제로 마주할 수 있는 실무적인 문제 상황을 반영하여, 논리적인 해결책 제시가 필요한 고품질 PT 면접 주제 5개를 추천해줘.
+      단순히 '장단점 분석' 같은 주제보다는 '구체적인 상황(Scenario)과 해결 과제'가 명시된 주제여야 함.
+      Format: JSON Array of strings (e.g., ["주제1...", "주제2..."])`;
+      
       const parsed = await fetchGemini(prompt);
       if(parsed) { setTopics(parsed); setStep('list'); }
     } catch (e) { showToast(e.message); } finally { setLoading(false); }
@@ -486,7 +489,9 @@ function PtInterviewApp({ onClose }) {
     setLoading(true);
     setSelectedTopic(topic);
     try {
-      const prompt = `PT주제: "${topic}", 기업:${inputs.company}. 발표 대본(서론/본론/결론). JSON: {"intro": "...", "body": "...", "conclusion": "..."}`;
+      const prompt = `PT주제: "${topic}", 기업:${inputs.company}. 
+      전문적인 PT 발표 대본을 작성해줘. 서론-본론-결론 구조를 갖추고, 논리적 근거와 구체적인 실행 방안을 포함할 것.
+      JSON: {"intro": "청중의 이목을 끄는 서론...", "body": "핵심 주장과 2-3가지 상세 근거...", "conclusion": "요약 및 강한 마무리..."}`;
       const parsed = await fetchGemini(prompt);
       if(parsed) { setScript(parsed); setStep('detail'); }
     } catch(e){ showToast(e.message); } finally { setLoading(false); }
@@ -508,7 +513,7 @@ function PtInterviewApp({ onClose }) {
              <h3 className="font-bold text-sm text-rose-700 flex items-center uppercase tracking-wider"><Settings size={16} className="mr-2"/> 기본 설정</h3>
              <input value={inputs.company} onChange={e=>setInputs({...inputs, company:e.target.value})} className="w-full p-3 border rounded-lg" placeholder="지원 기업명"/>
              <input value={inputs.job} onChange={e=>setInputs({...inputs, job:e.target.value})} className="w-full p-3 border rounded-lg" placeholder="지원 직무"/>
-             <textarea value={inputs.request} onChange={e=>setInputs({...inputs, request:e.target.value})} className="w-full p-3 border rounded-lg h-24 resize-none" placeholder="추가 요구사항"/>
+             <textarea value={inputs.request} onChange={e=>setInputs({...inputs, request:e.target.value})} className="w-full p-3 border rounded-lg h-24 resize-none" placeholder="추가 요구사항 (예: 신사업 기획 위주로, 마케팅 전략 위주로 등)"/>
              <button onClick={handleGenerateTopics} disabled={loading} className="w-full bg-rose-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"주제 추출 시작"}</button>
            </div>}
            {step === 'list' && <div className="space-y-3">
@@ -547,7 +552,6 @@ function PtInterviewApp({ onClose }) {
   );
 }
 
-// 4. 상황면접 앱 (수정 가능)
 function SituationInterviewApp({ onClose }) {
   const [inputs, setInputs] = useState({ question: '', criteria: '' });
   const [result, setResult] = useState(null);
@@ -597,7 +601,6 @@ function SituationInterviewApp({ onClose }) {
   );
 }
 
-// 5. 1분 자기소개 앱 (수정 가능)
 function SelfIntroApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', job: '', concept: 'competency', keyword: '', exp: '' });
   const [script, setScript] = useState(null); 
@@ -649,7 +652,6 @@ function SelfIntroApp({ onClose }) {
   );
 }
 
-// 6. STAR 경험 구조화 앱 (수정 가능)
 function ExperienceStructuringApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', job: '', keyword: '', desc: '' });
   const [starData, setStarData] = useState({ s: '', t: '', a: '', r: '' });
@@ -697,7 +699,6 @@ function ExperienceStructuringApp({ onClose }) {
   );
 }
 
-// 7. 롤모델 분석 앱 (수정 가능)
 function RoleModelGuideApp({ onClose }) {
   const [data, setData] = useState({ name: '', role: '', intro: '', quotes: '', media: '', reason: '' });
   const [loading, setLoading] = useState(false);
@@ -738,7 +739,6 @@ function RoleModelGuideApp({ onClose }) {
   );
 }
 
-// 8. 나를 찾는 지도 앱 (수정 가능)
 function SelfDiscoveryMapApp({ onClose }) {
   const [profile, setProfile] = useState({ name: '', targetJob: '', date: new Date().toISOString().split('T')[0] });
   const [keywords, setKeywords] = useState([]);

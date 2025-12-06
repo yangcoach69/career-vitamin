@@ -5,8 +5,7 @@ import {
   signInWithPopup, 
   GoogleAuthProvider, 
   signOut, 
-  onAuthStateChanged,
-  signInWithCustomToken
+  onAuthStateChanged
 } from "firebase/auth";
 import { 
   getFirestore, 
@@ -21,65 +20,20 @@ import {
   updateDoc 
 } from "firebase/firestore";
 import { 
-  LayoutDashboard, 
-  Users, 
-  Map, 
-  Building2, 
-  PenTool, 
-  LogOut, 
-  Plus, 
-  Trash2, 
-  ShieldCheck, 
-  Settings,
-  Loader2,
-  RefreshCw,
-  Copy,
-  Check,
-  ExternalLink,
-  Ban,
-  Home,
-  User,
-  Hash,
-  Star,
-  Printer,
-  X,
-  ChevronLeft,
-  Compass,
-  Play,
-  Lock,
-  MessageSquare,
-  Sparkles, 
-  Briefcase,
-  ClipboardCheck,
-  Stethoscope,
-  Award,
-  Search,
-  BookOpen,
-  Quote,
-  Download,
-  TrendingUp, 
-  Calendar,
-  Target,
-  Edit3,
-  MonitorPlay,
-  Zap,
-  LayoutList,
-  Split, 
-  Mic,
-  BarChart3,
-  Link as LinkIcon,
-  Globe,
-  Trophy
+  LayoutDashboard, Map, Building2, LogOut, Plus, Trash2, 
+  Settings, Loader2, RefreshCw, Check, 
+  User, Hash, Star, X, ChevronLeft, Compass, 
+  MessageSquare, Sparkles, Award, Search, BookOpen, Quote, Download, TrendingUp, Calendar, Target, 
+  Edit3, MonitorPlay, Zap, LayoutList, Split, Mic, BarChart3, Link as LinkIcon, 
+  Globe, Trophy, Stethoscope
 } from 'lucide-react';
 
 // =============================================================================
-// [필수 설정 구역] 배포 시 따옴표 안에 본인의 키 값을 붙여넣으세요!
+// [설정 구역]
 // =============================================================================
 
-// 1. Google Gemini API Key
-const apiKey = "AIzaSyBX0kT7I3yanNNxI-xj7KMoxVmIkPAP5ug"; // API Key
+const GOOGLE_GEMINI_API_KEY = "AIzaSyBX0kT7I3yanNNxI-xj7KMoxVmIkPAP5ug"; 
 
-// Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyCNc2Ht2PJAdcxfXraBwu6Afj02dUEV0gM",
   authDomain: "career-vitamin.firebaseapp.com",
@@ -89,38 +43,15 @@ const firebaseConfig = {
   appId: "1:1056766630872:web:5d2149f6a0f0fd5cd130ad"
 };
 
-// 3. 관리자 UID (현재 설정된 값 유지)
 const OWNER_UID = "16844976501121414234"; 
+const APP_ID = 'career-vitamin'; 
 
 // =============================================================================
 
-// System Initialization
-let app, auth, db;
-let activeConfig = manualFirebaseConfig;
-let activeApiKey = manualApiKey;
-
-// (1) 미리보기 환경 자동 감지
-if (typeof __firebase_config !== 'undefined' && !manualFirebaseConfig.apiKey) {
-  try {
-    activeConfig = JSON.parse(__firebase_config);
-  } catch (e) { console.error("Config parsing failed", e); }
-}
-if (typeof apiKey !== 'undefined' && !manualApiKey) {
-   // Canvas environment apiKey handling if needed
-}
-
-// (2) Firebase Init
-try {
-  if (activeConfig && activeConfig.apiKey) {
-    app = initializeApp(activeConfig);
-    auth = getAuth(app);
-    db = getFirestore(app);
-  }
-} catch (e) {
-  console.error("Firebase Init Error:", e);
-}
-
-const appId = 'career-vitamin'; 
+// Firebase 초기화
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
 // Helper: HTML2Canvas Loader
 const loadHtml2Canvas = () => {
@@ -160,7 +91,7 @@ const renderText = (content) => {
   return content;
 };
 
-// --- Constants ---
+// --- Data Constants ---
 const CATEGORIES = [
   { id: 'ai_tools', title: 'AI 코칭 어시스턴트', icon: Sparkles }
 ];
@@ -179,7 +110,7 @@ const SERVICES = {
 };
 
 // =============================================================================
-// [Sub Apps]
+// [Sub Apps Components]
 // =============================================================================
 
 function CompanyAnalysisApp({ onClose }) {
@@ -209,46 +140,38 @@ function CompanyAnalysisApp({ onClose }) {
         5. 취업 전략: 위 분석을 토대로 해당 직무 지원자가 어필해야 할 구체적인 전략을 제시하세요.
 
         반드시 다음 JSON 형식으로만 답변하세요. (마크다운 펜스 없이)
-
-        {
-          "overview": {
-            "vision": "비전 및 미션 요약",
-            "values": "핵심가치 및 인재상 키워드"
-          },
-          "business": {
-            "history": "주요 연혁 요약",
-            "biz_area": "주요 사업 영역 설명",
-            "issues": ["최신 이슈 1", "최신 이슈 2", "최신 이슈 3"]
-          },
-          "market": {
-            "trends": "국내외 산업 동향 요약",
-            "swot": {
-              "s": "Strengths (강점)",
-              "w": "Weaknesses (약점)",
-              "o": "Opportunities (기회)",
-              "t": "Threats (위협)"
-            }
-          },
-          "competitor": "경쟁사 대비 긍정적 차이점 (USP)",
-          "strategy": "직무 맞춤형 취업/면접 전략"
-        }
+        { "overview": { "vision": "...", "values": "..." }, "business": { "history": "...", "biz_area": "...", "issues": ["...", "...", "..."] }, "market": { "trends": "...", "swot": { "s": "...", "w": "...", "o": "...", "t": "..." } }, "competitor": "...", "strategy": "..." }
       `;
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${activeApiKey || apiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GOOGLE_GEMINI_API_KEY}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
       });
       const data = await response.json();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
       const parsed = safeJsonParse(text);
-      if (parsed) setResult(parsed);
-      else alert("AI 분석 결과를 가져오지 못했습니다.");
+      if (parsed) {
+        setResult(parsed);
+      } else {
+        alert("AI 분석 결과를 가져오지 못했습니다.");
+      }
     } catch (e) { 
         console.error(e);
         alert("오류가 발생했습니다."); 
     } finally { setLoading(false); }
   };
-  const handleDownload = async () => { if (!reportRef.current) return; try { const h = await loadHtml2Canvas(); const c = await h(reportRef.current, { scale: 2, useCORS: true }); const l = document.createElement('a'); l.download = `기업분석_${inputs.company}.png`; l.href = c.toDataURL('image/png'); l.click(); } catch (e) { alert("실패"); } };
+
+  const handleDownload = async () => { 
+    if (!reportRef.current) return; 
+    try { 
+      const h = await loadHtml2Canvas(); 
+      const c = await h(reportRef.current, { scale: 2, useCORS: true }); 
+      const l = document.createElement('a'); 
+      l.download = `기업분석_${inputs.company}.png`; 
+      l.href = c.toDataURL('image/png'); 
+      l.click(); 
+    } catch (e) { alert("실패"); } 
+  };
 
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
@@ -279,8 +202,71 @@ function PtInterviewApp({ onClose }) {
   const [script, setScript] = useState(null);
   const [loading, setLoading] = useState(false);
   const reportRef = useRef(null);
-  const handleGenerateTopics = async () => { if (!inputs.company || !inputs.job || !inputs.request) return alert("입력 필요"); setLoading(true); try { const prompt = `기업: ${inputs.company}, 직무: ${inputs.job}, 상황: ${inputs.request}. PT 면접 주제 15개 추천. JSON Array only: ["주제1", "주제2"]`; const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${activeApiKey||""}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } }) }); const data = await res.json(); const text = data.candidates?.[0]?.content?.parts?.[0]?.text; const parsed = safeJsonParse(text); if (parsed) { setTopics(parsed); setStep('list'); } } catch (e) { alert("오류"); } finally { setLoading(false); } };
-  const handleGenerateScript = async (topic) => { setLoading(true); setSelectedTopic(topic); try { const prompt = `PT주제: "${topic}", 기업: ${inputs.company}, 직무: ${inputs.job}. 발표 대본(서론,본론,결론). 마크다운 개조식 사용. JSON only: {"intro": "...", "body": "...", "conclusion": "..."}`; const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${activeApiKey||""}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:"application/json"}})}),data=await res.json(),text=data.candidates?.[0]?.content?.parts?.[0]?.text,parsed=safeJsonParse(text);parsed?setScript(parsed)&&setStep('detail'):alert("오류")}catch(e){alert("오류")}finally{setLoading(false)}},handleDownload=async()=>{if(!reportRef.current)return;try{const h=await loadHtml2Canvas(),c=await h(reportRef.current,{scale:2,useCORS:!0}),l=document.createElement('a');l.download=`PT면접_${inputs.company}.png`,l.href=c.toDataURL('image/png'),l.click()}catch(e){alert("실패")}};return <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800"><header className="bg-slate-900 text-white p-4 shadow-md flex justify-between items-center flex-shrink-0"><div className="flex items-center space-x-3"><div className="bg-rose-500 p-2 rounded-lg"><MonitorPlay className="w-6 h-6 text-white"/></div><div><h1 className="text-xl font-bold">PT 면접 가이드 (AI)</h1><p className="text-xs text-slate-400">Career Vitamin App</p></div></div><div className="flex items-center space-x-3"><button onClick={onClose} className="px-4 py-2 text-sm text-slate-300 hover:text-white flex items-center"><ChevronLeft className="w-4 h-4 mr-1"/> 나가기</button>{step==='detail'&&<button onClick={handleDownload} className="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-lg font-bold flex items-center shadow"><Download className="w-4 h-4 mr-2"/>저장</button>}</div></header><div className="flex flex-1 overflow-hidden"><aside className="w-[400px] bg-white border-r border-slate-200 flex flex-col overflow-y-auto shadow-xl z-10"><div className="p-6 space-y-6"><section className={`transition-all ${step!=='input'?'opacity-50':''}`}><h3 className="flex items-center text-sm font-bold text-rose-800 uppercase mb-4"><Settings className="w-4 h-4 mr-2"/> 1. 기본 설정</h3><div className="space-y-3"><input value={inputs.company} onChange={e=>setInputs({...inputs,company:e.target.value})} className="w-full p-3 border rounded-lg" placeholder="지원 기업명" disabled={step!=='input'}/><input value={inputs.job} onChange={e=>setInputs({...inputs,job:e.target.value})} className="w-full p-3 border rounded-lg" placeholder="지원 직무" disabled={step!=='input'}/><textarea value={inputs.request} onChange={e=>setInputs({...inputs,request:e.target.value})} className="w-full p-3 border rounded-lg h-24 resize-none" placeholder="요청사항" disabled={step!=='input'}/>{step==='input'&&<button onClick={handleGenerateTopics} disabled={loading} className="w-full bg-rose-600 text-white py-3 rounded-xl font-bold flex justify-center">{loading?<Loader2 className="animate-spin"/>:"주제 추출"}</button>}{step!=='input'&&<button onClick={()=>{setStep('input');setTopics([]);setScript(null)}} className="w-full bg-slate-100 text-slate-600 py-2 rounded-lg text-sm">다시 입력</button>}</div></section>{step!=='input'&&topics.length>0&&<section className="animate-in fade-in slide-in-from-bottom-4"><h3 className="flex items-center text-sm font-bold text-slate-700 uppercase mb-4"><MonitorPlay className="w-4 h-4 mr-2"/> 2. 주제 선택</h3><div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">{topics.map((t,i)=><button key={i} onClick={()=>handleGenerateScript(t)} disabled={loading} className={`w-full text-left p-3 rounded-lg text-sm border transition-all ${selectedTopic===t?'bg-rose-50 border-rose-500 text-rose-700 font-bold':'bg-white hover:bg-slate-50'}`}><span className="inline-block w-6 font-bold text-rose-400">{i+1}.</span> {t}</button>)}</div></section>}</div></aside><main className="flex-1 bg-slate-200 p-8 overflow-y-auto flex justify-center items-start">{script?<div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-2xl p-[15mm] flex flex-col relative animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-rose-500 pb-6 mb-10"><span className="bg-rose-100 text-rose-700 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">PT INTERVIEW GUIDE</span><h1 className="text-2xl font-extrabold text-slate-900 leading-tight mb-2">{selectedTopic}</h1><div className="flex text-sm text-slate-500 font-medium gap-4 mt-4"><span>{inputs.company}</span><span>{inputs.job}</span><span className="ml-auto text-xs text-slate-400">{new Date().toLocaleDateString()}</span></div></div><div className="space-y-8"><div><h3 className="text-lg font-bold text-slate-800 mb-3">서론</h3><div className="text-slate-700 text-sm bg-slate-50 p-4 rounded-xl border border-slate-100 whitespace-pre-line">{script.intro}</div></div><div><h3 className="text-lg font-bold text-slate-800 mb-3">본론</h3><div className="text-slate-700 text-sm border-l-4 border-rose-200 pl-4 py-2 whitespace-pre-line">{script.body}</div></div><div><h3 className="text-lg font-bold text-slate-800 mb-3">결론</h3><div className="bg-rose-50 p-5 rounded-xl border border-rose-100 text-slate-800 text-sm whitespace-pre-line">{script.conclusion}</div></div></div><div className="mt-auto pt-8 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400"><span>Career Vitamin : PT Interview</span><span>AI-Generated Script</span></div></div>:<div className="flex-1 flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-300 rounded-2xl m-10"><MonitorPlay className="w-16 h-16 mb-4 opacity-20"/><p>주제를 선택하면<br/>대본이 생성됩니다.</p></div>}</main></div></div>}
+  
+  // Fully expanded function to avoid linter errors
+  const handleGenerateTopics = async () => { 
+    if (!inputs.company || !inputs.job || !inputs.request) {
+      alert("입력 필요");
+      return;
+    }
+    setLoading(true); 
+    try { 
+      const prompt = `기업: ${inputs.company}, 직무: ${inputs.job}, 상황: ${inputs.request}. PT 면접 주제 15개 추천. JSON Array only: ["주제1", "주제2"]`; 
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GOOGLE_GEMINI_API_KEY}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } }) }); 
+      const data = await res.json(); 
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text; 
+      const parsed = safeJsonParse(text); 
+      if (parsed) { 
+        setTopics(parsed); 
+        setStep('list'); 
+      } 
+    } catch (e) { 
+      alert("오류"); 
+    } finally { 
+      setLoading(false); 
+    } 
+  };
+  
+  // Fully expanded function to avoid linter errors
+  const handleGenerateScript = async (topic) => { 
+    setLoading(true); 
+    setSelectedTopic(topic); 
+    try { 
+      const prompt = `PT주제: "${topic}", 기업: ${inputs.company}, 직무: ${inputs.job}. 발표 대본(서론,본론,결론). 마크다운 개조식 사용. JSON only: {"intro": "...", "body": "...", "conclusion": "..."}`; 
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GOOGLE_GEMINI_API_KEY}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:"application/json"}})});
+      const data = await res.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      const parsed = safeJsonParse(text);
+      
+      if (parsed) {
+        setScript(parsed);
+        setStep('detail');
+      } else {
+        alert("오류");
+      }
+    } catch(e) {
+      alert("오류");
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleDownload = async () => {
+    if (!reportRef.current) return;
+    try {
+      const h = await loadHtml2Canvas();
+      const c = await h(reportRef.current, { scale: 2, useCORS: true });
+      const l = document.createElement('a');
+      l.download = `PT면접_${inputs.company}.png`;
+      l.href = c.toDataURL('image/png');
+      l.click();
+    } catch(e) {
+      alert("실패");
+    }
+  };
+  
+  return <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800"><header className="bg-slate-900 text-white p-4 shadow-md flex justify-between items-center flex-shrink-0"><div className="flex items-center space-x-3"><div className="bg-rose-500 p-2 rounded-lg"><MonitorPlay className="w-6 h-6 text-white"/></div><div><h1 className="text-xl font-bold">PT 면접 가이드 (AI)</h1><p className="text-xs text-slate-400">Career Vitamin App</p></div></div><div className="flex items-center space-x-3"><button onClick={onClose} className="px-4 py-2 text-sm text-slate-300 hover:text-white flex items-center"><ChevronLeft className="w-4 h-4 mr-1"/> 나가기</button>{step==='detail'&&<button onClick={handleDownload} className="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-lg font-bold flex items-center shadow"><Download className="w-4 h-4 mr-2"/>저장</button>}</div></header><div className="flex flex-1 overflow-hidden"><aside className="w-[400px] bg-white border-r border-slate-200 flex flex-col overflow-y-auto shadow-xl z-10"><div className="p-6 space-y-6"><section className={`transition-all ${step!=='input'?'opacity-50':''}`}><h3 className="flex items-center text-sm font-bold text-rose-800 uppercase mb-4"><Settings className="w-4 h-4 mr-2"/> 1. 기본 설정</h3><div className="space-y-3"><input value={inputs.company} onChange={e=>setInputs({...inputs,company:e.target.value})} className="w-full p-3 border rounded-lg" placeholder="지원 기업명" disabled={step!=='input'}/><input value={inputs.job} onChange={e=>setInputs({...inputs,job:e.target.value})} className="w-full p-3 border rounded-lg" placeholder="지원 직무" disabled={step!=='input'}/><textarea value={inputs.request} onChange={e=>setInputs({...inputs,request:e.target.value})} className="w-full p-3 border rounded-lg h-24 resize-none" placeholder="요청사항" disabled={step!=='input'}/>{step==='input'&&<button onClick={handleGenerateTopics} disabled={loading} className="w-full bg-rose-600 text-white py-3 rounded-xl font-bold flex justify-center">{loading?<Loader2 className="animate-spin"/>:"주제 추출"}</button>}{step!=='input'&&<button onClick={()=>{setStep('input');setTopics([]);setScript(null)}} className="w-full bg-slate-100 text-slate-600 py-2 rounded-lg text-sm">다시 입력</button>}</div></section>{step!=='input'&&topics.length>0&&<section className="animate-in fade-in slide-in-from-bottom-4"><h3 className="flex items-center text-sm font-bold text-slate-700 uppercase mb-4"><MonitorPlay className="w-4 h-4 mr-2"/> 2. 주제 선택</h3><div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">{topics.map((t,i)=><button key={i} onClick={()=>handleGenerateScript(t)} disabled={loading} className={`w-full text-left p-3 rounded-lg text-sm border transition-all ${selectedTopic===t?'bg-rose-50 border-rose-500 text-rose-700 font-bold':'bg-white hover:bg-slate-50'}`}><span className="inline-block w-6 font-bold text-rose-400">{i+1}.</span> {t}</button>)}</div></section>}</div></aside><main className="flex-1 bg-slate-200 p-8 overflow-y-auto flex justify-center items-start">{script?<div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-2xl p-[15mm] flex flex-col relative animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-rose-500 pb-6 mb-10"><span className="bg-rose-100 text-rose-700 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">PT INTERVIEW GUIDE</span><h1 className="text-2xl font-extrabold text-slate-900 leading-tight mb-2">{selectedTopic}</h1><div className="flex text-sm text-slate-500 font-medium gap-4 mt-4"><span>{inputs.company}</span><span>{inputs.job}</span><span className="ml-auto text-xs text-slate-400">{new Date().toLocaleDateString()}</span></div></div><div className="space-y-8"><div><h3 className="text-lg font-bold text-slate-800 mb-3">서론</h3><div className="text-slate-700 text-sm bg-slate-50 p-4 rounded-xl border border-slate-100 whitespace-pre-line">{script.intro}</div></div><div><h3 className="text-lg font-bold text-slate-800 mb-3">본론</h3><div className="text-slate-700 text-sm border-l-4 border-rose-200 pl-4 py-2 whitespace-pre-line">{script.body}</div></div><div><h3 className="text-lg font-bold text-slate-800 mb-3">결론</h3><div className="bg-rose-50 p-5 rounded-xl border border-rose-100 text-slate-800 text-sm whitespace-pre-line">{script.conclusion}</div></div></div><div className="mt-auto pt-8 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400"><span>Career Vitamin : PT Interview</span><span>AI-Generated Script</span></div></div>:<div className="flex-1 flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-300 rounded-2xl m-10"><MonitorPlay className="w-16 h-16 mb-4 opacity-20"/><p>주제를 선택하면<br/>대본이 생성됩니다.</p></div>}</main></div></div>
+}
 
 function SelfDiscoveryMapApp({ onClose }) {
   const [profile, setProfile] = useState({ name: '', targetJob: '', date: new Date().toISOString().split('T')[0] });
@@ -295,7 +281,17 @@ function SelfDiscoveryMapApp({ onClose }) {
   const removeKeyword = (id) => setKeywords(keywords.filter(k => k.id !== id));
   const addExperience = () => { if (!newExp.title.trim()) return alert("입력 필요"); setExperiences([...experiences, { ...newExp, id: Date.now() }]); setNewExp({ title: '', s: '', t: '', a: '', r: '' }); setIsExpFormOpen(false); };
   const removeExperience = (id) => setExperiences(experiences.filter(e => e.id !== id));
-  const handleDownload = async () => { if (!reportRef.current) return; try { const h = await loadHtml2Canvas(); const c = await h(reportRef.current, { scale: 2, useCORS: true }); const l = document.createElement('a'); l.download = `지도_${profile.name}.png`; l.href = c.toDataURL('image/png'); l.click(); } catch (e) { alert("실패"); } };
+  const handleDownload = async () => { 
+    if (!reportRef.current) return; 
+    try { 
+      const h = await loadHtml2Canvas(); 
+      const c = await h(reportRef.current, { scale: 2, useCORS: true }); 
+      const l = document.createElement('a'); 
+      l.download = `지도_${profile.name}.png`; 
+      l.href = c.toDataURL('image/png'); 
+      l.click(); 
+    } catch (e) { alert("실패"); } 
+  };
 
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
@@ -325,7 +321,7 @@ function RoleModelGuideApp({ onClose }) {
     setLoading(true);
     try {
       const prompt = `롤모델 '${data.name}' 분석. JSON: { "role": "...", "intro": "...", "quotes": "...", "media": "...", "reason": "..." }`;
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } }) });
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GOOGLE_GEMINI_API_KEY}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } }) });
       const result = await res.json();
       const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
       const parsed = safeJsonParse(text);
@@ -338,7 +334,7 @@ function RoleModelGuideApp({ onClose }) {
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
       <header className="bg-slate-900 text-white p-4 shadow-md flex justify-between items-center flex-shrink-0"><div className="flex items-center space-x-3"><div className="bg-orange-500 p-2 rounded-lg"><Award className="w-6 h-6 text-white" /></div><div><h1 className="text-xl font-bold">롤모델 분석 리포트 (AI)</h1><p className="text-xs text-slate-400">Career Vitamin App</p></div></div><div className="flex items-center space-x-3"><button onClick={onClose} className="px-4 py-2 text-sm text-slate-300 hover:text-white"><ChevronLeft className="w-4 h-4 mr-1" /> 돌아가기</button><button onClick={handleDownload} className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg font-bold flex items-center shadow-lg"><Download className="w-5 h-5 mr-2" />다운로드</button></div></header>
       <div className="flex flex-1 overflow-hidden">
-         <aside className="w-[400px] bg-white border-r border-slate-200 flex flex-col overflow-y-auto shadow-xl z-10"><div className="p-6 space-y-8"><section className="bg-orange-50 p-5 rounded-2xl border border-orange-100"><h3 className="flex items-center text-sm font-bold text-orange-800 uppercase mb-3"><Sparkles className="w-4 h-4 mr-2" /> 1. AI 자동 분석</h3><div className="space-y-3"><input name="name" value={data.name} onChange={handleChange} onKeyDown={(e) => e.key === 'Enter' && handleAIAnalysis()} className="w-full p-3 border rounded-xl font-bold" placeholder="예: 스티브 잡스" /><button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl font-bold flex justify-center">{loading ? <Loader2 className="animate-spin" /> : "분석 시작"}</button></div></section><section className="space-y-4"><h3 className="flex items-center text-sm font-bold text-slate-500 uppercase"><Search className="w-4 h-4 mr-2" /> 2. 상세 내용</h3><input name="role" value={data.role} onChange={handleChange} className="w-full p-2 border rounded" placeholder="직업" /><textarea name="intro" value={data.intro} onChange={handleChange} className="w-full p-2 border rounded h-24" placeholder="소개" /><textarea name="quotes" value={data.quotes} onChange={handleChange} className="w-full p-2 border rounded h-20" placeholder="명언" /><input name="media" value={data.media} onChange={handleChange} className="w-full p-2 border rounded" placeholder="콘텐츠" /></section><section><h3 className="flex items-center text-sm font-bold text-slate-500 uppercase"><MessageSquare className="w-4 h-4 mr-2" /> 3. 면접 답변</h3><textarea name="reason" value={data.reason} onChange={handleChange} className="w-full p-2 border rounded h-32" placeholder="답변 내용" /></section></div></aside>
+         <aside className="w-[400px] bg-white border-r border-slate-200 flex flex-col overflow-y-auto shadow-xl z-10"><div className="p-6 space-y-8"><section className="bg-orange-50 p-5 rounded-2xl border border-orange-100"><h3 className="flex items-center text-sm font-bold text-orange-800 uppercase mb-3"><Sparkles className="w-4 h-4 mr-2" /> 1. AI 자동 분석</h3><div className="space-y-3"><input name="name" value={data.name} onChange={handleChange} onKeyDown={(e) => { if(e.key === 'Enter') handleAIAnalysis(); }} className="w-full p-3 border rounded-xl font-bold" placeholder="예: 스티브 잡스" /><button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl font-bold flex justify-center">{loading ? <Loader2 className="animate-spin" /> : "분석 시작"}</button></div></section><section className="space-y-4"><h3 className="flex items-center text-sm font-bold text-slate-500 uppercase"><Search className="w-4 h-4 mr-2" /> 2. 상세 내용</h3><input name="role" value={data.role} onChange={handleChange} className="w-full p-2 border rounded" placeholder="직업" /><textarea name="intro" value={data.intro} onChange={handleChange} className="w-full p-2 border rounded h-24" placeholder="소개" /><textarea name="quotes" value={data.quotes} onChange={handleChange} className="w-full p-2 border rounded h-20" placeholder="명언" /><input name="media" value={data.media} onChange={handleChange} className="w-full p-2 border rounded" placeholder="콘텐츠" /></section><section><h3 className="flex items-center text-sm font-bold text-slate-500 uppercase"><MessageSquare className="w-4 h-4 mr-2" /> 3. 면접 답변</h3><textarea name="reason" value={data.reason} onChange={handleChange} className="w-full p-2 border rounded h-32" placeholder="답변 내용" /></section></div></aside>
          <main className="flex-1 bg-slate-200 p-8 overflow-y-auto flex justify-center items-start">
             <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-2xl p-[15mm] flex flex-col relative">
                <div className="border-b-4 border-orange-500 pb-6 mb-8 flex justify-between items-start"><div><span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold">ROLE MODEL ANALYSIS</span><h1 className="text-4xl font-extrabold mt-2">{data.name}</h1><p className="text-lg text-slate-500 mt-1">{data.role}</p></div><div className="text-right text-sm text-slate-600">{new Date().toLocaleDateString()}</div></div>
@@ -367,7 +363,7 @@ function CareerRoadmapApp({ onClose }) {
     setLoading(true);
     try {
       const prompt = `커리어 로드맵 설계. 기업:${inputs.company}, 직무:${inputs.job}, ${inputs.years}년후. JSON: { "goal": "...", "roadmap": [{"stage": "...", "action": "..."}], "script": "..." }`;
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${activeApiKey||""}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } }) });
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GOOGLE_GEMINI_API_KEY}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } }) });
       const result = await res.json();
       const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
       const parsed = safeJsonParse(text);
@@ -401,7 +397,7 @@ function SelfIntroApp({ onClose }) {
     setLoading(true);
     try {
       const prompt = `1분 자기소개. 기업:${inputs.company}, 직무:${inputs.job}, 컨셉:${inputs.concept}, 키워드:${inputs.keyword}, 경험:${inputs.exp}. JSON: { "slogan": "...", "opening": "...", "body": "...", "closing": "..." }`;
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${activeApiKey||""}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:"application/json"}})});
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GOOGLE_GEMINI_API_KEY}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:"application/json"}})});
       const result = await res.json();
       const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
       const parsed = safeJsonParse(text);
@@ -428,7 +424,7 @@ function ExperienceStructuringApp({ onClose }) {
   const [starData, setStarData] = useState({ s: '', t: '', a: '', r: '' });
   const [loading, setLoading] = useState(false);
   const reportRef = useRef(null);
-  const handleAIAnalysis = async () => { if (!inputs.company || !inputs.keyword || !inputs.desc) return alert("입력 필요"); setLoading(true); try { const prompt = `경험 STAR 구조화. 기업:${inputs.company}, 직무:${inputs.job}, 키워드:${inputs.keyword}, 내용:${inputs.desc}. 마크다운 개조식. JSON: { "s": "...", "t": "...", "a": "...", "r": "..." }`; const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${activeApiKey||""}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } }) }); const resData = await res.json(); const text = resData.candidates?.[0]?.content?.parts?.[0]?.text; const parsed = safeJsonParse(text); if (parsed) setStarData(parsed); } catch (e) { alert("오류"); } finally { setLoading(false); } };
+  const handleAIAnalysis = async () => { if (!inputs.company || !inputs.keyword || !inputs.desc) return alert("입력 필요"); setLoading(true); try { const prompt = `경험 STAR 구조화. 기업:${inputs.company}, 직무:${inputs.job}, 키워드:${inputs.keyword}, 내용:${inputs.desc}. 마크다운 개조식. JSON: { "s": "...", "t": "...", "a": "...", "r": "..." }`; const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GOOGLE_GEMINI_API_KEY}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } }) }); const resData = await res.json(); const text = resData.candidates?.[0]?.content?.parts?.[0]?.text; const parsed = safeJsonParse(text); if (parsed) setStarData(parsed); } catch (e) { alert("오류"); } finally { setLoading(false); } };
   const handleDataChange = (f, v) => setStarData(prev => ({ ...prev, [f]: v }));
   const handleDownload = async () => { if (!reportRef.current) return; try { const h = await loadHtml2Canvas(); const c = await h(reportRef.current, { scale: 2, useCORS: true }); const l = document.createElement('a'); l.download = `STAR_${inputs.keyword}.png`; l.href = c.toDataURL('image/png'); l.click(); } catch (e) { alert("실패"); } };
   return (
@@ -437,6 +433,109 @@ function ExperienceStructuringApp({ onClose }) {
       <div className="flex flex-1 overflow-hidden">
         <aside className="w-[400px] bg-white border-r border-slate-200 flex flex-col overflow-y-auto shadow-xl z-10"><div className="p-6 space-y-6"><section className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100"><h3 className="flex items-center text-sm font-bold text-indigo-800 uppercase mb-4"><Sparkles className="w-4 h-4 mr-2" /> 1. 경험 입력</h3><div className="space-y-3"><div className="grid grid-cols-2 gap-2"><input value={inputs.company} onChange={e => setInputs({...inputs, company: e.target.value})} className="p-2 border rounded text-sm" placeholder="기업명" /><input value={inputs.job} onChange={e => setInputs({...inputs, job: e.target.value})} className="p-2 border rounded text-sm" placeholder="직무명" /></div><div><label className="block text-xs font-bold text-indigo-900 mb-1">핵심 키워드<span className="block font-normal text-indigo-600 mt-0.5 opacity-80">(예: 갈등관리, 목표달성, 문제해결 등)</span></label><input value={inputs.keyword} onChange={e => setInputs({...inputs, keyword: e.target.value})} className="w-full p-2 border rounded text-sm font-bold" placeholder="키워드" /></div><textarea value={inputs.desc} onChange={e => setInputs({...inputs, desc: e.target.value})} className="w-full p-2 border rounded text-sm h-24 resize-none" placeholder="내용" /><button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold flex justify-center">{loading ? <Loader2 className="animate-spin" /> : "STAR 실행"}</button></div></section>{starData.s && <section className="space-y-4 animate-in fade-in"><h3 className="flex items-center text-sm font-bold text-slate-700 uppercase"><Edit3 className="w-4 h-4 mr-2" /> 2. 수정</h3><div className="space-y-3"><div><label className="text-xs font-bold text-slate-500">S</label><textarea value={starData.s} onChange={e => handleDataChange('s', e.target.value)} className="w-full p-2 border rounded text-sm h-20" /></div><div><label className="text-xs font-bold text-slate-500">T</label><textarea value={starData.t} onChange={e => handleDataChange('t', e.target.value)} className="w-full p-2 border rounded text-sm h-20" /></div><div><label className="text-xs font-bold text-slate-500">A</label><textarea value={starData.a} onChange={e => handleDataChange('a', e.target.value)} className="w-full p-2 border rounded text-sm h-24" /></div><div><label className="text-xs font-bold text-slate-500">R</label><textarea value={starData.r} onChange={e => handleDataChange('r', e.target.value)} className="w-full p-2 border rounded text-sm h-20" /></div></div></section>}</div></aside>
         <main className="flex-1 bg-slate-200 p-8 overflow-y-auto flex justify-center items-start"><div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-2xl p-[15mm] flex flex-col relative"><div className="border-b-4 border-indigo-600 pb-6 mb-8 flex justify-between items-start"><div><span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold">STAR WORKSHEET</span><h1 className="text-4xl font-extrabold mt-2">{inputs.keyword || '키워드'}</h1><p className="text-lg text-slate-500 mt-2">{inputs.company} | {inputs.job}</p></div><div className="text-right"><LayoutList className="w-12 h-12 text-indigo-200" /></div></div>{starData.s ? <div className="grid grid-cols-1 gap-6"><div className="bg-slate-50 p-6 rounded-xl border-l-4 border-indigo-300"><h3 className="text-lg font-bold text-indigo-800 mb-2 flex items-center"><Target className="w-5 h-5 mr-2" /> Situation</h3><p className="text-slate-700 whitespace-pre-line">{starData.s}</p></div><div className="bg-slate-50 p-6 rounded-xl border-l-4 border-indigo-400"><h3 className="text-lg font-bold text-indigo-800 mb-2 flex items-center"><Check className="w-5 h-5 mr-2" /> Task</h3><p className="text-slate-700 whitespace-pre-line">{starData.t}</p></div><div className="bg-white p-6 rounded-xl border-2 border-indigo-100 shadow-sm"><h3 className="text-lg font-bold text-indigo-600 mb-2 flex items-center"><Zap className="w-5 h-5 mr-2" /> Action</h3><p className="text-slate-800 whitespace-pre-line font-medium">{starData.a}</p></div><div className="bg-indigo-50 p-6 rounded-xl border-l-4 border-indigo-600"><h3 className="text-lg font-bold text-indigo-900 mb-2 flex items-center"><Star className="w-5 h-5 mr-2" /> Result</h3><p className="text-slate-800 whitespace-pre-line font-bold">{starData.r}</p></div></div> : <div className="flex-1 flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl"><LayoutList className="w-16 h-16 mb-4 opacity-20" /><p className="text-center">정보 입력 후<br/>실행 버튼을 눌러주세요.</p></div>}<div className="mt-auto pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400"><div className="flex items-center"><LayoutList className="w-4 h-4 mr-1 text-indigo-500" /><span>Career Vitamin</span></div><span>AI-Powered STAR Method</span></div></div></main>
+      </div>
+    </div>
+  );
+}
+
+function SituationInterviewApp({ onClose }) {
+  const [inputs, setInputs] = useState({ question: '', criteria: '' });
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const reportRef = useRef(null);
+
+  const handleAIAnalysis = async () => {
+    if (!inputs.question || !inputs.criteria) return alert("질문과 기준을 입력해주세요.");
+    setLoading(true);
+    try {
+      const prompt = `
+        상황 면접 답변 생성. 
+        질문: ${inputs.question}
+        평가 기준: ${inputs.criteria}
+        
+        답변은 두 가지 버전(Situation A, Situation B)으로 구조화해서 작성해줘.
+        JSON 형식:
+        {
+          "situation_a": { "title": "상황 A (긍정적/적극적)", "content": "답변 내용..." },
+          "situation_b": { "title": "상황 B (대안적/신중함)", "content": "답변 내용..." },
+          "advice": "면접 팁"
+        }
+      `;
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GOOGLE_GEMINI_API_KEY}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
+      });
+      const data = await res.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      const parsed = safeJsonParse(text);
+      if (parsed) setResult(parsed);
+    } catch (e) { alert("오류가 발생했습니다."); } finally { setLoading(false); }
+  };
+
+  const handleDownload = async () => { if (!reportRef.current) return; try { const h = await loadHtml2Canvas(); const c = await h(reportRef.current, { scale: 2, useCORS: true }); const l = document.createElement('a'); l.download = `상황면접_가이드.png`; l.href = c.toDataURL('image/png'); l.click(); } catch (e) { alert("저장 실패"); } };
+
+  return (
+    <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
+      <header className="bg-slate-900 text-white p-4 shadow-md flex justify-between items-center flex-shrink-0">
+        <div className="flex items-center space-x-3">
+          <div className="bg-teal-500 p-2 rounded-lg"><Split className="w-6 h-6 text-white" /></div>
+          <div><h1 className="text-xl font-bold">상황면접 가이드 (AI)</h1><p className="text-xs text-slate-400">Career Vitamin App</p></div>
+        </div>
+        <div className="flex items-center space-x-3">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-300 hover:text-white"><ChevronLeft className="w-4 h-4 mr-1" /> 나가기</button>
+          {result && <button onClick={handleDownload} className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-bold shadow"><Download className="w-4 h-4 mr-2" />저장</button>}
+        </div>
+      </header>
+      <div className="flex flex-1 overflow-hidden">
+        <aside className="w-[400px] bg-white border-r border-slate-200 flex flex-col overflow-y-auto shadow-xl z-10">
+          <div className="p-6 space-y-6">
+            <section className="bg-teal-50 p-5 rounded-2xl border border-teal-100">
+              <h3 className="flex items-center text-sm font-bold text-teal-800 uppercase mb-4"><Settings className="w-4 h-4 mr-2" /> 설정</h3>
+              <div className="space-y-3">
+                <textarea value={inputs.question} onChange={e => setInputs({...inputs, question: e.target.value})} className="w-full p-3 border rounded-lg h-24 text-sm" placeholder="면접 질문 (예: 상사가 부당한 지시를 내린다면?)" />
+                <textarea value={inputs.criteria} onChange={e => setInputs({...inputs, criteria: e.target.value})} className="w-full p-3 border rounded-lg h-20 text-sm" placeholder="분리 기준 (예: 회사의 이익 vs 개인의 양심)" />
+                <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-teal-600 hover:bg-teal-700 text-white py-3 rounded-xl font-bold flex justify-center">{loading ? <Loader2 className="animate-spin" /> : "가이드 생성"}</button>
+              </div>
+            </section>
+          </div>
+        </aside>
+        <main className="flex-1 bg-slate-200 p-8 overflow-y-auto flex justify-center items-start">
+          <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-2xl p-[15mm] flex flex-col relative">
+            <div className="border-b-4 border-teal-600 pb-6 mb-8">
+              <span className="bg-teal-100 text-teal-700 px-3 py-1 rounded-full text-xs font-bold">SITUATIONAL INTERVIEW</span>
+              <h1 className="text-2xl font-extrabold mt-2">상황면접 답변 가이드</h1>
+            </div>
+            {result ? (
+              <div className="space-y-6">
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                  <h3 className="font-bold text-slate-500 text-xs mb-1">질문</h3>
+                  <p className="text-lg font-bold text-slate-800">{inputs.question}</p>
+                </div>
+                <div className="grid grid-cols-1 gap-6">
+                  <div className="border-l-4 border-teal-500 pl-4 py-2">
+                    <h3 className="text-lg font-bold text-teal-800 mb-2">{result.situation_a.title}</h3>
+                    <p className="text-slate-700 whitespace-pre-line text-sm leading-relaxed">{result.situation_a.content}</p>
+                  </div>
+                  <div className="border-l-4 border-slate-400 pl-4 py-2">
+                    <h3 className="text-lg font-bold text-slate-700 mb-2">{result.situation_b.title}</h3>
+                    <p className="text-slate-600 whitespace-pre-line text-sm leading-relaxed">{result.situation_b.content}</p>
+                  </div>
+                </div>
+                <div className="bg-teal-50 p-4 rounded-xl text-sm text-teal-900 font-medium mt-4">
+                  💡 Advice: {result.advice}
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl h-64">
+                <Split className="w-16 h-16 mb-4 opacity-20" />
+                <p>질문 입력 후 생성 버튼을 눌러주세요.</p>
+              </div>
+            )}
+            <div className="mt-auto pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400">
+              <div className="flex items-center"><Split className="w-4 h-4 mr-1 text-teal-500" /><span>Career Vitamin</span></div>
+            </div>
+          </div>
+        </main>
       </div>
     </div>
   );
@@ -451,7 +550,7 @@ function SelfIntroAppWrapper({ onClose }) { return <SelfIntroApp onClose={onClos
 function SituationInterviewAppWrapper({ onClose }) { return <SituationInterviewApp onClose={onClose} />; }
 function CompanyAnalysisAppWrapper({ onClose }) { return <CompanyAnalysisApp onClose={onClose} />; }
 
-export default function CareerArchitectDashboard() {
+export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState('guest'); 
@@ -462,8 +561,6 @@ export default function CareerArchitectDashboard() {
   const [currentApp, setCurrentApp] = useState('none');
 
   useEffect(() => {
-    const initAuth = async () => { if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { try { if (!auth.currentUser) await signInWithCustomToken(auth, __initial_auth_token); } catch (e) { console.error(e); } } };
-    initAuth();
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setLoading(true);
       if (currentUser) {
@@ -473,14 +570,13 @@ export default function CareerArchitectDashboard() {
             setRole('guest'); 
             try { 
                 if (currentUser.email) { 
-                    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'authorized_experts'), where('email', '==', currentUser.email)); 
+                    const q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts'), where('email', '==', currentUser.email)); 
                     const s = await getDocs(q); 
                     if (!s.empty) { 
                         setRole('expert'); 
                         s.docs.forEach(async (docSnapshot) => {
-                             // 로그인 시 UID 및 접속시간 업데이트 (이름은 덮어쓰지 않음)
                              if (docSnapshot.data().uid !== currentUser.uid) {
-                                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'authorized_experts', docSnapshot.id), {
+                                 await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts', docSnapshot.id), {
                                      uid: currentUser.uid,
                                      lastLogin: new Date().toISOString()
                                  }).catch(e => console.error(e));
@@ -498,15 +594,19 @@ export default function CareerArchitectDashboard() {
 
   useEffect(() => {
     if (role !== 'owner') return;
-    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'authorized_experts'));
-    const unsubscribe = onSnapshot(q, (s) => setExperts(s.docs.map(d => ({ id: d.id, ...d.data() }))), (e) => console.log(e)); // Error Handler
-    return () => unsubscribe(); // Fixed Cleanup
+    const q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts'));
+    const unsubscribe = onSnapshot(q, (s) => setExperts(s.docs.map(d => ({ id: d.id, ...d.data() }))), (e) => console.log(e)); 
+    return () => unsubscribe(); 
   }, [role]);
 
-  const handleLogin = async () => { try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { 
-    // 배포 전에는 개발자 버튼 삭제 및 자동 접속 차단
-    alert("팝업이 차단되었습니다. 브라우저 팝업 차단을 해제하고 다시 시도해주세요.");
-  } };
+  const handleLogin = async () => { 
+      try { 
+          await signInWithPopup(auth, new GoogleAuthProvider()); 
+      } catch (e) { 
+        console.error(e);
+        alert("로그인 중 오류가 발생했습니다. 팝업 차단을 확인해주세요.");
+      } 
+  };
   const handleLogout = async () => { await signOut(auth); setUser(null); setCurrentApp('none'); };
   const handleCopyUid = () => { if (user?.uid) navigator.clipboard.writeText(user.uid); };
   
@@ -514,22 +614,22 @@ export default function CareerArchitectDashboard() {
       e.preventDefault(); 
       if (!newExpertEmail.trim() || !newExpertName.trim()) return alert("이름과 이메일을 모두 입력해주세요."); 
       try { 
-          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'authorized_experts'), { 
+          await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts'), { 
               email: newExpertEmail.trim(), 
               displayName: newExpertName.trim(), 
               addedAt: new Date().toISOString() 
           }); 
           setNewExpertEmail(''); 
           setNewExpertName('');
-      } catch (e) { alert("오류"); } 
+      } catch (e) { alert("오류가 발생했습니다."); } 
   };
   
-  const handleDeleteExpert = async (id) => { if (window.confirm("삭제?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'authorized_experts', id)); };
+  const handleDeleteExpert = async (id) => { if (window.confirm("정말 삭제하시겠습니까?")) await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts', id)); };
 
   const launchService = (key) => {
     if (SERVICES[key].internal) setCurrentApp(key);
     else if (SERVICES[key].link) window.open(SERVICES[key].link, '_blank');
-    else alert("준비 중");
+    else alert("준비 중입니다.");
   };
 
   if (currentApp === 'map') return <SelfDiscoveryMapAppWrapper onClose={() => setCurrentApp('none')} />;
@@ -555,8 +655,8 @@ export default function CareerArchitectDashboard() {
                 <button onClick={handleLogin} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 px-4 rounded-xl font-bold shadow-lg transition-transform hover:-translate-y-1 flex justify-center items-center"><RefreshCw className="w-5 h-5 mr-2" />Google 계정으로 로그인</button>
             </div>
           ) : <button onClick={handleLogout} className="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-3.5 px-4 rounded-xl flex items-center justify-center transition-colors"><LogOut className="w-5 h-5 mr-2" />다른 계정으로 로그인</button>}
-        </div>
-        <p className="mt-8 text-slate-400 text-sm">© 2025 Career Vitamin. All rights reserved.</p>
+       </div>
+       <p className="mt-8 text-slate-400 text-sm">© 2025 Career Vitamin. All rights reserved.</p>
     </div>
   );
 
@@ -633,17 +733,17 @@ function ServiceCard({ serviceKey, serviceData, onLaunch }) {
     blue: "bg-blue-600 hover:bg-blue-700", indigo: "bg-indigo-600 hover:bg-indigo-700", emerald: "bg-emerald-600 hover:bg-emerald-700", violet: "bg-violet-600 hover:bg-violet-700", orange: "bg-orange-600 hover:bg-orange-700", cyan: "bg-cyan-600 hover:bg-cyan-700", yellow: "bg-yellow-400 hover:bg-yellow-500 text-slate-900", rose: "bg-rose-600 hover:bg-rose-700", teal: "bg-teal-600 hover:bg-teal-700", purple: "bg-purple-600 hover:bg-purple-700"
   };
   return (
-     <div className={`group bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-xl transition-all relative ${!isReady && 'opacity-70'}`}>
+      <div className={`group bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-xl transition-all relative ${!isReady && 'opacity-70'}`}>
         {isNew && isReady && <span className="absolute top-4 right-4 bg-emerald-100 text-emerald-600 text-xs font-bold px-2 py-1 rounded">NEW</span>}
         <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 ${theme.split(' ')[1]}`}><Icon className={`w-7 h-7 ${theme.split(' ')[0]}`} /></div>
         <h3 className="font-bold text-lg mb-2">{name}</h3>
         <p className="text-sm text-slate-500 mb-4 h-10 line-clamp-2" style={{ whiteSpace: 'normal' }}>{desc}</p>
         <button 
-          onClick={() => isReady && onLaunch(serviceKey)} 
+          onClick={() => { if(isReady) onLaunch(serviceKey); }} 
           className={`w-full py-3 rounded-xl font-bold text-white transition-all shadow-md ${isReady ? colorClasses[color] || colorClasses.blue : 'bg-slate-300 cursor-not-allowed'}`}
         >
           {!isReady ? "준비 중" : (internal ? "앱 실행하기" : "도구 열기")}
         </button>
-     </div>
+      </div>
   );
 }

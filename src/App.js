@@ -68,55 +68,71 @@ const loadHtml2Canvas = () => {
   });
 };
 
-// ★ 공통 캡처 & 저장 헬퍼
-const captureElementToCanvas = async (element) => {
+// 리포트 전체를 흰 배경으로 캡처해서 canvas 반환
+const captureReportCanvas = async (reportRef) => {
+  if (!reportRef.current) {
+    alert("저장할 콘텐츠가 없습니다.");
+    return null;
+  }
+
   const html2canvas = await loadHtml2Canvas();
-  const canvas = await html2canvas(element, {
+  const original = reportRef.current;
+  const clone = original.cloneNode(true);
+
+  // 화면 밖에 렌더링
+  clone.style.position = "absolute";
+  clone.style.top = "0";
+  clone.style.left = "-9999px";
+
+  // 콘텐츠 전체 크기 적용
+  const width = original.scrollWidth;
+  const height = original.scrollHeight;
+  clone.style.width = width + "px";
+  clone.style.height = height + "px";
+  clone.style.maxHeight = "none";
+  clone.style.overflow = "visible";
+
+  // 흰 배경 + 그림자 제거
+  clone.style.background = "#ffffff";
+  clone.style.boxShadow = "none";
+
+  document.body.appendChild(clone);
+
+  const canvas = await html2canvas(clone, {
     scale: 2,
     useCORS: true,
-    backgroundColor: '#ffffff'
+    backgroundColor: "#ffffff",
   });
+
+  document.body.removeChild(clone);
   return canvas;
 };
 
-const downloadElementAsPng = async (element, filename) => {
-  if (!element) return;
-  try {
-    const canvas = await captureElementToCanvas(element);
-    const link = document.createElement('a');
-    link.download = `${filename}.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-  } catch (e) {
-    console.error(e);
-    alert("PNG 저장 중 오류가 발생했습니다.");
-  }
+// canvas → PNG 저장
+const saveCanvasAsPNG = (canvas, filename = "report.png") => {
+  const link = document.createElement("a");
+  link.download = filename;
+  link.href = canvas.toDataURL("image/png");
+  link.click();
 };
 
-const downloadElementAsPdf = async (element, filename) => {
-  if (!element) return;
-  try {
-    const canvas = await captureElementToCanvas(element);
-    const imgData = canvas.toDataURL('image/png');
+// canvas → 한 페이지짜리 긴 PDF 저장
+const saveCanvasAsPDF = (canvas, filename = "report.pdf") => {
+  const imgData = canvas.toDataURL("image/png");
 
-    const pxToMm = (px) => px * 0.264583;
-    const pdfWidth = pxToMm(canvas.width);
-    const pdfHeight = pxToMm(canvas.height);
+  // px -> pt (대략 0.75)
+  const pdfWidth = canvas.width * 0.75;
+  const pdfHeight = canvas.height * 0.75;
+  const orientation = pdfWidth > pdfHeight ? "l" : "p";
 
-    const orientation = pdfWidth > pdfHeight ? 'l' : 'p';
+  const pdf = new jsPDF({
+    orientation,
+    unit: "pt",
+    format: [pdfWidth, pdfHeight],
+  });
 
-    const pdf = new jsPDF({
-      orientation,
-      unit: 'mm',
-      format: [pdfWidth, pdfHeight],
-    });
-
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    pdf.save(`${filename}.pdf`);
-  } catch (e) {
-    console.error(e);
-    alert("PDF 저장 중 오류가 발생했습니다.");
-  }
+  pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+  pdf.save(filename);
 };
 
 const safeJsonParse = (str) => {
@@ -163,7 +179,6 @@ const fetchGemini = async (prompt) => {
 
       if (!response.ok) {
         const errData = await response.json();
-        // 404(모델 없음)나 400(요청 오류)인 경우 다음 모델 시도
         throw new Error(errData.error?.message || `HTTP Error ${response.status}`);
       }
 
@@ -174,7 +189,6 @@ const fetchGemini = async (prompt) => {
     } catch (e) {
       console.warn(`${model} 실패:`, e);
       lastError = e;
-      // 키 자체가 틀린 경우(400 API key invalid)는 더 시도하지 않고 중단
       if (e.message.includes("API key")) throw e; 
     }
   }
@@ -241,19 +255,25 @@ function CompanyAnalysisApp({ onClose }) {
       if (parsed) setResult(parsed);
     } catch (e) { alert(e.message); } finally { setLoading(false); }
   };
-  
-  const handleDownloadPng = async () => {
-    await downloadElementAsPng(
-      reportRef.current,
-      `기업분석_${inputs.company || 'report'}`
-    );
+
+  const handleDownloadPNG = async () => {
+    try {
+      const canvas = await captureReportCanvas(reportRef);
+      if (!canvas) return;
+      saveCanvasAsPNG(canvas, `기업분석_${inputs.company || "report"}.png`);
+    } catch (e) {
+      alert("PNG 저장 중 오류가 발생했습니다.");
+    }
   };
 
-  const handleDownloadPdf = async () => {
-    await downloadElementAsPdf(
-      reportRef.current,
-      `기업분석_${inputs.company || 'report'}`
-    );
+  const handleDownloadPDF = async () => {
+    try {
+      const canvas = await captureReportCanvas(reportRef);
+      if (!canvas) return;
+      saveCanvasAsPDF(canvas, `기업분석_${inputs.company || "report"}.pdf`);
+    } catch (e) {
+      alert("PDF 저장 중 오류가 발생했습니다.");
+    }
   };
   
   return (
@@ -283,7 +303,11 @@ function CompanyAnalysisApp({ onClose }) {
         </aside>
         <main className="flex-1 p-8 overflow-y-auto bg-slate-50 flex justify-center">
           {result ? (
-            <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-2xl p-12 space-y-10 animate-in fade-in zoom-in-95 duration-500">
+            <div
+              ref={reportRef}
+              className="w-[210mm] min-h-[297mm] bg-white shadow-2xl p-12 space-y-10 animate-in fade-in zoom-in-95 duration-500"
+              style={{ backgroundColor: "#ffffff" }}
+            >
               <div className="border-b-4 border-indigo-600 pb-6">
                  <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">COMPANY REPORT</span>
                  <h1 className="text-4xl font-extrabold text-slate-900 mt-2">{inputs.company}</h1>
@@ -330,14 +354,14 @@ function CompanyAnalysisApp({ onClose }) {
         {result && (
           <div className="absolute bottom-8 right-8 flex gap-3 z-50">
             <button
-              onClick={handleDownloadPng}
-              className="bg-slate-800 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-700 transition-transform hover:-translate-y-1 flex items-center text-sm"
+              onClick={handleDownloadPNG}
+              className="bg-slate-900 text-white px-4 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center text-sm"
             >
               <Download className="mr-2" size={18}/> PNG 저장
             </button>
             <button
-              onClick={handleDownloadPdf}
-              className="bg-slate-900 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center text-sm"
+              onClick={handleDownloadPDF}
+              className="bg-indigo-600 text-white px-4 py-3 rounded-full font-bold shadow-2xl hover:bg-indigo-700 transition-transform hover:-translate-y-1 flex items-center text-sm"
             >
               <Download className="mr-2" size={18}/> PDF 저장
             </button>
@@ -365,18 +389,24 @@ function CareerRoadmapApp({ onClose }) {
     } catch (e) { alert(e.message); } finally { setLoading(false); }
   };
 
-  const handleDownloadPng = async () => {
-    await downloadElementAsPng(
-      reportRef.current,
-      `커리어로드맵_${inputs.company || 'roadmap'}`
-    );
+  const handleDownloadPNG = async () => {
+    try {
+      const canvas = await captureReportCanvas(reportRef);
+      if (!canvas) return;
+      saveCanvasAsPNG(canvas, `로드맵_${inputs.company || "report"}.png`);
+    } catch (e) {
+      alert("PNG 저장 중 오류가 발생했습니다.");
+    }
   };
 
-  const handleDownloadPdf = async () => {
-    await downloadElementAsPdf(
-      reportRef.current,
-      `커리어로드맵_${inputs.company || 'roadmap'}`
-    );
+  const handleDownloadPDF = async () => {
+    try {
+      const canvas = await captureReportCanvas(reportRef);
+      if (!canvas) return;
+      saveCanvasAsPDF(canvas, `로드맵_${inputs.company || "report"}.pdf`);
+    } catch (e) {
+      alert("PDF 저장 중 오류가 발생했습니다.");
+    }
   };
 
   return (
@@ -410,7 +440,11 @@ function CareerRoadmapApp({ onClose }) {
         </aside>
         <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
           {roadmapData ? (
-            <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-2xl p-12 animate-in fade-in zoom-in-95 duration-500">
+            <div
+              ref={reportRef}
+              className="w-[210mm] bg-white shadow-2xl p-12 animate-in fade-in zoom-in-95 duration-500"
+              style={{ backgroundColor: "#ffffff" }}
+            >
               <div className="border-b-4 border-blue-600 pb-6 mb-10">
                 <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">CAREER ROADMAP</span>
                 <h1 className="text-4xl font-extrabold text-slate-900">{inputs.company}</h1>
@@ -442,14 +476,14 @@ function CareerRoadmapApp({ onClose }) {
         {roadmapData && (
           <div className="absolute bottom-8 right-8 flex gap-3 z-50">
             <button
-              onClick={handleDownloadPng}
-              className="bg-slate-800 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-700 transition-transform hover:-translate-y-1 flex items-center text-sm"
+              onClick={handleDownloadPNG}
+              className="bg-slate-900 text-white px-4 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center text-sm"
             >
               <Download className="mr-2" size={18}/> PNG 저장
             </button>
             <button
-              onClick={handleDownloadPdf}
-              className="bg-slate-900 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center text-sm"
+              onClick={handleDownloadPDF}
+              className="bg-indigo-600 text-white px-4 py-3 rounded-full font-bold shadow-2xl hover:bg-indigo-700 transition-transform hover:-translate-y-1 flex items-center text-sm"
             >
               <Download className="mr-2" size={18}/> PDF 저장
             </button>
@@ -490,18 +524,24 @@ function PtInterviewApp({ onClose }) {
     } catch(e){ alert(e.message); } finally { setLoading(false); }
   };
 
-  const handleDownloadPng = async () => {
-    await downloadElementAsPng(
-      reportRef.current,
-      `PT면접_${inputs.company || 'report'}`
-    );
+  const handleDownloadPNG = async () => {
+    try {
+      const canvas = await captureReportCanvas(reportRef);
+      if (!canvas) return;
+      saveCanvasAsPNG(canvas, `PT면접_${inputs.company || "report"}.png`);
+    } catch (e) {
+      alert("PNG 저장 중 오류가 발생했습니다.");
+    }
   };
 
-  const handleDownloadPdf = async () => {
-    await downloadElementAsPdf(
-      reportRef.current,
-      `PT면접_${inputs.company || 'report'}`
-    );
+  const handleDownloadPDF = async () => {
+    try {
+      const canvas = await captureReportCanvas(reportRef);
+      if (!canvas) return;
+      saveCanvasAsPDF(canvas, `PT면접_${inputs.company || "report"}.pdf`);
+    } catch (e) {
+      alert("PDF 저장 중 오류가 발생했습니다.");
+    }
   };
 
   return (
@@ -536,7 +576,11 @@ function PtInterviewApp({ onClose }) {
            {step === 'detail' && <button onClick={()=>setStep('input')} className="w-full bg-slate-200 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-300 transition-colors">새로 만들기</button>}
         </aside>
         <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
-           {script ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-2xl p-12 space-y-10 animate-in fade-in slide-in-from-bottom-4">
+           {script ? <div
+             ref={reportRef}
+             className="w-[210mm] bg-white shadow-2xl p-12 space-y-10 animate-in fade-in slide-in-from-bottom-4"
+             style={{ backgroundColor: "#ffffff" }}
+           >
              <div className="border-b-4 border-rose-500 pb-6">
                <span className="bg-rose-100 text-rose-700 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">PT INTERVIEW GUIDE</span>
                <h1 className="text-3xl font-extrabold mt-3 text-slate-900 leading-tight">{selectedTopic}</h1>
@@ -564,14 +608,14 @@ function PtInterviewApp({ onClose }) {
         {script && (
           <div className="absolute bottom-8 right-8 flex gap-3 z-50">
             <button
-              onClick={handleDownloadPng}
-              className="bg-slate-800 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-700 transition-transform hover:-translate-y-1 flex items-center text-sm"
+              onClick={handleDownloadPNG}
+              className="bg-slate-900 text-white px-4 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center text-sm"
             >
               <Download className="mr-2" size={18}/> PNG 저장
             </button>
             <button
-              onClick={handleDownloadPdf}
-              className="bg-slate-900 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center text-sm"
+              onClick={handleDownloadPDF}
+              className="bg-indigo-600 text-white px-4 py-3 rounded-full font-bold shadow-2xl hover:bg-indigo-700 transition-transform hover:-translate-y-1 flex items-center text-sm"
             >
               <Download className="mr-2" size={18}/> PDF 저장
             </button>
@@ -599,18 +643,24 @@ function SituationInterviewApp({ onClose }) {
     } catch (e) { alert(e.message); } finally { setLoading(false); }
   };
 
-  const handleDownloadPng = async () => {
-    await downloadElementAsPng(
-      reportRef.current,
-      `상황면접_${(inputs.question || 'question').slice(0, 10)}`
-    );
+  const handleDownloadPNG = async () => {
+    try {
+      const canvas = await captureReportCanvas(reportRef);
+      if (!canvas) return;
+      saveCanvasAsPNG(canvas, `상황면접_${inputs.question ? "report" : ""}.png`);
+    } catch (e) {
+      alert("PNG 저장 중 오류가 발생했습니다.");
+    }
   };
 
-  const handleDownloadPdf = async () => {
-    await downloadElementAsPdf(
-      reportRef.current,
-      `상황면접_${(inputs.question || 'question').slice(0, 10)}`
-    );
+  const handleDownloadPDF = async () => {
+    try {
+      const canvas = await captureReportCanvas(reportRef);
+      if (!canvas) return;
+      saveCanvasAsPDF(canvas, `상황면접_${inputs.question ? "report" : ""}.pdf`);
+    } catch (e) {
+      alert("PDF 저장 중 오류가 발생했습니다.");
+    }
   };
 
   return (
@@ -632,18 +682,47 @@ function SituationInterviewApp({ onClose }) {
           </div>
           <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-teal-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg shadow-teal-200 transition-all disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"답변 생성"}</button>
         </div></aside>
-        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{result ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-lg p-10 space-y-6"><h2 className="text-3xl font-extrabold mb-6 text-slate-900 border-b-2 border-teal-500 pb-4 inline-block">상황면접 가이드</h2><div className="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-8"><h3 className="font-bold text-slate-500 text-xs mb-2 tracking-widest">QUESTION</h3><p className="font-bold text-xl text-slate-800 leading-normal">"{inputs.question}"</p></div><div className="grid grid-cols-1 gap-8"><div className="border-l-4 border-teal-500 pl-6 py-2"><h3 className="font-bold text-teal-800 text-xl mb-3">{result.situation_a?.title}</h3><p className="text-slate-600 leading-relaxed text-lg">{result.situation_a?.content}</p></div><div className="border-l-4 border-slate-400 pl-6 py-2"><h3 className="font-bold text-slate-700 text-xl mb-3">{result.situation_b?.title}</h3><p className="text-slate-600 leading-relaxed text-lg">{result.situation_b?.content}</p></div></div><div className="mt-8 bg-teal-50 p-6 rounded-xl border border-teal-100 text-teal-900 text-base font-medium leading-relaxed">💡 <span className="font-bold">Coach's Advice:</span> {result.advice}</div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Split size={64} className="mb-4 opacity-20"/><p>질문을 입력하면 답변이 생성됩니다.</p></div>}</main>
+        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
+          {result ? (
+            <div
+              ref={reportRef}
+              className="w-[210mm] bg-white shadow-lg p-10 space-y-6"
+              style={{ backgroundColor: "#ffffff" }}
+            >
+              <h2 className="text-3xl font-extrabold mb-6 text-slate-900 border-b-2 border-teal-500 pb-4 inline-block">상황면접 가이드</h2>
+              <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-8">
+                <h3 className="font-bold text-slate-500 text-xs mb-2 tracking-widest">QUESTION</h3>
+                <p className="font-bold text-xl text-slate-800 leading-normal">"{inputs.question}"</p>
+              </div>
+              <div className="grid grid-cols-1 gap-8">
+                <div className="border-l-4 border-teal-500 pl-6 py-2">
+                  <h3 className="font-bold text-teal-800 text-xl mb-3">{result.situation_a?.title}</h3>
+                  <p className="text-slate-600 leading-relaxed text-lg">{result.situation_a?.content}</p>
+                </div>
+                <div className="border-l-4 border-slate-400 pl-6 py-2">
+                  <h3 className="font-bold text-slate-700 text-xl mb-3">{result.situation_b?.title}</h3>
+                  <p className="text-slate-600 leading-relaxed text-lg">{result.situation_b?.content}</p>
+                </div>
+              </div>
+              <div className="mt-8 bg-teal-50 p-6 rounded-xl border border-teal-100 text-teal-900 text-base font-medium leading-relaxed">
+                💡 <span className="font-bold">Coach's Advice:</span> {result.advice}
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-slate-400"><Split size={64} className="mb-4 opacity-20"/><p>질문을 입력하면 답변이 생성됩니다.</p></div>
+          )}
+        </main>
         {result && (
           <div className="absolute bottom-8 right-8 flex gap-3 z-50">
             <button
-              onClick={handleDownloadPng}
-              className="bg-slate-800 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-700 transition-transform hover:-translate-y-1 flex items-center text-sm"
+              onClick={handleDownloadPNG}
+              className="bg-slate-900 text-white px-4 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center text-sm"
             >
               <Download className="mr-2" size={18}/> PNG 저장
             </button>
             <button
-              onClick={handleDownloadPdf}
-              className="bg-slate-900 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center text-sm"
+              onClick={handleDownloadPDF}
+              className="bg-indigo-600 text-white px-4 py-3 rounded-full font-bold shadow-2xl hover:bg-indigo-700 transition-transform hover:-translate-y-1 flex items-center text-sm"
             >
               <Download className="mr-2" size={18}/> PDF 저장
             </button>
@@ -671,18 +750,24 @@ function SelfIntroApp({ onClose }) {
     } catch (e) { alert(e.message); } finally { setLoading(false); }
   };
 
-  const handleDownloadPng = async () => {
-    await downloadElementAsPng(
-      reportRef.current,
-      `1분자기소개_${inputs.company || 'intro'}`
-    );
+  const handleDownloadPNG = async () => {
+    try {
+      const canvas = await captureReportCanvas(reportRef);
+      if (!canvas) return;
+      saveCanvasAsPNG(canvas, `자기소개_${inputs.company || "report"}.png`);
+    } catch (e) {
+      alert("PNG 저장 중 오류가 발생했습니다.");
+    }
   };
 
-  const handleDownloadPdf = async () => {
-    await downloadElementAsPdf(
-      reportRef.current,
-      `1분자기소개_${inputs.company || 'intro'}`
-    );
+  const handleDownloadPDF = async () => {
+    try {
+      const canvas = await captureReportCanvas(reportRef);
+      if (!canvas) return;
+      saveCanvasAsPDF(canvas, `자기소개_${inputs.company || "report"}.pdf`);
+    } catch (e) {
+      alert("PDF 저장 중 오류가 발생했습니다.");
+    }
   };
 
   return (
@@ -699,25 +784,54 @@ function SelfIntroApp({ onClose }) {
             <input value={inputs.job} onChange={e=>setInputs({...inputs, job:e.target.value})} className="p-3 border rounded-lg text-sm focus:outline-none focus:border-purple-500" placeholder="직무명"/>
           </div>
           <div className="flex gap-2">
-            <button onClick={()=>setInputs({...inputs, concept:'competency'})} className={`flex-1 py-3 text-xs rounded-lg transition-all ${inputs.concept==='competency'?'bg-purple-600 text-white font-bold':'bg-slate-100 text-slate-600'}`}>직무역량 강조</button>
-            <button onClick={()=>setInputs({...inputs, concept:'character'})} className={`flex-1 py-3 text-xs rounded-lg transition-all ${inputs.concept==='character'?'bg-purple-600 text-white font-bold':'bg-slate-100 text-slate-600'}`}>인성/태도 강조</button>
+            <button onClick={()=>setInputs({...inputs, concept:'competency'})} className={`flex-1 py-3 text-xs rounded-lg transition-all ${inputs.concept==='competency'?'bg-purple-600 text:white font-bold':'bg-slate-100 text-slate-600'}`}>직무역량 강조</button>
+            <button onClick={()=>setInputs({...inputs, concept:'character'})} className={`flex-1 py-3 text-xs rounded-lg transition-all ${inputs.concept==='character'?'bg-purple-600 text:white font-bold':'bg-slate-100 text-slate-600'}`}>인성/태도 강조</button>
           </div>
           <input value={inputs.keyword} onChange={e=>setInputs({...inputs, keyword:e.target.value})} className="w-full p-3 border rounded-lg text-sm font-bold focus:outline-none focus:border-purple-500" placeholder="핵심 키워드 (예: 소통, 분석력)"/>
           <textarea value={inputs.exp} onChange={e=>setInputs({...inputs, exp:e.target.value})} className="w-full p-3 border rounded-lg text-sm h-32 resize-none focus:outline-none focus:border-purple-500" placeholder="관련 경험을 간단히 요약해주세요."/>
           <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-purple-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg shadow-purple-200 transition-all disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"스크립트 생성"}</button>
         </div></aside>
-        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{script ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-lg p-10 space-y-8 animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-purple-600 pb-6 text-center"><span className="text-purple-600 font-bold text-sm tracking-widest block mb-2">1-MINUTE SPEECH</span><h1 className="text-3xl font-extrabold text-slate-900">"{script.slogan}"</h1></div><div className="space-y-8"><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-4 uppercase tracking-wider">Opening</div><div className="flex-1 bg-purple-50 p-6 rounded-2xl text-xl font-bold text-slate-800 leading-relaxed shadow-sm border border-purple-100">"{script.opening}"</div></div><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-1 uppercase tracking-wider">Body</div><div className="flex-1 text-slate-700 leading-loose pl-6 border-l-2 border-slate-200 text-lg">{script.body}</div></div><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-4 uppercase tracking-wider">Closing</div><div className="flex-1 bg-slate-50 p-6 rounded-2xl font-medium text-slate-800 text-lg leading-relaxed border border-slate-200">"{script.closing}"</div></div></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Mic size={64} className="mb-4 opacity-20"/><p>정보를 입력하면 스크립트가 생성됩니다.</p></div>}</main>
+        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
+          {script ? (
+            <div
+              ref={reportRef}
+              className="w-[210mm] bg-white shadow-lg p-10 space-y-8 animate-in fade-in zoom-in-95 duration-500"
+              style={{ backgroundColor: "#ffffff" }}
+            >
+              <div className="border-b-4 border-purple-600 pb-6 text-center">
+                <span className="text-purple-600 font-bold text-sm tracking-widest block mb-2">1-MINUTE SPEECH</span>
+                <h1 className="text-3xl font-extrabold text-slate-900">"{script.slogan}"</h1>
+              </div>
+              <div className="space-y-8">
+                <div className="flex gap-6">
+                  <div className="w-20 text-right font-bold text-slate-400 text-sm pt-4 uppercase tracking-wider">Opening</div>
+                  <div className="flex-1 bg-purple-50 p-6 rounded-2xl text-xl font-bold text-slate-800 leading-relaxed shadow-sm border border-purple-100">"{script.opening}"</div>
+                </div>
+                <div className="flex gap-6">
+                  <div className="w-20 text-right font-bold text-slate-400 text-sm pt-1 uppercase tracking-wider">Body</div>
+                  <div className="flex-1 text-slate-700 leading-loose pl-6 border-l-2 border-slate-200 text-lg">{script.body}</div>
+                </div>
+                <div className="flex gap-6">
+                  <div className="w-20 text-right font-bold text-slate-400 text-sm pt-4 uppercase tracking-wider">Closing</div>
+                  <div className="flex-1 bg-slate-50 p-6 rounded-2xl font-medium text-slate-800 text-lg leading-relaxed border border-slate-200">"{script.closing}"</div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-slate-400"><Mic size={64} className="mb-4 opacity-20"/><p>정보를 입력하면 스크립트가 생성됩니다.</p></div>
+          )}
+        </main>
         {script && (
           <div className="absolute bottom-8 right-8 flex gap-3 z-50">
             <button
-              onClick={handleDownloadPng}
-              className="bg-slate-800 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-700 transition-transform hover:-translate-y-1 flex items-center text-sm"
+              onClick={handleDownloadPNG}
+              className="bg-slate-900 text-white px-4 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center text-sm"
             >
               <Download className="mr-2" size={18}/> PNG 저장
             </button>
             <button
-              onClick={handleDownloadPdf}
-              className="bg-slate-900 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center text-sm"
+              onClick={handleDownloadPDF}
+              className="bg-indigo-600 text-white px-4 py-3 rounded-full font-bold shadow-2xl hover:bg-indigo-700 transition-transform hover:-translate-y-1 flex items-center text-sm"
             >
               <Download className="mr-2" size={18}/> PDF 저장
             </button>
@@ -745,18 +859,24 @@ function ExperienceStructuringApp({ onClose }) {
     } catch (e) { alert(e.message); } finally { setLoading(false); }
   };
 
-  const handleDownloadPng = async () => {
-    await downloadElementAsPng(
-      reportRef.current,
-      `STAR_${inputs.keyword || 'experience'}`
-    );
+  const handleDownloadPNG = async () => {
+    try {
+      const canvas = await captureReportCanvas(reportRef);
+      if (!canvas) return;
+      saveCanvasAsPNG(canvas, `STAR_${inputs.keyword || "report"}.png`);
+    } catch (e) {
+      alert("PNG 저장 중 오류가 발생했습니다.");
+    }
   };
 
-  const handleDownloadPdf = async () => {
-    await downloadElementAsPdf(
-      reportRef.current,
-      `STAR_${inputs.keyword || 'experience'}`
-    );
+  const handleDownloadPDF = async () => {
+    try {
+      const canvas = await captureReportCanvas(reportRef);
+      if (!canvas) return;
+      saveCanvasAsPDF(canvas, `STAR_${inputs.keyword || "report"}.pdf`);
+    } catch (e) {
+      alert("PDF 저장 중 오류가 발생했습니다.");
+    }
   };
 
   return (
@@ -776,18 +896,51 @@ function ExperienceStructuringApp({ onClose }) {
           <textarea value={inputs.desc} onChange={e=>setInputs({...inputs, desc:e.target.value})} className="w-full p-3 border rounded-lg h-40 text-sm resize-none focus:outline-none focus:border-indigo-500" placeholder="경험 내용을 자유롭게 서술하세요 (당시 상황, 내가 한 행동, 결과 등)"/>
           <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg shadow-indigo-200 transition-all disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"구조화 실행"}</button>
         </div></aside>
-        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{starData.s ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-lg p-10 space-y-6 animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-indigo-600 pb-6 mb-6"><h1 className="text-4xl font-extrabold text-slate-900">STAR Analysis</h1><p className="text-slate-500 mt-2 text-lg">경험 구조화 워크시트</p></div><div className="space-y-6"><div className="bg-slate-50 p-6 rounded-2xl border-l-8 border-slate-400"><h3 className="font-bold text-slate-500 mb-2 text-sm tracking-widest">SITUATION</h3><p className="text-slate-800 text-lg leading-relaxed">{starData.s}</p></div><div className="bg-slate-50 p-6 rounded-2xl border-l-8 border-slate-500"><h3 className="font-bold text-slate-500 mb-2 text-sm tracking-widest">TASK</h3><p className="text-slate-800 text-lg leading-relaxed">{starData.t}</p></div><div className="bg-white border-2 border-indigo-100 p-6 rounded-2xl shadow-sm"><h3 className="font-bold text-indigo-600 mb-2 text-sm tracking-widest">ACTION</h3><p className="text-slate-800 font-medium text-lg leading-relaxed">{starData.a}</p></div><div className="bg-indigo-50 p-6 rounded-2xl border-l-8 border-indigo-600"><h3 className="font-bold text-indigo-800 mb-2 text-sm tracking-widest">RESULT</h3><p className="text-slate-800 font-bold text-lg leading-relaxed">{starData.r}</p></div></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><LayoutList size={64} className="mb-4 opacity-20"/><p>경험을 입력하면 STAR 기법으로 구조화합니다.</p></div>}</main>
+        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
+          {starData.s ? (
+            <div
+              ref={reportRef}
+              className="w-[210mm] bg-white shadow-lg p-10 space-y-6 animate-in fade-in zoom-in-95 duration-500"
+              style={{ backgroundColor: "#ffffff" }}
+            >
+              <div className="border-b-4 border-indigo-600 pb-6 mb-6">
+                <h1 className="text-4xl font-extrabold text-slate-900">STAR Analysis</h1>
+                <p className="text-slate-500 mt-2 text-lg">경험 구조화 워크시트</p>
+              </div>
+              <div className="space-y-6">
+                <div className="bg-slate-50 p-6 rounded-2xl border-l-8 border-slate-400">
+                  <h3 className="font-bold text-slate-500 mb-2 text-sm tracking-widest">SITUATION</h3>
+                  <p className="text-slate-800 text-lg leading-relaxed">{starData.s}</p>
+                </div>
+                <div className="bg-slate-50 p-6 rounded-2xl border-l-8 border-slate-500">
+                  <h3 className="font-bold text-slate-500 mb-2 text-sm tracking-widest">TASK</h3>
+                  <p className="text-slate-800 text-lg leading-relaxed">{starData.t}</p>
+                </div>
+                <div className="bg-white border-2 border-indigo-100 p-6 rounded-2xl shadow-sm">
+                  <h3 className="font-bold text-indigo-600 mb-2 text-sm tracking-widest">ACTION</h3>
+                  <p className="text-slate-800 font-medium text-lg leading-relaxed">{starData.a}</p>
+                </div>
+                <div className="bg-indigo-50 p-6 rounded-2xl border-l-8 border-indigo-600">
+                  <h3 className="font-bold text-indigo-800 mb-2 text-sm tracking-widest">RESULT</h3>
+                  <p className="text-slate-800 font-bold text-lg leading-relaxed">{starData.r}</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-slate-400"><LayoutList size={64} className="mb-4 opacity-20"/><p>경험을 입력하면 STAR 기법으로 구조화합니다.</p></div>
+          )}
+        </main>
         {starData.s && (
           <div className="absolute bottom-8 right-8 flex gap-3 z-50">
             <button
-              onClick={handleDownloadPng}
-              className="bg-slate-800 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-700 transition-transform hover:-translate-y-1 flex items-center text-sm"
+              onClick={handleDownloadPNG}
+              className="bg-slate-900 text-white px-4 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center text-sm"
             >
               <Download className="mr-2" size={18}/> PNG 저장
             </button>
             <button
-              onClick={handleDownloadPdf}
-              className="bg-slate-900 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center text-sm"
+              onClick={handleDownloadPDF}
+              className="bg-indigo-600 text-white px-4 py-3 rounded-full font-bold shadow-2xl hover:bg-indigo-700 transition-transform hover:-translate-y-1 flex items-center text-sm"
             >
               <Download className="mr-2" size={18}/> PDF 저장
             </button>
@@ -814,18 +967,24 @@ function RoleModelGuideApp({ onClose }) {
     } catch (e) { alert(e.message); } finally { setLoading(false); }
   };
 
-  const handleDownloadPng = async () => {
-    await downloadElementAsPng(
-      reportRef.current,
-      `롤모델_${data.name || 'rolemodel'}`
-    );
+  const handleDownloadPNG = async () => {
+    try {
+      const canvas = await captureReportCanvas(reportRef);
+      if (!canvas) return;
+      saveCanvasAsPNG(canvas, `롤모델_${data.name || "report"}.png`);
+    } catch (e) {
+      alert("PNG 저장 중 오류가 발생했습니다.");
+    }
   };
 
-  const handleDownloadPdf = async () => {
-    await downloadElementAsPdf(
-      reportRef.current,
-      `롤모델_${data.name || 'rolemodel'}`
-    );
+  const handleDownloadPDF = async () => {
+    try {
+      const canvas = await captureReportCanvas(reportRef);
+      if (!canvas) return;
+      saveCanvasAsPDF(canvas, `롤모델_${data.name || "report"}.pdf`);
+    } catch (e) {
+      alert("PDF 저장 중 오류가 발생했습니다.");
+    }
   };
 
   return (
@@ -840,18 +999,43 @@ function RoleModelGuideApp({ onClose }) {
           <input value={data.name} onChange={e=>setData({...data, name:e.target.value})} className="w-full p-3 border border-slate-300 rounded-xl font-bold text-lg focus:ring-2 focus:ring-orange-500 outline-none" placeholder="예: 스티브 잡스" onKeyDown={(e) => e.key === 'Enter' && handleAIAnalysis()}/>
           <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-orange-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg shadow-orange-200 transition-all disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"분석 시작"}</button>
         </div></aside>
-        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{data.role ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-lg p-10 space-y-8 animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-orange-500 pb-6"><span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-xs font-bold">ROLE MODEL</span><h1 className="text-4xl font-extrabold mt-3">{data.name}</h1><p className="text-slate-500 text-lg mt-1">{data.role}</p></div><div className="flex gap-8 items-start"><div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center shrink-0"><User className="w-8 h-8 text-orange-600"/></div><p className="text-slate-700 leading-loose text-lg flex-1">{data.intro}</p></div><div className="bg-orange-50 p-8 rounded-2xl italic text-orange-900 font-serif text-xl border-l-8 border-orange-400 leading-relaxed">"{data.quotes}"</div><div className="border-t border-slate-200 pt-8"><h3 className="font-bold text-xl mb-4 flex items-center text-slate-800"><MessageSquare className="mr-2 text-orange-500"/> 면접 활용 Tip</h3><p className="text-slate-600 leading-relaxed text-lg">{data.reason}</p></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Award size={64} className="mb-4 opacity-20"/><p>롤모델 이름을 입력하세요.</p></div>}</main>
+        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
+          {data.role ? (
+            <div
+              ref={reportRef}
+              className="w-[210mm] bg-white shadow-lg p-10 space-y-8 animate-in fade-in zoom-in-95 duration-500"
+              style={{ backgroundColor: "#ffffff" }}
+            >
+              <div className="border-b-4 border-orange-500 pb-6">
+                <span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-xs font-bold">ROLE MODEL</span>
+                <h1 className="text-4xl font-extrabold mt-3">{data.name}</h1>
+                <p className="text-slate-500 text-lg mt-1">{data.role}</p>
+              </div>
+              <div className="flex gap-8 items-start">
+                <div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center shrink-0"><User className="w-8 h-8 text-orange-600"/></div>
+                <p className="text-slate-700 leading-loose text-lg flex-1">{data.intro}</p>
+              </div>
+              <div className="bg-orange-50 p-8 rounded-2xl italic text-orange-900 font-serif text-xl border-l-8 border-orange-400 leading-relaxed">"{data.quotes}"</div>
+              <div className="border-t border-slate-200 pt-8">
+                <h3 className="font-bold text-xl mb-4 flex items-center text-slate-800"><MessageSquare className="mr-2 text-orange-500"/> 면접 활용 Tip</h3>
+                <p className="text-slate-600 leading-relaxed text-lg">{data.reason}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-slate-400"><Award size={64} className="mb-4 opacity-20"/><p>롤모델 이름을 입력하세요.</p></div>
+          )}
+        </main>
         {data.role && (
           <div className="absolute bottom-8 right-8 flex gap-3 z-50">
             <button
-              onClick={handleDownloadPng}
-              className="bg-slate-800 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-700 transition-transform hover:-translate-y-1 flex items-center text-sm"
+              onClick={handleDownloadPNG}
+              className="bg-slate-900 text-white px-4 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center text-sm"
             >
               <Download className="mr-2" size={18}/> PNG 저장
             </button>
             <button
-              onClick={handleDownloadPdf}
-              className="bg-slate-900 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center text-sm"
+              onClick={handleDownloadPDF}
+              className="bg-indigo-600 text-white px-4 py-3 rounded-full font-bold shadow-2xl hover:bg-indigo-700 transition-transform hover:-translate-y-1 flex items-center text-sm"
             >
               <Download className="mr-2" size={18}/> PDF 저장
             </button>
@@ -878,18 +1062,24 @@ function SelfDiscoveryMapApp({ onClose }) {
   };
   const removeKeyword = (id) => setKeywords(keywords.filter(k => k.id !== id));
 
-  const handleDownloadPng = async () => {
-    await downloadElementAsPng(
-      reportRef.current,
-      `SelfMap_${profile.name || 'map'}`
-    );
+  const handleDownloadPNG = async () => {
+    try {
+      const canvas = await captureReportCanvas(reportRef);
+      if (!canvas) return;
+      saveCanvasAsPNG(canvas, `지도_${profile.name || "report"}.png`);
+    } catch (e) {
+      alert("PNG 저장 중 오류가 발생했습니다.");
+    }
   };
 
-  const handleDownloadPdf = async () => {
-    await downloadElementAsPdf(
-      reportRef.current,
-      `SelfMap_${profile.name || 'map'}`
-    );
+  const handleDownloadPDF = async () => {
+    try {
+      const canvas = await captureReportCanvas(reportRef);
+      if (!canvas) return;
+      saveCanvasAsPDF(canvas, `지도_${profile.name || "report"}.pdf`);
+    } catch (e) {
+      alert("PDF 저장 중 오류가 발생했습니다.");
+    }
   };
 
   return (
@@ -915,25 +1105,53 @@ function SelfDiscoveryMapApp({ onClose }) {
           </section>
         </aside>
         <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
-          <div ref={reportRef} className="w-[210mm] bg-white shadow-lg p-10 h-min min-h-[297mm] relative">
-             <div className="border-b-2 border-slate-800 pb-4 mb-10 flex justify-between items-end"><div><h1 className="text-4xl font-extrabold text-slate-900">Self-Discovery Map</h1><p className="text-slate-500 mt-1">Career Vitamin Analysis</p></div><div className="text-right"><div className="text-2xl font-bold text-blue-600">{profile.name}</div><div className="text-sm text-slate-500">{profile.targetJob}</div><div className="text-xs text-slate-400 mt-1">{profile.date}</div></div></div>
+          <div
+            ref={reportRef}
+            className="w-[210mm] bg-white shadow-lg p-10 h-min min-h-[297mm] relative"
+            style={{ backgroundColor: "#ffffff" }}
+          >
+             <div className="border-b-2 border-slate-800 pb-4 mb-10 flex justify-between items-end">
+               <div>
+                 <h1 className="text-4xl font-extrabold text-slate-900">Self-Discovery Map</h1>
+                 <p className="text-slate-500 mt-1">Career Vitamin Analysis</p>
+               </div>
+               <div className="text-right">
+                 <div className="text-2xl font-bold text-blue-600">{profile.name}</div>
+                 <div className="text-sm text-slate-500">{profile.targetJob}</div>
+                 <div className="text-xs text-slate-400 mt-1">{profile.date}</div>
+               </div>
+             </div>
              <div className="mb-12">
                <h3 className="font-bold text-lg border-l-4 border-blue-600 pl-3 mb-6 text-slate-800">Core Keywords</h3>
-               <div className="flex flex-wrap gap-3 min-h-[100px] content-start">{keywords.length > 0 ? keywords.map(k=><span key={k.id} className={`px-4 py-2 rounded-xl font-bold text-sm border cursor-pointer hover:opacity-70 flex items-center shadow-sm ${k.type==='strength'?'bg-blue-50 border-blue-200 text-blue-700':'bg-emerald-50 border-emerald-200 text-emerald-700'}`} onClick={()=>removeKeyword(k.id)}>{k.text}<X size={14} className="ml-2 opacity-50"/></span>) : <span className="text-slate-400 italic">키워드를 입력해주세요.</span>}</div>
+               <div className="flex flex-wrap gap-3 min-h-[100px] content-start">
+                 {keywords.length > 0 ? keywords.map(k=>(
+                   <span
+                     key={k.id}
+                     className={`px-4 py-2 rounded-xl font-bold text-sm border cursor-pointer hover:opacity-70 flex items-center shadow-sm ${k.type==='strength'?'bg-blue-50 border-blue-200 text-blue-700':'bg-emerald-50 border-emerald-200 text-emerald-700'}`}
+                     onClick={()=>removeKeyword(k.id)}
+                   >
+                     {k.text}
+                     <X size={14} className="ml-2 opacity-50"/>
+                   </span>
+                 )) : <span className="text-slate-400 italic">키워드를 입력해주세요.</span>}
+               </div>
              </div>
-             <div className="absolute bottom-10 left-10 right-10 border-t pt-4 flex justify-between text-slate-400 text-xs"><span>Powered by Career Vitamin</span><span>Confidential Report</span></div>
+             <div className="absolute bottom-10 left-10 right-10 border-t pt-4 flex justify-between text-slate-400 text-xs">
+               <span>Powered by Career Vitamin</span>
+               <span>Confidential Report</span>
+             </div>
           </div>
         </main>
         <div className="absolute bottom-8 right-8 flex gap-3 z-50">
           <button
-            onClick={handleDownloadPng}
-            className="bg-slate-800 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-700 transition-transform hover:-translate-y-1 flex items-center text-sm"
+            onClick={handleDownloadPNG}
+            className="bg-slate-900 text-white px-4 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center text-sm"
           >
             <Download className="mr-2" size={18}/> PNG 저장
           </button>
           <button
-            onClick={handleDownloadPdf}
-            className="bg-slate-900 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center text-sm"
+            onClick={handleDownloadPDF}
+            className="bg-indigo-600 text-white px-4 py-3 rounded-full font-bold shadow-2xl hover:bg-indigo-700 transition-transform hover:-translate-y-1 flex items-center text-sm"
           >
             <Download className="mr-2" size={18}/> PDF 저장
           </button>

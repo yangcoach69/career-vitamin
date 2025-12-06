@@ -19,7 +19,6 @@ import {
   getDocs,
   updateDoc 
 } from "firebase/firestore";
-// [수정] Stethoscope 포함, 모든 아이콘 완벽 Import
 import { 
   LayoutDashboard, Map, Building2, LogOut, Plus, Trash2, 
   Settings, Loader2, RefreshCw, Check, 
@@ -33,8 +32,9 @@ import {
 // [설정 구역]
 // =============================================================================
 
-const DEFAULT_API_KEY = "AIzaSyBX0kT7I3yanNNxI-xj7KMoxVmIkPAP5ug"; 
+const DEFAULT_API_KEY = "AIzaSyCNc2Ht2PJAdcxfXraBwu6Afj02dUEV0gM"; 
 
+// Firebase 설정
 const firebaseConfig = {
   apiKey: "AIzaSyCNc2Ht2PJAdcxfXraBwu6Afj02dUEV0gM",
   authDomain: "career-vitamin.firebaseapp.com",
@@ -44,6 +44,7 @@ const firebaseConfig = {
   appId: "1:1056766630872:web:5d2149f6a0f0fd5cd130ad"
 };
 
+// 관리자 UID
 const OWNER_UID = "TN8orW7kwuTzAnFWNM8jCiixt3r2"; 
 const APP_ID = 'career-vitamin'; 
 
@@ -84,15 +85,21 @@ const renderText = (content) => {
   return content;
 };
 
-// AI Fetcher
+// ★ 핵심: AI 호출 함수 (자동 우회 기능 탑재)
 const fetchGemini = async (prompt) => {
-  const apiKey = localStorage.getItem("custom_gemini_key") || DEFAULT_API_KEY;
-  const models = ["gemini-1.5-flash", "gemini-1.0-pro", "gemini-pro"];
+  const apiKey = localStorage.getItem("custom_gemini_key");
+  
+  if (!apiKey) {
+    throw new Error("API 키가 없습니다. [시스템 관리]에서 키를 등록해주세요.");
+  }
+  
+  // 시도할 모델 목록 (순서대로 시도)
+  const models = ["gemini-2.5-flash-lite", "gemini-2.5-pro"];
   let lastError = null;
 
   for (const model of models) {
     try {
-      console.log(`Attempting with model: ${model}`);
+      console.log(`AI 호출 시도: ${model}`);
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -104,28 +111,27 @@ const fetchGemini = async (prompt) => {
 
       if (!response.ok) {
         const errData = await response.json();
-        if (response.status === 400 && (errData.error?.message?.includes("API key") || errData.error?.message?.includes("key"))) {
-           throw new Error("API 키가 유효하지 않습니다. [시스템 관리]에서 새 키를 등록해주세요.");
-        }
+        // 404(모델 없음)나 400(요청 오류)인 경우 다음 모델 시도
         throw new Error(errData.error?.message || `HTTP Error ${response.status}`);
       }
 
       const data = await response.json();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      const parsed = safeJsonParse(text);
-      
-      if (parsed) return parsed;
+      return safeJsonParse(text);
       
     } catch (e) {
-      console.warn(`Model ${model} failed:`, e);
+      console.warn(`${model} 실패:`, e);
       lastError = e;
-      if (e.message.includes("API 키")) throw e; 
+      // 키 자체가 틀린 경우(400 API key invalid)는 더 시도하지 않고 중단
+      if (e.message.includes("API key")) throw e; 
     }
   }
-  throw lastError || new Error("모든 AI 모델 응답 실패");
+  
+  throw lastError || new Error("모든 AI 모델이 응답하지 않습니다.");
 };
 
 // --- Constants ---
+const CATEGORIES = [{ id: 'ai_tools', title: 'AI 코칭 어시스턴트', icon: Sparkles }];
 const SERVICES = {
   gpt_guide: { name: "[GPT] 직업 탐색 가이드", desc: "관심 있는 직업/직무 입력 시 가이드 생성", link: "https://chatgpt.com/g/g-Uch9gJR4b-job-explorer-guide-report", internal: false, icon: Compass, color: "emerald" },
   card_bot: { name: "[노트북LM] 커리어스타일 챗봇", desc: "유료 프로그램 전용 챗봇", link: "https://notebooklm.google.com/notebook/595da4c0-fcc1-4064-82c8-9901e6dd8772", internal: false, icon: MessageSquare, color: "violet" },
@@ -153,6 +159,7 @@ const COLOR_VARIANTS = {
 
 // --- Sub Components (Apps) ---
 
+// 1. 기업분석 앱
 function CompanyAnalysisApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', url: '', job: '' });
   const [result, setResult] = useState(null);
@@ -163,40 +170,106 @@ function CompanyAnalysisApp({ onClose }) {
     if (!inputs.company || !inputs.job) return alert("기업명과 직무를 입력해주세요.");
     setLoading(true);
     try {
-      const prompt = `기업 '${inputs.company}'(직무: ${inputs.job}) 심층 분석. JSON 포맷 필수: { "overview": { "vision": "...", "values": "..." }, "business": { "history": "...", "biz_area": "...", "issues": ["...", "...", "..."] }, "market": { "trends": "...", "swot": { "s": "...", "w": "...", "o": "...", "t": "..." } }, "competitor": "...", "strategy": "..." }`;
+      const prompt = `
+        당신은 전문 커리어 코치입니다. 다음 정보를 바탕으로 심층 기업 분석 리포트를 작성해주세요.
+        기업명: ${inputs.company}
+        참고 URL: ${inputs.url || '없음'}
+        지원 직무: ${inputs.job}
+        
+        필수 JSON 형식:
+        {
+          "overview": { "vision": "비전 요약", "values": "핵심가치" },
+          "business": { "history": "주요 연혁", "biz_area": "사업 영역", "issues": ["이슈1", "이슈2"] },
+          "market": { "trends": "시장 동향", "swot": { "s": "강점", "w": "약점", "o": "기회", "t": "위협" } },
+          "competitor": "경쟁 우위 요소",
+          "strategy": "직무 맞춤 전략"
+        }
+      `;
       const parsed = await fetchGemini(prompt);
-      setResult(parsed);
+      if (parsed) setResult(parsed);
     } catch (e) { alert(e.message); } finally { setLoading(false); }
   };
+  
   const handleDownload = async () => { if (!reportRef.current) return; try { const h = await loadHtml2Canvas(); const c = await h(reportRef.current, { scale: 2, useCORS: true }); const l = document.createElement('a'); l.download = `기업분석_${inputs.company}.png`; l.href = c.toDataURL('image/png'); l.click(); } catch (e) { alert("저장 실패"); } };
   
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
-      <header className="bg-slate-900 text-white p-4 flex justify-between items-center"><div className="flex items-center gap-3"><BarChart3 className="text-indigo-400" /><h1 className="font-bold">기업분석 리포트</h1></div><button onClick={onClose}><X/></button></header>
+      <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
+        <div className="flex items-center gap-3"><BarChart3 className="text-indigo-400" /><h1 className="font-bold text-lg">기업분석 리포트</h1></div>
+        <button onClick={onClose} className="flex items-center text-sm hover:text-indigo-200 transition-colors"><ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기</button>
+      </header>
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-80 bg-white border-r p-6 overflow-y-auto">
-          <div className="space-y-4">
-            <input value={inputs.company} onChange={e=>setInputs({...inputs, company:e.target.value})} className="w-full p-2 border rounded" placeholder="기업명" />
-            <input value={inputs.job} onChange={e=>setInputs({...inputs, job:e.target.value})} className="w-full p-2 border rounded" placeholder="직무" />
-            <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700">{loading ? <Loader2 className="animate-spin mx-auto"/> : "분석 시작"}</button>
+        <aside className="w-80 bg-white border-r p-6 overflow-y-auto shrink-0">
+          <div className="space-y-5">
+            <h3 className="font-bold text-sm text-indigo-700 flex items-center uppercase tracking-wider"><Settings size={16} className="mr-2"/> 분석 설정</h3>
+            <div>
+              <label className="text-xs font-bold text-slate-500 block mb-1.5">기업명</label>
+              <input value={inputs.company} onChange={e=>setInputs({...inputs, company:e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" placeholder="예: 카카오" />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-500 block mb-1.5">홈페이지 URL (선택)</label>
+              <input value={inputs.url} onChange={e=>setInputs({...inputs, url:e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" placeholder="https://..." />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-500 block mb-1.5">지원 직무</label>
+              <input value={inputs.job} onChange={e=>setInputs({...inputs, job:e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" placeholder="예: 서비스 기획" />
+            </div>
+            <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-indigo-600 text-white py-3.5 rounded-xl hover:bg-indigo-700 font-bold mt-4 shadow-lg shadow-indigo-200 transition-all disabled:bg-slate-400 disabled:shadow-none">{loading ? <Loader2 className="animate-spin mx-auto"/> : "AI 분석 실행"}</button>
           </div>
         </aside>
         <main className="flex-1 p-8 overflow-y-auto bg-slate-50 flex justify-center">
           {result ? (
-            <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-lg p-10 space-y-8">
-              <h1 className="text-3xl font-bold text-indigo-900 border-b pb-4">{inputs.company} 분석 리포트</h1>
-              <section><h3 className="font-bold text-lg mb-2">1. 기업 개요</h3><p className="text-sm">{renderText(result.overview?.vision)}</p></section>
-              <section><h3 className="font-bold text-lg mb-2">2. 사업 현황</h3><p className="text-sm">{renderText(result.business?.biz_area)}</p></section>
-              <section><h3 className="font-bold text-lg mb-2">3. SWOT 분석</h3><div className="grid grid-cols-2 gap-2 text-xs"><div className="bg-blue-50 p-2">S: {renderText(result.market?.swot?.s)}</div><div className="bg-orange-50 p-2">W: {renderText(result.market?.swot?.w)}</div></div></section>
-              <section><h3 className="font-bold text-lg mb-2">4. 전략 제언</h3><p className="text-sm bg-indigo-50 p-4 rounded">{renderText(result.strategy)}</p></section>
+            <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-2xl p-12 space-y-10 animate-in fade-in zoom-in-95 duration-500">
+              <div className="border-b-4 border-indigo-600 pb-6">
+                 <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">COMPANY REPORT</span>
+                 <h1 className="text-4xl font-extrabold text-slate-900 mt-2">{inputs.company}</h1>
+                 <p className="text-lg text-slate-500 mt-2">기업분석 리포트 ({new Date().toLocaleDateString()})</p>
+              </div>
+              <section>
+                <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center"><Star size={24} className="mr-2"/> 1. 기업 개요</h3>
+                <div className="grid grid-cols-2 gap-6">
+                   <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100"><h4 className="font-bold text-xs text-slate-400 mb-2 tracking-wider">VISION & MISSION</h4><p className="text-slate-700 leading-relaxed">{renderText(result.overview?.vision)}</p></div>
+                   <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100"><h4 className="font-bold text-xs text-slate-400 mb-2 tracking-wider">CORE VALUES</h4><p className="text-slate-700 leading-relaxed">{renderText(result.overview?.values)}</p></div>
+                </div>
+              </section>
+              <section>
+                <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center"><Building2 size={24} className="mr-2"/> 2. 사업 현황 및 이슈</h3>
+                <p className="text-slate-700 mb-4 bg-white border border-slate-200 p-5 rounded-2xl leading-relaxed shadow-sm">{renderText(result.business?.history)}</p>
+                <div className="space-y-3">
+                  {result.business?.issues?.map((iss, idx) => <div key={idx} className="text-slate-700 bg-indigo-50 p-4 rounded-xl border border-indigo-100 flex items-start"><span className="bg-white text-indigo-600 px-2 py-0.5 rounded text-xs font-bold mr-3 border border-indigo-200 shrink-0 mt-0.5">ISSUE {idx+1}</span>{renderText(iss)}</div>)}
+                </div>
+              </section>
+              <section>
+                <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center"><Globe size={24} className="mr-2"/> 3. SWOT 분석</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="bg-blue-50 p-5 rounded-2xl border border-blue-100"><span className="text-blue-700 font-bold text-lg block mb-2">Strength</span><p className="text-slate-700 leading-relaxed">{renderText(result.market?.swot?.s)}</p></div>
+                  <div className="bg-orange-50 p-5 rounded-2xl border border-orange-100"><span className="text-orange-700 font-bold text-lg block mb-2">Weakness</span><p className="text-slate-700 leading-relaxed">{renderText(result.market?.swot?.w)}</p></div>
+                  <div className="bg-emerald-50 p-5 rounded-2xl border border-emerald-100"><span className="text-emerald-700 font-bold text-lg block mb-2">Opportunity</span><p className="text-slate-700 leading-relaxed">{renderText(result.market?.swot?.o)}</p></div>
+                  <div className="bg-red-50 p-5 rounded-2xl border border-red-100"><span className="text-red-700 font-bold text-lg block mb-2">Threat</span><p className="text-slate-700 leading-relaxed">{renderText(result.market?.swot?.t)}</p></div>
+                </div>
+              </section>
+              <section>
+                 <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center"><Target size={24} className="mr-2"/> 4. 취업 전략</h3>
+                 <div className="bg-indigo-600 text-white p-8 rounded-2xl shadow-xl shadow-indigo-200 font-medium leading-loose text-lg">{renderText(result.strategy)}</div>
+              </section>
             </div>
-          ) : <div className="flex items-center justify-center h-full text-slate-400">정보를 입력하고 분석을 시작하세요.</div>}
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-slate-400">
+              <div className="w-32 h-32 bg-slate-100 rounded-full flex items-center justify-center mb-6">
+                <BarChart3 size={64} className="opacity-20"/>
+              </div>
+              <p className="text-lg font-medium">좌측 메뉴에서 정보를 입력하고</p>
+              <p className="text-sm mt-1">AI 분석을 시작하세요.</p>
+            </div>
+          )}
         </main>
+        {result && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> PDF 저장</button>}
       </div>
     </div>
   );
 }
 
+// 2. 커리어 로드맵 앱
 function CareerRoadmapApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', job: '', years: '5' });
   const [roadmapData, setRoadmapData] = useState(null); 
@@ -206,7 +279,7 @@ function CareerRoadmapApp({ onClose }) {
     if (!inputs.company || !inputs.job) return alert("입력 필요");
     setLoading(true);
     try {
-      const prompt = `커리어 로드맵. 기업:${inputs.company}, 직무:${inputs.job}, ${inputs.years}년후. JSON: { "goal": "...", "roadmap": [{"stage": "...", "action": "..."}], "script": "..." }`;
+      const prompt = `커리어 로드맵 설계. 기업:${inputs.company}, 직무:${inputs.job}, 목표기간:${inputs.years}년. JSON: { "goal": "최종목표", "roadmap": [{"stage": "단계명", "action": "실천내용"}], "script": "입사후포부" }`;
       const parsed = await fetchGemini(prompt);
       setRoadmapData(parsed);
     } catch (e) { alert(e.message); } finally { setLoading(false); }
@@ -214,15 +287,71 @@ function CareerRoadmapApp({ onClose }) {
   const handleDownload = async () => { if (!reportRef.current) return; try { const h = await loadHtml2Canvas(); const c = await h(reportRef.current, { scale: 2, useCORS: true }); const l = document.createElement('a'); l.download = `로드맵.png`; l.href = c.toDataURL('image/png'); l.click(); } catch (e) { alert("실패"); } };
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
-      <header className="bg-slate-900 text-white p-4 flex justify-between items-center"><div className="flex items-center gap-3"><TrendingUp className="text-blue-400"/><h1 className="font-bold">커리어 로드맵</h1></div><button onClick={onClose}><X/></button></header>
+      <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
+        <div className="flex items-center gap-3"><TrendingUp className="text-blue-400"/><h1 className="font-bold text-lg">커리어 로드맵</h1></div>
+        <button onClick={onClose} className="flex items-center text-sm hover:text-blue-200 transition-colors"><ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기</button>
+      </header>
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-80 bg-white border-r p-6"><div className="space-y-4"><input value={inputs.company} onChange={e=>setInputs({...inputs, company:e.target.value})} className="w-full p-2 border rounded" placeholder="기업명"/><input value={inputs.job} onChange={e=>setInputs({...inputs, job:e.target.value})} className="w-full p-2 border rounded" placeholder="직무"/><button onClick={handleAIPlan} disabled={loading} className="w-full bg-blue-600 text-white py-2 rounded">{loading ? <Loader2 className="animate-spin mx-auto"/> : "로드맵 생성"}</button></div></aside>
-        <main className="flex-1 p-8 overflow-y-auto flex justify-center">{roadmapData ? <div ref={reportRef} className="w-[210mm] bg-white shadow-lg p-10"><h1 className="text-2xl font-bold mb-4">{roadmapData.goal}</h1>{roadmapData.roadmap?.map((r,i)=><div key={i} className="mb-4 p-4 border rounded"><h3 className="font-bold text-blue-600">{r.stage}</h3><p>{r.action}</p></div>)}</div> : <div className="flex items-center justify-center h-full text-slate-400">정보를 입력하세요.</div>}</main>
+        <aside className="w-80 bg-white border-r p-6 shrink-0">
+          <div className="space-y-5">
+            <h3 className="font-bold text-sm text-blue-700 flex items-center uppercase tracking-wider"><Settings size={16} className="mr-2"/> 로드맵 설정</h3>
+            <div>
+              <label className="text-xs font-bold text-slate-500 block mb-1.5">목표 기업명</label>
+              <input value={inputs.company} onChange={e=>setInputs({...inputs, company:e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" placeholder="예: 삼성전자"/>
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-500 block mb-1.5">희망 직무</label>
+              <input value={inputs.job} onChange={e=>setInputs({...inputs, job:e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" placeholder="예: 마케팅"/>
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-500 block mb-1.5">목표 기간</label>
+              <div className="flex gap-2">
+                {['3', '5', '10'].map(y => (
+                  <button key={y} onClick={()=>setInputs({...inputs, years:y})} className={`flex-1 py-3 border rounded-lg transition-all ${inputs.years===y ? 'bg-blue-600 border-blue-600 text-white font-bold shadow-md' : 'bg-white hover:bg-slate-50 text-slate-600'}`}>{y}년</button>
+                ))}
+              </div>
+            </div>
+            <button onClick={handleAIPlan} disabled={loading} className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg shadow-blue-200 transition-all disabled:bg-slate-400">{loading ? <Loader2 className="animate-spin mx-auto"/> : "로드맵 생성"}</button>
+          </div>
+        </aside>
+        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
+          {roadmapData ? (
+            <div ref={reportRef} className="w-[210mm] bg-white shadow-2xl p-12 animate-in fade-in zoom-in-95 duration-500">
+              <div className="border-b-4 border-blue-600 pb-6 mb-10">
+                <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">CAREER ROADMAP</span>
+                <h1 className="text-4xl font-extrabold text-slate-900">{inputs.company}</h1>
+                <p className="text-blue-600 font-bold text-xl mt-3">"{roadmapData.goal}"</p>
+              </div>
+              <div className="space-y-8 relative before:absolute before:left-[27px] before:top-4 before:bottom-4 before:w-0.5 before:bg-slate-200">
+                {roadmapData.roadmap?.map((r,i)=>(
+                  <div key={i} className="flex gap-6 relative">
+                    <div className="w-14 h-14 rounded-full bg-white border-4 border-blue-100 flex items-center justify-center font-bold text-blue-600 shadow-sm z-10 shrink-0 text-xl">{i+1}</div>
+                    <div className="flex-1 p-6 border border-slate-200 rounded-2xl bg-white shadow-sm hover:shadow-md transition-shadow">
+                      <h3 className="font-bold text-blue-800 mb-2 text-lg">{r.stage}</h3>
+                      <p className="text-slate-600 leading-relaxed">{r.action}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-12 bg-slate-900 p-8 rounded-2xl text-white shadow-xl">
+                <h3 className="font-bold text-blue-300 mb-4 flex items-center text-lg"><MessageSquare className="mr-2"/> 입사 후 포부 (스크립트)</h3>
+                <p className="text-slate-300 leading-loose whitespace-pre-line text-lg font-light">"{roadmapData.script}"</p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-slate-400">
+              <TrendingUp size={64} className="mb-4 opacity-20"/>
+              <p>커리어 목표를 입력하면 로드맵이 생성됩니다.</p>
+            </div>
+          )}
+        </main>
+        {roadmapData && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
       </div>
     </div>
   );
 }
 
+// 3. PT 면접 앱
 function PtInterviewApp({ onClose }) {
   const [step, setStep] = useState('input'); 
   const [inputs, setInputs] = useState({ company: '', job: '', request: '' });
@@ -235,15 +364,16 @@ function PtInterviewApp({ onClose }) {
     if (!inputs.company) return alert("입력 필요");
     setLoading(true);
     try {
-      const prompt = `기업:${inputs.company}, 직무:${inputs.job}, 상황:${inputs.request}. PT 면접 주제 5개 추천. JSON Array only: ["주제1", "주제2"...]`;
+      const prompt = `기업:${inputs.company}, 직무:${inputs.job}, 요구사항:${inputs.request}. PT 면접 주제 5개 추천. JSON Array only: ["주제1", "주제2"...]`;
       const parsed = await fetchGemini(prompt);
       if(parsed) { setTopics(parsed); setStep('list'); }
     } catch (e) { alert(e.message); } finally { setLoading(false); }
   };
   const handleGenerateScript = async (topic) => {
     setLoading(true);
+    setSelectedTopic(topic);
     try {
-      const prompt = `PT주제: "${topic}", 기업:${inputs.company}. 발표 대본. JSON: {"intro": "...", "body": "...", "conclusion": "..."}`;
+      const prompt = `PT주제: "${topic}", 기업:${inputs.company}. 발표 대본(서론/본론/결론). JSON: {"intro": "...", "body": "...", "conclusion": "..."}`;
       const parsed = await fetchGemini(prompt);
       if(parsed) { setScript(parsed); setStep('detail'); }
     } catch(e){ alert(e.message); } finally { setLoading(false); }
@@ -252,21 +382,68 @@ function PtInterviewApp({ onClose }) {
 
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
-      <header className="bg-slate-900 text-white p-4 flex justify-between items-center"><div className="flex items-center gap-3"><MonitorPlay className="text-rose-400"/><h1 className="font-bold">PT 면접 가이드</h1></div><button onClick={onClose}><X/></button></header>
+      <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
+        <div className="flex items-center gap-3"><MonitorPlay className="text-rose-400"/><h1 className="font-bold text-lg">PT 면접 가이드</h1></div>
+        <button onClick={onClose} className="flex items-center text-sm hover:text-rose-200 transition-colors"><ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기</button>
+      </header>
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-80 bg-white border-r p-6">
-           {step === 'input' && <div className="space-y-4"><input value={inputs.company} onChange={e=>setInputs({...inputs, company:e.target.value})} className="w-full p-2 border rounded" placeholder="기업명"/><button onClick={handleGenerateTopics} disabled={loading} className="w-full bg-rose-600 text-white py-2 rounded">{loading?<Loader2 className="animate-spin mx-auto"/>:"주제 추출"}</button></div>}
-           {step === 'list' && <div className="space-y-2">{topics.map((t,i)=><button key={i} onClick={()=>handleGenerateScript(t)} disabled={loading} className="w-full text-left p-2 border rounded hover:bg-slate-50 text-sm">{i+1}. {t}</button>)}</div>}
-           {step === 'detail' && <button onClick={()=>setStep('input')} className="w-full bg-slate-200 py-2 rounded">처음으로</button>}
+        <aside className="w-80 bg-white border-r p-6 shrink-0">
+           {step === 'input' && <div className="space-y-5">
+             <h3 className="font-bold text-sm text-rose-700 flex items-center uppercase tracking-wider"><Settings size={16} className="mr-2"/> 기본 설정</h3>
+             <div>
+                <label className="text-xs font-bold text-slate-500 block mb-1.5">지원 기업명</label>
+                <input value={inputs.company} onChange={e=>setInputs({...inputs, company:e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 outline-none" placeholder="예: 현대자동차"/>
+             </div>
+             <div>
+                <label className="text-xs font-bold text-slate-500 block mb-1.5">지원 직무</label>
+                <input value={inputs.job} onChange={e=>setInputs({...inputs, job:e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 outline-none" placeholder="예: R&D"/>
+             </div>
+             <div>
+                <label className="text-xs font-bold text-slate-500 block mb-1.5">추가 요구사항 (선택)</label>
+                <textarea value={inputs.request} onChange={e=>setInputs({...inputs, request:e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg h-24 resize-none focus:ring-2 focus:ring-rose-500 outline-none" placeholder="예: 최근 전기차 트렌드 반영"/>
+             </div>
+             <button onClick={handleGenerateTopics} disabled={loading} className="w-full bg-rose-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg shadow-rose-200 transition-all">{loading?<Loader2 className="animate-spin mx-auto"/>:"주제 추출 시작"}</button>
+           </div>}
+           {step === 'list' && <div className="space-y-3">
+             <h3 className="font-bold text-sm text-slate-500 mb-2 flex items-center"><Check size={16} className="mr-2"/> 주제 선택</h3>
+             {topics.map((t,i)=><button key={i} onClick={()=>handleGenerateScript(t)} disabled={loading} className="w-full text-left p-4 border border-slate-200 rounded-xl hover:bg-rose-50 hover:border-rose-200 text-sm transition-all font-medium text-slate-700 shadow-sm active:scale-95"><span className="text-rose-500 font-bold mr-2 block text-xs mb-1">TOPIC {i+1}</span>{t}</button>)}
+             <button onClick={()=>setStep('input')} className="w-full bg-slate-100 py-3 rounded-xl text-sm mt-4 font-bold text-slate-500 hover:bg-slate-200 transition-colors">이전 단계로</button>
+           </div>}
+           {step === 'detail' && <button onClick={()=>setStep('input')} className="w-full bg-slate-200 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-300 transition-colors">새로 만들기</button>}
         </aside>
-        <main className="flex-1 p-8 overflow-y-auto flex justify-center">
-           {script ? <div ref={reportRef} className="w-[210mm] bg-white shadow-lg p-10 space-y-6"><h2 className="text-xl font-bold">Intro</h2><p>{script.intro}</p><h2 className="text-xl font-bold">Body</h2><p>{script.body}</p><h2 className="text-xl font-bold">Conclusion</h2><p>{script.conclusion}</p></div> : <div className="flex items-center justify-center h-full text-slate-400">대기 중...</div>}
+        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
+           {script ? <div ref={reportRef} className="w-[210mm] bg-white shadow-2xl p-12 space-y-10 animate-in fade-in slide-in-from-bottom-4">
+             <div className="border-b-4 border-rose-500 pb-6">
+               <span className="bg-rose-100 text-rose-700 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">PT INTERVIEW GUIDE</span>
+               <h1 className="text-3xl font-extrabold mt-3 text-slate-900 leading-tight">{selectedTopic}</h1>
+               <div className="flex gap-4 mt-4 text-sm font-medium text-slate-500">
+                 <span>{inputs.company}</span> <span className="text-slate-300">|</span> <span>{inputs.job}</span>
+               </div>
+             </div>
+             <section>
+                <h3 className="text-xl font-bold text-slate-800 mb-3 border-l-4 border-rose-400 pl-3">Introduction</h3>
+                <div className="text-base text-slate-700 bg-slate-50 p-6 rounded-xl border border-slate-100 leading-loose">{script.intro}</div>
+             </section>
+             <section>
+                <h3 className="text-xl font-bold text-slate-800 mb-3 border-l-4 border-rose-500 pl-3">Body</h3>
+                <div className="text-base text-slate-700 pl-6 py-2 leading-loose whitespace-pre-line border-l-2 border-slate-200 ml-2">{script.body}</div>
+             </section>
+             <section>
+                <h3 className="text-xl font-bold text-slate-800 mb-3 border-l-4 border-rose-600 pl-3">Conclusion</h3>
+                <div className="text-base text-white bg-rose-600 p-6 rounded-xl shadow-lg leading-loose font-medium">{script.conclusion}</div>
+             </section>
+           </div> : <div className="flex flex-col items-center justify-center h-full text-slate-400">
+              <MonitorPlay size={64} className="mb-4 opacity-20"/>
+              <p>주제를 선택하면 발표 대본이 생성됩니다.</p>
+           </div>}
         </main>
+        {script && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> PDF 저장</button>}
       </div>
     </div>
   );
 }
 
+// 4. 상황면접 앱
 function SituationInterviewApp({ onClose }) {
   const [inputs, setInputs] = useState({ question: '', criteria: '' });
   const [result, setResult] = useState(null);
@@ -276,7 +453,7 @@ function SituationInterviewApp({ onClose }) {
     if (!inputs.question) return alert("질문 입력 필요");
     setLoading(true);
     try {
-      const prompt = `상황면접 질문: ${inputs.question}, 기준: ${inputs.criteria}. 답변 2가지 버전. JSON: { "situation_a": {"title": "...", "content": "..."}, "situation_b": {"title": "...", "content": "..."}, "advice": "..." }`;
+      const prompt = `상황면접 질문: ${inputs.question}, 판단기준: ${inputs.criteria}. 답변 2가지 버전(A/B)과 조언. JSON: { "situation_a": {"title": "...", "content": "..."}, "situation_b": {"title": "...", "content": "..."}, "advice": "..." }`;
       const parsed = await fetchGemini(prompt);
       setResult(parsed);
     } catch (e) { alert(e.message); } finally { setLoading(false); }
@@ -284,15 +461,31 @@ function SituationInterviewApp({ onClose }) {
   const handleDownload = async () => { if (!reportRef.current) return; try { const h = await loadHtml2Canvas(); const c = await h(reportRef.current, { scale: 2, useCORS: true }); const l = document.createElement('a'); l.download = `상황면접.png`; l.href = c.toDataURL('image/png'); l.click(); } catch (e) { alert("실패"); } };
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
-      <header className="bg-slate-900 text-white p-4 flex justify-between items-center"><div className="flex items-center gap-3"><Split className="text-teal-400"/><h1 className="font-bold">상황면접 가이드</h1></div><button onClick={onClose}><X/></button></header>
+      <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
+        <div className="flex items-center gap-3"><Split className="text-teal-400"/><h1 className="font-bold text-lg">상황면접 가이드</h1></div>
+        <button onClick={onClose} className="flex items-center text-sm hover:text-teal-200 transition-colors"><ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기</button>
+      </header>
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-80 bg-white border-r p-6"><div className="space-y-4"><textarea value={inputs.question} onChange={e=>setInputs({...inputs, question:e.target.value})} className="w-full p-2 border rounded h-24" placeholder="질문"/><button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-teal-600 text-white py-2 rounded">{loading?<Loader2 className="animate-spin mx-auto"/>:"생성"}</button></div></aside>
-        <main className="flex-1 p-8 overflow-y-auto flex justify-center">{result ? <div ref={reportRef} className="w-[210mm] bg-white shadow-lg p-10 space-y-6"><div className="border-l-4 border-teal-500 pl-4"><h3 className="font-bold">{result.situation_a?.title}</h3><p>{result.situation_a?.content}</p></div><div className="border-l-4 border-slate-400 pl-4"><h3 className="font-bold">{result.situation_b?.title}</h3><p>{result.situation_b?.content}</p></div><div className="bg-slate-100 p-4 rounded">Tip: {result.advice}</div></div> : <div className="flex items-center justify-center h-full text-slate-400">질문을 입력하세요.</div>}</main>
+        <aside className="w-80 bg-white border-r p-6 shrink-0"><div className="space-y-5">
+          <h3 className="font-bold text-sm text-teal-700 flex items-center uppercase tracking-wider"><Settings size={16} className="mr-2"/> 질문 설정</h3>
+          <div>
+            <label className="text-xs font-bold text-slate-500 block mb-1.5">면접 질문</label>
+            <textarea value={inputs.question} onChange={e=>setInputs({...inputs, question:e.target.value})} className="w-full p-3 border border-slate-300 rounded-xl h-32 text-sm resize-none focus:ring-2 focus:ring-teal-500 outline-none" placeholder="예: 상사가 부당한 지시를 내린다면?"/>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 block mb-1.5">분리 기준 (옵션)</label>
+            <input value={inputs.criteria} onChange={e=>setInputs({...inputs, criteria:e.target.value})} className="w-full p-3 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-teal-500 outline-none" placeholder="예: 회사의 이익 vs 개인의 양심"/>
+          </div>
+          <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-teal-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg shadow-teal-200 transition-all disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"답변 생성"}</button>
+        </div></aside>
+        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{result ? <div ref={reportRef} className="w-[210mm] bg-white shadow-lg p-10 space-y-6"><h2 className="text-3xl font-extrabold mb-6 text-slate-900 border-b-2 border-teal-500 pb-4 inline-block">상황면접 가이드</h2><div className="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-8"><h3 className="font-bold text-slate-500 text-xs mb-2 tracking-widest">QUESTION</h3><p className="font-bold text-xl text-slate-800 leading-normal">"{inputs.question}"</p></div><div className="grid grid-cols-1 gap-8"><div className="border-l-4 border-teal-500 pl-6 py-2"><h3 className="font-bold text-teal-800 text-xl mb-3">{result.situation_a?.title}</h3><p className="text-slate-600 leading-relaxed text-lg">{result.situation_a?.content}</p></div><div className="border-l-4 border-slate-400 pl-6 py-2"><h3 className="font-bold text-slate-700 text-xl mb-3">{result.situation_b?.title}</h3><p className="text-slate-600 leading-relaxed text-lg">{result.situation_b?.content}</p></div></div><div className="mt-8 bg-teal-50 p-6 rounded-xl border border-teal-100 text-teal-900 text-base font-medium leading-relaxed">💡 <span className="font-bold">Coach's Advice:</span> {result.advice}</div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Split size={64} className="mb-4 opacity-20"/><p>질문을 입력하면 답변이 생성됩니다.</p></div>}</main>
+        {result && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> PDF 저장</button>}
       </div>
     </div>
   );
 }
 
+// 5. 1분 자기소개 앱
 function SelfIntroApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', job: '', concept: 'competency', keyword: '', exp: '' });
   const [script, setScript] = useState(null); 
@@ -310,15 +503,33 @@ function SelfIntroApp({ onClose }) {
   const handleDownload = async () => { if (!reportRef.current) return; try { const h = await loadHtml2Canvas(); const c = await h(reportRef.current, { scale: 2, useCORS: true }); const l = document.createElement('a'); l.download = `자기소개.png`; l.href = c.toDataURL('image/png'); l.click(); } catch (e) { alert("실패"); } };
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
-      <header className="bg-slate-900 text-white p-4 flex justify-between items-center"><div className="flex items-center gap-3"><Mic className="text-purple-400"/><h1 className="font-bold">1분 자기소개</h1></div><button onClick={onClose}><X/></button></header>
+      <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
+        <div className="flex items-center gap-3"><Mic className="text-purple-400"/><h1 className="font-bold text-lg">1분 자기소개</h1></div>
+        <button onClick={onClose} className="flex items-center text-sm hover:text-purple-200 transition-colors"><ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기</button>
+      </header>
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-80 bg-white border-r p-6"><div className="space-y-4"><input value={inputs.company} onChange={e=>setInputs({...inputs, company:e.target.value})} className="w-full p-2 border rounded" placeholder="기업명"/><button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-purple-600 text-white py-2 rounded">{loading?<Loader2 className="animate-spin mx-auto"/>:"생성"}</button></div></aside>
-        <main className="flex-1 p-8 overflow-y-auto flex justify-center">{script ? <div ref={reportRef} className="w-[210mm] bg-white shadow-lg p-10 space-y-6"><h1 className="text-2xl font-bold text-center">"{script.slogan}"</h1><div className="bg-purple-50 p-4 rounded"><h3 className="font-bold">Opening</h3><p>{script.opening}</p></div><div className="pl-4 border-l-2 border-purple-200"><h3 className="font-bold">Body</h3><p>{script.body}</p></div><div className="bg-slate-50 p-4 rounded"><h3 className="font-bold">Closing</h3><p>{script.closing}</p></div></div> : <div className="flex items-center justify-center h-full text-slate-400">정보를 입력하세요.</div>}</main>
+        <aside className="w-80 bg-white border-r p-6 shrink-0"><div className="space-y-5">
+          <h3 className="font-bold text-sm text-purple-700 flex items-center uppercase tracking-wider"><Settings size={16} className="mr-2"/> 전략 설정</h3>
+          <div className="grid grid-cols-2 gap-2">
+            <input value={inputs.company} onChange={e=>setInputs({...inputs, company:e.target.value})} className="p-3 border rounded-lg text-sm focus:outline-none focus:border-purple-500" placeholder="기업명"/>
+            <input value={inputs.job} onChange={e=>setInputs({...inputs, job:e.target.value})} className="p-3 border rounded-lg text-sm focus:outline-none focus:border-purple-500" placeholder="직무명"/>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={()=>setInputs({...inputs, concept:'competency'})} className={`flex-1 py-3 text-xs rounded-lg transition-all ${inputs.concept==='competency'?'bg-purple-600 text-white font-bold':'bg-slate-100 text-slate-600'}`}>직무역량 강조</button>
+            <button onClick={()=>setInputs({...inputs, concept:'character'})} className={`flex-1 py-3 text-xs rounded-lg transition-all ${inputs.concept==='character'?'bg-purple-600 text-white font-bold':'bg-slate-100 text-slate-600'}`}>인성/태도 강조</button>
+          </div>
+          <input value={inputs.keyword} onChange={e=>setInputs({...inputs, keyword:e.target.value})} className="w-full p-3 border rounded-lg text-sm font-bold focus:outline-none focus:border-purple-500" placeholder="핵심 키워드 (예: 소통, 분석력)"/>
+          <textarea value={inputs.exp} onChange={e=>setInputs({...inputs, exp:e.target.value})} className="w-full p-3 border rounded-lg text-sm h-32 resize-none focus:outline-none focus:border-purple-500" placeholder="관련 경험을 간단히 요약해주세요."/>
+          <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-purple-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg shadow-purple-200 transition-all disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"스크립트 생성"}</button>
+        </div></aside>
+        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{script ? <div ref={reportRef} className="w-[210mm] bg-white shadow-lg p-10 space-y-8 animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-purple-600 pb-6 text-center"><span className="text-purple-600 font-bold text-sm tracking-widest block mb-2">1-MINUTE SPEECH</span><h1 className="text-3xl font-extrabold text-slate-900">"{script.slogan}"</h1></div><div className="space-y-8"><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-4 uppercase tracking-wider">Opening</div><div className="flex-1 bg-purple-50 p-6 rounded-2xl text-xl font-bold text-slate-800 leading-relaxed shadow-sm border border-purple-100">"{script.opening}"</div></div><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-1 uppercase tracking-wider">Body</div><div className="flex-1 text-slate-700 leading-loose pl-6 border-l-2 border-slate-200 text-lg">{script.body}</div></div><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-4 uppercase tracking-wider">Closing</div><div className="flex-1 bg-slate-50 p-6 rounded-2xl font-medium text-slate-800 text-lg leading-relaxed border border-slate-200">"{script.closing}"</div></div></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Mic size={64} className="mb-4 opacity-20"/><p>정보를 입력하면 스크립트가 생성됩니다.</p></div>}</main>
+        {script && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> PDF 저장</button>}
       </div>
     </div>
   );
 }
 
+// 6. STAR 경험 구조화 앱
 function ExperienceStructuringApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', job: '', keyword: '', desc: '' });
   const [starData, setStarData] = useState({ s: '', t: '', a: '', r: '' });
@@ -328,7 +539,7 @@ function ExperienceStructuringApp({ onClose }) {
     if (!inputs.desc) return alert("내용 입력 필요");
     setLoading(true);
     try {
-      const prompt = `경험 STAR 구조화. 내용:${inputs.desc}. JSON: { "s": "...", "t": "...", "a": "...", "r": "..." }`;
+      const prompt = `경험 STAR 구조화. 기업:${inputs.company}, 직무:${inputs.job}, 키워드:${inputs.keyword}, 내용:${inputs.desc}. JSON: { "s": "...", "t": "...", "a": "...", "r": "..." }`;
       const parsed = await fetchGemini(prompt);
       setStarData(parsed);
     } catch (e) { alert(e.message); } finally { setLoading(false); }
@@ -336,15 +547,29 @@ function ExperienceStructuringApp({ onClose }) {
   const handleDownload = async () => { if (!reportRef.current) return; try { const h = await loadHtml2Canvas(); const c = await h(reportRef.current, { scale: 2, useCORS: true }); const l = document.createElement('a'); l.download = `STAR.png`; l.href = c.toDataURL('image/png'); l.click(); } catch (e) { alert("실패"); } };
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
-      <header className="bg-slate-900 text-white p-4 flex justify-between items-center"><div className="flex items-center gap-3"><LayoutList className="text-indigo-400"/><h1 className="font-bold">STAR 워크시트</h1></div><button onClick={onClose}><X/></button></header>
+      <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
+        <div className="flex items-center gap-3"><LayoutList className="text-indigo-400"/><h1 className="font-bold text-lg">STAR 워크시트</h1></div>
+        <button onClick={onClose} className="flex items-center text-sm hover:text-indigo-200 transition-colors"><ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기</button>
+      </header>
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-80 bg-white border-r p-6"><div className="space-y-4"><textarea value={inputs.desc} onChange={e=>setInputs({...inputs, desc:e.target.value})} className="w-full p-2 border rounded h-32" placeholder="경험 내용"/><button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-indigo-600 text-white py-2 rounded">{loading?<Loader2 className="animate-spin mx-auto"/>:"구조화"}</button></div></aside>
-        <main className="flex-1 p-8 overflow-y-auto flex justify-center">{starData.s ? <div ref={reportRef} className="w-[210mm] bg-white shadow-lg p-10 space-y-4"><div className="p-4 bg-slate-50 border-l-4 border-slate-400"><b>S:</b> {starData.s}</div><div className="p-4 bg-slate-50 border-l-4 border-slate-500"><b>T:</b> {starData.t}</div><div className="p-4 bg-indigo-50 border-l-4 border-indigo-500"><b>A:</b> {starData.a}</div><div className="p-4 bg-blue-50 border-l-4 border-blue-500"><b>R:</b> {starData.r}</div></div> : <div className="flex items-center justify-center h-full text-slate-400">경험을 입력하세요.</div>}</main>
+        <aside className="w-80 bg-white border-r p-6 shrink-0"><div className="space-y-5">
+          <h3 className="font-bold text-sm text-indigo-700 flex items-center uppercase tracking-wider"><Sparkles size={16} className="mr-2"/> 경험 입력</h3>
+          <div className="grid grid-cols-2 gap-2">
+            <input value={inputs.company} onChange={e=>setInputs({...inputs, company:e.target.value})} className="p-3 border rounded-lg text-sm focus:outline-none focus:border-indigo-500" placeholder="기업명"/>
+            <input value={inputs.job} onChange={e=>setInputs({...inputs, job:e.target.value})} className="p-3 border rounded-lg text-sm focus:outline-none focus:border-indigo-500" placeholder="직무명"/>
+          </div>
+          <input value={inputs.keyword} onChange={e=>setInputs({...inputs, keyword:e.target.value})} className="w-full p-3 border rounded-lg text-sm font-bold focus:outline-none focus:border-indigo-500" placeholder="핵심 역량 키워드"/>
+          <textarea value={inputs.desc} onChange={e=>setInputs({...inputs, desc:e.target.value})} className="w-full p-3 border rounded-lg h-40 text-sm resize-none focus:outline-none focus:border-indigo-500" placeholder="경험 내용을 자유롭게 서술하세요 (당시 상황, 내가 한 행동, 결과 등)"/>
+          <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg shadow-indigo-200 transition-all disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"구조화 실행"}</button>
+        </div></aside>
+        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{starData.s ? <div ref={reportRef} className="w-[210mm] bg-white shadow-lg p-10 space-y-6 animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-indigo-600 pb-6 mb-6"><h1 className="text-4xl font-extrabold text-slate-900">STAR Analysis</h1><p className="text-slate-500 mt-2 text-lg">경험 구조화 워크시트</p></div><div className="space-y-6"><div className="bg-slate-50 p-6 rounded-2xl border-l-8 border-slate-400"><h3 className="font-bold text-slate-500 mb-2 text-sm tracking-widest">SITUATION</h3><p className="text-slate-800 text-lg leading-relaxed">{starData.s}</p></div><div className="bg-slate-50 p-6 rounded-2xl border-l-8 border-slate-500"><h3 className="font-bold text-slate-500 mb-2 text-sm tracking-widest">TASK</h3><p className="text-slate-800 text-lg leading-relaxed">{starData.t}</p></div><div className="bg-white border-2 border-indigo-100 p-6 rounded-2xl shadow-sm"><h3 className="font-bold text-indigo-600 mb-2 text-sm tracking-widest">ACTION</h3><p className="text-slate-800 font-medium text-lg leading-relaxed">{starData.a}</p></div><div className="bg-indigo-50 p-6 rounded-2xl border-l-8 border-indigo-600"><h3 className="font-bold text-indigo-800 mb-2 text-sm tracking-widest">RESULT</h3><p className="text-slate-800 font-bold text-lg leading-relaxed">{starData.r}</p></div></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><LayoutList size={64} className="mb-4 opacity-20"/><p>경험을 입력하면 STAR 기법으로 구조화합니다.</p></div>}</main>
+        {starData.s && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> PDF 저장</button>}
       </div>
     </div>
   );
 }
 
+// 7. 롤모델 분석 앱
 function RoleModelGuideApp({ onClose }) {
   const [data, setData] = useState({ name: '', role: '', intro: '', quotes: '', media: '', reason: '' });
   const [loading, setLoading] = useState(false);
@@ -361,15 +586,24 @@ function RoleModelGuideApp({ onClose }) {
   const handleDownload = async () => { if (!reportRef.current) return; try { const h = await loadHtml2Canvas(); const c = await h(reportRef.current, { scale: 2, useCORS: true }); const l = document.createElement('a'); l.download = `롤모델.png`; l.href = c.toDataURL('image/png'); l.click(); } catch (e) { alert("실패"); } };
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
-      <header className="bg-slate-900 text-white p-4 flex justify-between items-center"><div className="flex items-center gap-3"><Award className="text-orange-400"/><h1 className="font-bold">롤모델 분석</h1></div><button onClick={onClose}><X/></button></header>
+      <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
+        <div className="flex items-center gap-3"><Award className="text-orange-400"/><h1 className="font-bold text-lg">롤모델 분석</h1></div>
+        <button onClick={onClose} className="flex items-center text-sm hover:text-orange-200 transition-colors"><ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기</button>
+      </header>
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-80 bg-white border-r p-6"><div className="space-y-4"><input value={data.name} onChange={e=>setData({...data, name:e.target.value})} className="w-full p-2 border rounded" placeholder="인물 이름"/><button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-orange-600 text-white py-2 rounded">{loading?<Loader2 className="animate-spin mx-auto"/>:"분석"}</button></div></aside>
-        <main className="flex-1 p-8 overflow-y-auto flex justify-center"><div ref={reportRef} className="w-[210mm] bg-white shadow-lg p-10 space-y-6"><h1 className="text-3xl font-bold">{data.name}</h1><p className="text-slate-500">{data.role}</p><div className="p-4 bg-slate-50 rounded italic">"{data.quotes}"</div><p>{data.intro}</p><div className="mt-4 border-t pt-4"><h3 className="font-bold">면접 활용 Tip</h3><p>{data.reason}</p></div></div></main>
+        <aside className="w-80 bg-white border-r p-6 shrink-0"><div className="space-y-5">
+          <h3 className="font-bold text-sm text-orange-700 flex items-center uppercase tracking-wider"><Search size={16} className="mr-2"/> 인물 검색</h3>
+          <input value={data.name} onChange={e=>setData({...data, name:e.target.value})} className="w-full p-3 border border-slate-300 rounded-xl font-bold text-lg focus:ring-2 focus:ring-orange-500 outline-none" placeholder="예: 스티브 잡스" onKeyDown={(e) => e.key === 'Enter' && handleAIAnalysis()}/>
+          <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-orange-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg shadow-orange-200 transition-all disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"분석 시작"}</button>
+        </div></aside>
+        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{data.role ? <div ref={reportRef} className="w-[210mm] bg-white shadow-lg p-10 space-y-8 animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-orange-500 pb-6"><span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-xs font-bold">ROLE MODEL</span><h1 className="text-4xl font-extrabold mt-3">{data.name}</h1><p className="text-slate-500 text-lg mt-1">{data.role}</p></div><div className="flex gap-8 items-start"><div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center shrink-0"><User className="w-8 h-8 text-orange-600"/></div><p className="text-slate-700 leading-loose text-lg flex-1">{data.intro}</p></div><div className="bg-orange-50 p-8 rounded-2xl italic text-orange-900 font-serif text-xl border-l-8 border-orange-400 leading-relaxed">"{data.quotes}"</div><div className="border-t border-slate-200 pt-8"><h3 className="font-bold text-xl mb-4 flex items-center text-slate-800"><MessageSquare className="mr-2 text-orange-500"/> 면접 활용 Tip</h3><p className="text-slate-600 leading-relaxed text-lg">{data.reason}</p></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Award size={64} className="mb-4 opacity-20"/><p>롤모델 이름을 입력하세요.</p></div>}</main>
+        {data.role && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> PDF 저장</button>}
       </div>
     </div>
   );
 }
 
+// 8. 나를 찾는 지도 앱
 function SelfDiscoveryMapApp({ onClose }) {
   const [profile, setProfile] = useState({ name: '', targetJob: '', date: new Date().toISOString().split('T')[0] });
   const [keywords, setKeywords] = useState([]);
@@ -381,10 +615,37 @@ function SelfDiscoveryMapApp({ onClose }) {
   const handleDownload = async () => { if (!reportRef.current) return; try { const h = await loadHtml2Canvas(); const c = await h(reportRef.current, { scale: 2, useCORS: true }); const l = document.createElement('a'); l.download = `지도.png`; l.href = c.toDataURL('image/png'); l.click(); } catch (e) { alert("실패"); } };
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
-      <header className="bg-slate-900 text-white p-4 flex justify-between items-center"><div className="flex items-center gap-3"><Map className="text-blue-400"/><h1 className="font-bold">나를 찾는 지도</h1></div><button onClick={onClose}><X/></button></header>
+      <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
+        <div className="flex items-center gap-3"><Map className="text-blue-400"/><h1 className="font-bold text-lg">나를 찾는 지도</h1></div>
+        <button onClick={onClose} className="flex items-center text-sm hover:text-blue-200 transition-colors"><ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기</button>
+      </header>
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-80 bg-white border-r p-6 space-y-6"><section><h3 className="font-bold text-sm text-slate-500 mb-2">키워드 입력</h3><input value={currentKeyword} onChange={e=>setCurrentKeyword(e.target.value)} onKeyDown={addKeyword} className="w-full p-2 border rounded" placeholder="입력 후 Enter"/><div className="flex gap-2 mt-2"><button onClick={()=>setKeywordType('strength')} className={`flex-1 py-1 text-xs rounded ${keywordType==='strength'?'bg-blue-100 text-blue-600':'bg-slate-100'}`}>강점</button><button onClick={()=>setKeywordType('value')} className={`flex-1 py-1 text-xs rounded ${keywordType==='value'?'bg-emerald-100 text-emerald-600':'bg-slate-100'}`}>가치</button></div></section></aside>
-        <main className="flex-1 p-8 overflow-y-auto flex justify-center"><div ref={reportRef} className="w-[210mm] bg-white shadow-lg p-10"><h1 className="text-3xl font-bold mb-8">Self-Discovery Map</h1><div className="flex flex-wrap gap-2">{keywords.map(k=><span key={k.id} className={`px-3 py-1 rounded-full border ${k.type==='strength'?'border-blue-200 text-blue-600':'border-emerald-200 text-emerald-600'}`}>{k.text}<button onClick={()=>removeKeyword(k.id)} className="ml-2">x</button></span>)}</div></div></main>
+        <aside className="w-80 bg-white border-r p-6 space-y-8 shrink-0">
+          <section>
+            <h3 className="font-bold text-sm text-slate-500 mb-3 uppercase tracking-wider">기본 정보</h3>
+            <input name="name" value={profile.name} onChange={e => setProfile({...profile, name: e.target.value})} className="w-full p-3 border rounded-lg mb-3 text-sm" placeholder="이름" />
+            <input name="targetJob" value={profile.targetJob} onChange={e => setProfile({...profile, targetJob: e.target.value})} className="w-full p-3 border rounded-lg text-sm" placeholder="목표 직무" />
+          </section>
+          <section>
+            <h3 className="font-bold text-sm text-slate-500 mb-3 uppercase tracking-wider">키워드 입력</h3>
+            <input value={currentKeyword} onChange={e=>setCurrentKeyword(e.target.value)} onKeyDown={addKeyword} className="w-full p-3 border rounded-lg mb-3" placeholder="입력 후 Enter"/>
+            <div className="flex gap-2">
+              <button onClick={()=>setKeywordType('strength')} className={`flex-1 py-2 text-xs rounded-lg font-bold transition-colors ${keywordType==='strength'?'bg-blue-600 text-white':'bg-slate-100 text-slate-500'}`}>강점</button>
+              <button onClick={()=>setKeywordType('value')} className={`flex-1 py-2 text-xs rounded-lg font-bold transition-colors ${keywordType==='value'?'bg-emerald-600 text-white':'bg-slate-100 text-slate-500'}`}>가치</button>
+            </div>
+          </section>
+        </aside>
+        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
+          <div ref={reportRef} className="w-[210mm] bg-white shadow-lg p-10 h-min min-h-[297mm] relative">
+             <div className="border-b-2 border-slate-800 pb-4 mb-10 flex justify-between items-end"><div><h1 className="text-4xl font-extrabold text-slate-900">Self-Discovery Map</h1><p className="text-slate-500 mt-1">Career Vitamin Analysis</p></div><div className="text-right"><div className="text-2xl font-bold text-blue-600">{profile.name}</div><div className="text-sm text-slate-500">{profile.targetJob}</div><div className="text-xs text-slate-400 mt-1">{profile.date}</div></div></div>
+             <div className="mb-12">
+               <h3 className="font-bold text-lg border-l-4 border-blue-600 pl-3 mb-6 text-slate-800">Core Keywords</h3>
+               <div className="flex flex-wrap gap-3 min-h-[100px] content-start">{keywords.length > 0 ? keywords.map(k=><span key={k.id} className={`px-4 py-2 rounded-xl font-bold text-sm border cursor-pointer hover:opacity-70 flex items-center shadow-sm ${k.type==='strength'?'bg-blue-50 border-blue-200 text-blue-700':'bg-emerald-50 border-emerald-200 text-emerald-700'}`} onClick={()=>removeKeyword(k.id)}>{k.text}<X size={14} className="ml-2 opacity-50"/></span>) : <span className="text-slate-400 italic">키워드를 입력해주세요.</span>}</div>
+             </div>
+             <div className="absolute bottom-10 left-10 right-10 border-t pt-4 flex justify-between text-slate-400 text-xs"><span>Powered by Career Vitamin</span><span>Confidential Report</span></div>
+          </div>
+        </main>
+        <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> PDF 저장</button>
       </div>
     </div>
   );
@@ -470,7 +731,7 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans text-slate-800">
-      <aside className="w-64 bg-slate-900 text-white flex flex-col">
+      <aside className="w-64 bg-slate-900 text-white flex flex-col shrink-0">
         <div className="p-6 border-b border-slate-700 font-bold text-xl flex items-center gap-2"><LayoutDashboard className="text-indigo-400"/> Career Vitamin</div>
         <nav className="flex-1 p-4 space-y-2">
           <button onClick={()=>setActiveTab('dashboard')} className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-colors ${activeTab==='dashboard'?'bg-indigo-600 text-white':'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><LayoutDashboard size={18}/> 대시보드</button>
@@ -479,6 +740,7 @@ export default function App() {
         <div className="p-4 border-t border-slate-700">
           <div className="text-xs text-slate-500 mb-2 px-2">{user.displayName}님 ({role === 'owner' ? '관리자' : '전문가'})</div>
           <button onClick={()=>signOut(auth)} className="w-full border border-slate-600 text-slate-400 py-2 rounded hover:bg-slate-800 hover:text-white transition-colors flex items-center justify-center gap-2"><LogOut size={16}/> 로그아웃</button>
+          <div className="mt-4 text-xs text-center text-slate-600 opacity-50">v3.0 (Complete)</div>
         </div>
       </aside>
       
@@ -486,28 +748,28 @@ export default function App() {
         {activeTab === 'dashboard' ? (
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
              {Object.entries(SERVICES).map(([key, svc]) => (
-               <div key={key} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md border border-slate-200 transition-all group">
+               <div key={key} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md border border-slate-200 transition-all group cursor-pointer" onClick={() => {
+                   if(svc.internal) setCurrentApp(key);
+                   else window.open(svc.link, '_blank');
+                 }}>
                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${COLOR_VARIANTS[svc.color]} group-hover:scale-110 transition-transform`}>
                    <svc.icon size={24} color={svc.color === 'black' ? '#000' : undefined} /> 
                  </div>
                  <h3 className="font-bold text-lg mb-2 group-hover:text-indigo-600 transition-colors">{svc.name}</h3>
                  <p className="text-sm text-slate-500 mb-4 h-10 line-clamp-2">{svc.desc}</p>
-                 <button onClick={() => {
-                   if(svc.internal) setCurrentApp(key);
-                   else window.open(svc.link, '_blank');
-                 }} className="w-full bg-slate-50 py-2.5 rounded-lg font-bold text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors flex items-center justify-center gap-2">
-                   {svc.internal ? '앱 실행하기' : '외부 도구 열기'} <ExternalLink size={14}/>
-                 </button>
+                 <div className="text-xs font-bold text-indigo-500 flex items-center">
+                   {svc.internal ? '앱 실행하기' : '외부 도구 열기'} {svc.internal ? <ChevronLeft className="rotate-180 ml-1 w-4 h-4"/> : <ExternalLink className="ml-1 w-3 h-3"/>}
+                 </div>
                </div>
              ))}
            </div>
         ) : (
-          <div className="space-y-8 max-w-4xl mx-auto">
+          <div className="space-y-8 max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4">
             <div className="bg-white p-8 rounded-xl shadow-sm border border-indigo-100">
               <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-indigo-900"><Key className="text-indigo-500"/> AI API 키 설정</h2>
               <div className="bg-indigo-50 p-4 rounded-lg mb-6 text-sm text-indigo-800 leading-relaxed">
                 AI 기능이 작동하지 않나요? <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="underline font-bold hover:text-indigo-600">Google AI Studio</a>에서 
-                무료 API 키를 발급받아 아래에 입력해주세요. 입력한 키는 브라우저에만 안전하게 저장됩니다.
+                무료 API 키를 발급받아 아래에 입력해주세요. (입력한 키는 브라우저에만 저장됩니다)
               </div>
               <div className="flex gap-3">
                 <input type="password" value={customKey} onChange={e=>setCustomKey(e.target.value)} className="flex-1 p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" placeholder="AIza로 시작하는 키를 입력하세요" />

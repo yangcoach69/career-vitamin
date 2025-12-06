@@ -28,7 +28,6 @@ import {
   Globe, Trophy, Stethoscope, Key, AlertCircle, ExternalLink
 } from 'lucide-react';
 
-// [수정] jsPDF 제거, html2canvas만 사용
 import html2canvas from "html2canvas";
 
 // =============================================================================
@@ -47,7 +46,6 @@ const firebaseConfig = {
   appId: "1:1056766630872:web:5d2149f6a0f0fd5cd130ad"
 };
 
-// 관리자 UID
 const OWNER_UID = "TN8orW7kwuTzAnFWNM8jCiixt3r2"; 
 const APP_ID = 'career-vitamin'; 
 
@@ -77,17 +75,20 @@ const renderText = (content) => {
   return content;
 };
 
-// [요청 반영] PNG 저장 함수로 변경 (전체 콘텐츠 캡처)
+// [수정] PNG 저장 함수 (스크롤 영역 전체 포함)
 const saveAsPng = async (elementRef, fileName) => {
   if (!elementRef.current) return;
   try {
     const canvas = await html2canvas(elementRef.current, {
       scale: 2, // 고해상도
-      useCORS: true, // 외부 이미지 허용
+      useCORS: true, 
       logging: false,
-      backgroundColor: '#ffffff', // 하얀 배경 강제 적용
-      windowWidth: elementRef.current.scrollWidth, // 전체 너비 캡처
-      windowHeight: elementRef.current.scrollHeight // 전체 높이 캡처
+      backgroundColor: '#ffffff', // 투명 배경 방지
+      // 화면에 보이지 않는 스크롤 영역까지 전체 캡처
+      width: elementRef.current.scrollWidth,
+      height: elementRef.current.scrollHeight,
+      windowWidth: elementRef.current.scrollWidth,
+      windowHeight: elementRef.current.scrollHeight
     });
     
     const link = document.createElement('a');
@@ -100,15 +101,12 @@ const saveAsPng = async (elementRef, fileName) => {
   }
 };
 
-// [요청 반영] AI 호출 함수 (모델 버전 업그레이드)
 const fetchGemini = async (prompt) => {
   const apiKey = localStorage.getItem("custom_gemini_key");
-  
   if (!apiKey) {
     throw new Error("API 키가 없습니다. [시스템 관리]에서 키를 등록해주세요.");
   }
   
-  // [요청 반영] 고객님이 찾으신 상위 버전 모델 적용
   const models = ["gemini-2.5-flash-lite", "gemini-2.5-pro", "gemini-1.5-flash"];
   let lastError = null;
 
@@ -136,15 +134,12 @@ const fetchGemini = async (prompt) => {
     } catch (e) {
       console.warn(`${model} 실패:`, e);
       lastError = e;
-      // 키 자체가 틀린 경우(API key not valid)는 더 시도하지 않고 중단
       if (e.message.includes("API key")) throw e; 
     }
   }
-  
   throw lastError || new Error("모든 AI 모델이 응답하지 않습니다.");
 };
 
-// --- Constants ---
 const CATEGORIES = [{ id: 'ai_tools', title: 'AI 코칭 어시스턴트', icon: Sparkles }];
 const SERVICES = {
   gpt_guide: { name: "[GPT] 직업 탐색 가이드", desc: "관심 있는 직업/직무 입력 시 가이드 생성", link: "https://chatgpt.com/g/g-Uch9gJR4b-job-explorer-guide-report", internal: false, icon: Compass, color: "emerald" },
@@ -172,6 +167,8 @@ const COLOR_VARIANTS = {
 };
 
 // --- Sub Components (Apps) ---
+// [수정] 모든 앱의 리포트 컨테이너에 'flex flex-col' 및 'min-h-[297mm]' 적용하여
+// 내용이 길어지면 배경도 함께 늘어나도록 수정함. Footer는 'mt-auto'로 하단 고정.
 
 // 1. 기업분석 앱
 function CompanyAnalysisApp({ onClose }) {
@@ -184,21 +181,7 @@ function CompanyAnalysisApp({ onClose }) {
     if (!inputs.company || !inputs.job) return alert("기업명과 직무를 입력해주세요.");
     setLoading(true);
     try {
-      const prompt = `
-        당신은 전문 커리어 코치입니다. 다음 정보를 바탕으로 심층 기업 분석 리포트를 작성해주세요.
-        기업명: ${inputs.company}
-        참고 URL: ${inputs.url || '없음'}
-        지원 직무: ${inputs.job}
-        
-        필수 JSON 형식:
-        {
-          "overview": { "vision": "비전 요약", "values": "핵심가치" },
-          "business": { "history": "주요 연혁", "biz_area": "사업 영역", "issues": ["이슈1", "이슈2"] },
-          "market": { "trends": "시장 동향", "swot": { "s": "강점", "w": "약점", "o": "기회", "t": "위협" } },
-          "competitor": "경쟁 우위 요소",
-          "strategy": "직무 맞춤 전략"
-        }
-      `;
+      const prompt = `당신은 전문 커리어 코치입니다. 기업명: ${inputs.company}, 직무: ${inputs.job}. 심층 기업 분석 리포트 작성. JSON 포맷: { "overview": { "vision": "...", "values": "..." }, "business": { "history": "...", "biz_area": "...", "issues": ["...", "..."] }, "market": { "trends": "...", "swot": { "s": "...", "w": "...", "o": "...", "t": "..." } }, "competitor": "...", "strategy": "..." }`;
       const parsed = await fetchGemini(prompt);
       if (parsed) setResult(parsed);
     } catch (e) { alert(e.message); } finally { setLoading(false); }
@@ -216,72 +199,57 @@ function CompanyAnalysisApp({ onClose }) {
         <aside className="w-80 bg-white border-r p-6 overflow-y-auto shrink-0">
           <div className="space-y-5">
             <h3 className="font-bold text-sm text-indigo-700 flex items-center uppercase tracking-wider"><Settings size={16} className="mr-2"/> 분석 설정</h3>
-            <div>
-              <label className="text-xs font-bold text-slate-500 block mb-1.5">기업명</label>
-              <input value={inputs.company} onChange={e=>setInputs({...inputs, company:e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" placeholder="예: 카카오" />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-500 block mb-1.5">홈페이지 URL (선택)</label>
-              <input value={inputs.url} onChange={e=>setInputs({...inputs, url:e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" placeholder="https://..." />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-500 block mb-1.5">지원 직무</label>
-              <input value={inputs.job} onChange={e=>setInputs({...inputs, job:e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" placeholder="예: 서비스 기획" />
-            </div>
-            <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-indigo-600 text-white py-3.5 rounded-xl hover:bg-indigo-700 font-bold mt-4 shadow-lg shadow-indigo-200 transition-all disabled:bg-slate-400 disabled:shadow-none">{loading ? <Loader2 className="animate-spin mx-auto"/> : "AI 분석 실행"}</button>
+            <input value={inputs.company} onChange={e=>setInputs({...inputs, company:e.target.value})} className="w-full p-3 border rounded-lg" placeholder="기업명" />
+            <input value={inputs.url} onChange={e=>setInputs({...inputs, url:e.target.value})} className="w-full p-3 border rounded-lg" placeholder="홈페이지 URL" />
+            <input value={inputs.job} onChange={e=>setInputs({...inputs, job:e.target.value})} className="w-full p-3 border rounded-lg" placeholder="지원 직무" />
+            <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-indigo-600 text-white py-3.5 rounded-xl hover:bg-indigo-700 font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading ? <Loader2 className="animate-spin mx-auto"/> : "AI 분석 실행"}</button>
           </div>
         </aside>
         <main className="flex-1 p-8 overflow-y-auto bg-slate-50 flex justify-center">
           {result ? (
-            <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-2xl p-12 space-y-10 animate-in fade-in zoom-in-95 duration-500">
-              <div className="border-b-4 border-indigo-600 pb-6">
+            <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-2xl p-12 flex flex-col animate-in fade-in zoom-in-95 duration-500">
+              <div className="border-b-4 border-indigo-600 pb-6 mb-8">
                  <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">COMPANY REPORT</span>
                  <h1 className="text-4xl font-extrabold text-slate-900 mt-2">{inputs.company}</h1>
-                 <p className="text-lg text-slate-500 mt-2">기업분석 리포트 ({new Date().toLocaleDateString()})</p>
+                 <p className="text-lg text-slate-500 mt-2">기업분석 리포트</p>
               </div>
-              <section>
-                <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center"><Star size={24} className="mr-2"/> 1. 기업 개요</h3>
-                <div className="grid grid-cols-2 gap-6">
-                   <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100"><h4 className="font-bold text-xs text-slate-400 mb-2 tracking-wider">VISION & MISSION</h4><p className="text-slate-700 leading-relaxed">{renderText(result.overview?.vision)}</p></div>
-                   <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100"><h4 className="font-bold text-xs text-slate-400 mb-2 tracking-wider">CORE VALUES</h4><p className="text-slate-700 leading-relaxed">{renderText(result.overview?.values)}</p></div>
-                </div>
-              </section>
-              <section>
-                <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center"><Building2 size={24} className="mr-2"/> 2. 사업 현황 및 이슈</h3>
-                <p className="text-slate-700 mb-4 bg-white border border-slate-200 p-5 rounded-2xl leading-relaxed shadow-sm">{renderText(result.business?.history)}</p>
-                <div className="space-y-3">
-                  {result.business?.issues?.map((iss, idx) => <div key={idx} className="text-slate-700 bg-indigo-50 p-4 rounded-xl border border-indigo-100 flex items-start"><span className="bg-white text-indigo-600 px-2 py-0.5 rounded text-xs font-bold mr-3 border border-indigo-200 shrink-0 mt-0.5">ISSUE {idx+1}</span>{renderText(iss)}</div>)}
-                </div>
-              </section>
-              <section>
-                <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center"><Globe size={24} className="mr-2"/> 3. SWOT 분석</h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div className="bg-blue-50 p-5 rounded-2xl border border-blue-100"><span className="text-blue-700 font-bold text-lg block mb-2">Strength</span><p className="text-slate-700 leading-relaxed">{renderText(result.market?.swot?.s)}</p></div>
-                  <div className="bg-orange-50 p-5 rounded-2xl border border-orange-100"><span className="text-orange-700 font-bold text-lg block mb-2">Weakness</span><p className="text-slate-700 leading-relaxed">{renderText(result.market?.swot?.w)}</p></div>
-                  <div className="bg-emerald-50 p-5 rounded-2xl border border-emerald-100"><span className="text-emerald-700 font-bold text-lg block mb-2">Opportunity</span><p className="text-slate-700 leading-relaxed">{renderText(result.market?.swot?.o)}</p></div>
-                  <div className="bg-red-50 p-5 rounded-2xl border border-red-100"><span className="text-red-700 font-bold text-lg block mb-2">Threat</span><p className="text-slate-700 leading-relaxed">{renderText(result.market?.swot?.t)}</p></div>
-                </div>
-              </section>
-              <section>
-                 <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center"><Target size={24} className="mr-2"/> 4. 취업 전략</h3>
-                 <div className="bg-indigo-600 text-white p-8 rounded-2xl shadow-xl shadow-indigo-200 font-medium leading-loose text-lg">{renderText(result.strategy)}</div>
-              </section>
-              <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400">
+              <div className="space-y-10 flex-1">
+                <section>
+                  <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center"><Star size={24} className="mr-2"/> 1. 기업 개요</h3>
+                  <div className="grid grid-cols-2 gap-6">
+                     <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100"><h4 className="font-bold text-xs text-slate-400 mb-2 tracking-wider">VISION</h4><p className="text-slate-700 text-sm">{renderText(result.overview?.vision)}</p></div>
+                     <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100"><h4 className="font-bold text-xs text-slate-400 mb-2 tracking-wider">VALUES</h4><p className="text-slate-700 text-sm">{renderText(result.overview?.values)}</p></div>
+                  </div>
+                </section>
+                <section>
+                  <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center"><Building2 size={24} className="mr-2"/> 2. 사업 현황</h3>
+                  <p className="text-slate-700 mb-4 bg-white border p-5 rounded-2xl text-sm">{renderText(result.business?.history)}</p>
+                  <div className="space-y-3">
+                    {result.business?.issues?.map((iss, idx) => <div key={idx} className="text-sm bg-indigo-50 p-4 rounded-xl border border-indigo-100"><span className="font-bold text-indigo-600 mr-2">Issue {idx+1}</span>{renderText(iss)}</div>)}
+                  </div>
+                </section>
+                <section>
+                  <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center"><Globe size={24} className="mr-2"/> 3. SWOT</h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="bg-blue-50 p-4 rounded-xl"><span className="text-blue-700 font-bold">S</span><p>{renderText(result.market?.swot?.s)}</p></div>
+                    <div className="bg-orange-50 p-4 rounded-xl"><span className="text-orange-700 font-bold">W</span><p>{renderText(result.market?.swot?.w)}</p></div>
+                    <div className="bg-emerald-50 p-4 rounded-xl"><span className="text-emerald-700 font-bold">O</span><p>{renderText(result.market?.swot?.o)}</p></div>
+                    <div className="bg-red-50 p-4 rounded-xl"><span className="text-red-700 font-bold">T</span><p>{renderText(result.market?.swot?.t)}</p></div>
+                  </div>
+                </section>
+                <section>
+                   <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center"><Target size={24} className="mr-2"/> 4. 전략</h3>
+                   <div className="bg-indigo-600 text-white p-6 rounded-xl text-sm leading-relaxed">{renderText(result.strategy)}</div>
+                </section>
+              </div>
+              <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto">
                 <div className="flex items-center"><BarChart3 className="w-4 h-4 mr-1 text-indigo-500" /><span>Career Vitamin</span></div>
                 <span>AI-Powered Analysis Report</span>
               </div>
             </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-slate-400">
-              <div className="w-32 h-32 bg-slate-100 rounded-full flex items-center justify-center mb-6">
-                <BarChart3 size={64} className="opacity-20"/>
-              </div>
-              <p className="text-lg font-medium">좌측 메뉴에서 정보를 입력하고</p>
-              <p className="text-sm mt-1">AI 분석을 시작하세요.</p>
-            </div>
-          )}
+          ) : <div className="flex flex-col items-center justify-center h-full text-slate-400"><BarChart3 size={64} className="mb-4 opacity-20"/><p>정보를 입력하고 분석을 시작하세요.</p></div>}
         </main>
-        {result && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
+        {result && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
       </div>
     </div>
   );
@@ -310,41 +278,32 @@ function CareerRoadmapApp({ onClose }) {
         <button onClick={onClose} className="flex items-center text-sm hover:text-blue-200 transition-colors"><ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기</button>
       </header>
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-80 bg-white border-r p-6 overflow-y-auto shrink-0">
+        <aside className="w-80 bg-white border-r p-6 shrink-0">
           <div className="space-y-5">
-            <h3 className="font-bold text-sm text-blue-700 flex items-center uppercase tracking-wider"><Settings size={16} className="mr-2"/> 로드맵 설정</h3>
-            <div>
-              <label className="text-xs font-bold text-slate-500 block mb-1.5">목표 기업명</label>
-              <input value={inputs.company} onChange={e=>setInputs({...inputs, company:e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" placeholder="예: 삼성전자"/>
+            <h3 className="font-bold text-sm text-blue-700 flex items-center uppercase tracking-wider"><Settings size={16} className="mr-2"/> 설정</h3>
+            <input value={inputs.company} onChange={e=>setInputs({...inputs, company:e.target.value})} className="w-full p-3 border rounded-lg" placeholder="목표 기업명"/>
+            <input value={inputs.job} onChange={e=>setInputs({...inputs, job:e.target.value})} className="w-full p-3 border rounded-lg" placeholder="희망 직무"/>
+            <div className="flex gap-2">
+              {['3', '5', '10'].map(y => (
+                <button key={y} onClick={()=>setInputs({...inputs, years:y})} className={`flex-1 py-3 border rounded-lg ${inputs.years===y ? 'bg-blue-600 text-white font-bold' : 'bg-white'}`}>{y}년</button>
+              ))}
             </div>
-            <div>
-              <label className="text-xs font-bold text-slate-500 block mb-1.5">희망 직무</label>
-              <input value={inputs.job} onChange={e=>setInputs({...inputs, job:e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" placeholder="예: 마케팅"/>
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-500 block mb-1.5">목표 기간</label>
-              <div className="flex gap-2">
-                {['3', '5', '10'].map(y => (
-                  <button key={y} onClick={()=>setInputs({...inputs, years:y})} className={`flex-1 py-3 border rounded-lg transition-all ${inputs.years===y ? 'bg-blue-600 border-blue-600 text-white font-bold shadow-md' : 'bg-white hover:bg-slate-50 text-slate-600'}`}>{y}년</button>
-                ))}
-              </div>
-            </div>
-            <button onClick={handleAIPlan} disabled={loading} className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg shadow-blue-200 transition-all disabled:bg-slate-400">{loading ? <Loader2 className="animate-spin mx-auto"/> : "로드맵 생성"}</button>
+            <button onClick={handleAIPlan} disabled={loading} className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading ? <Loader2 className="animate-spin mx-auto"/> : "로드맵 생성"}</button>
           </div>
         </aside>
         <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
           {roadmapData ? (
-            <div ref={reportRef} className="w-[210mm] bg-white shadow-2xl p-12 animate-in fade-in zoom-in-95 duration-500">
+            <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-2xl p-12 flex flex-col animate-in fade-in zoom-in-95 duration-500">
               <div className="border-b-4 border-blue-600 pb-6 mb-10">
                 <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">CAREER ROADMAP</span>
                 <h1 className="text-4xl font-extrabold text-slate-900">{inputs.company}</h1>
                 <p className="text-blue-600 font-bold text-xl mt-3">"{roadmapData.goal}"</p>
               </div>
-              <div className="space-y-8 relative before:absolute before:left-[27px] before:top-4 before:bottom-4 before:w-0.5 before:bg-slate-200">
+              <div className="space-y-8 flex-1 relative before:absolute before:left-[27px] before:top-4 before:bottom-4 before:w-0.5 before:bg-slate-200">
                 {roadmapData.roadmap?.map((r,i)=>(
                   <div key={i} className="flex gap-6 relative">
                     <div className="w-14 h-14 rounded-full bg-white border-4 border-blue-100 flex items-center justify-center font-bold text-blue-600 shadow-sm z-10 shrink-0 text-xl">{i+1}</div>
-                    <div className="flex-1 p-6 border border-slate-200 rounded-2xl bg-white shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex-1 p-6 border border-slate-200 rounded-2xl bg-white shadow-sm">
                       <h3 className="font-bold text-blue-800 mb-2 text-lg">{r.stage}</h3>
                       <p className="text-slate-600 leading-relaxed">{r.action}</p>
                     </div>
@@ -352,22 +311,17 @@ function CareerRoadmapApp({ onClose }) {
                 ))}
               </div>
               <div className="mt-12 bg-slate-900 p-8 rounded-2xl text-white shadow-xl">
-                <h3 className="font-bold text-blue-300 mb-4 flex items-center text-lg"><MessageSquare className="mr-2"/> 입사 후 포부 (스크립트)</h3>
-                <p className="text-slate-300 leading-loose whitespace-pre-line text-lg font-light">"{roadmapData.script}"</p>
+                <h3 className="font-bold text-blue-300 mb-4 flex items-center text-lg"><MessageSquare className="mr-2"/> 입사 후 포부</h3>
+                <p className="text-slate-300 leading-loose whitespace-pre-line text-lg">"{roadmapData.script}"</p>
               </div>
-              <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400">
+              <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto">
                 <div className="flex items-center"><TrendingUp className="w-4 h-4 mr-1 text-blue-500" /><span>Career Vitamin</span></div>
                 <span>AI-Generated Career Roadmap</span>
               </div>
             </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-slate-400">
-              <TrendingUp size={64} className="mb-4 opacity-20"/>
-              <p>커리어 목표를 입력하면 로드맵이 생성됩니다.</p>
-            </div>
-          )}
+          ) : <div className="flex flex-col items-center justify-center h-full text-slate-400"><TrendingUp size={64} className="mb-4 opacity-20"/><p>커리어 목표를 입력하세요.</p></div>}
         </main>
-        {roadmapData && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
+        {roadmapData && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
       </div>
     </div>
   );
@@ -383,7 +337,7 @@ function PtInterviewApp({ onClose }) {
   const [loading, setLoading] = useState(false);
   const reportRef = useRef(null);
   const handleGenerateTopics = async () => {
-    if (!inputs.company || !inputs.job) return alert("기업명과 직무를 입력해주세요.");
+    if (!inputs.company) return alert("입력 필요");
     setLoading(true);
     try {
       const prompt = `기업:${inputs.company}, 직무:${inputs.job}, 요구사항:${inputs.request}. PT 면접 주제 5개 추천. JSON Array only: ["주제1", "주제2"...]`;
@@ -412,58 +366,36 @@ function PtInterviewApp({ onClose }) {
         <aside className="w-80 bg-white border-r p-6 overflow-y-auto shrink-0">
            {step === 'input' && <div className="space-y-5">
              <h3 className="font-bold text-sm text-rose-700 flex items-center uppercase tracking-wider"><Settings size={16} className="mr-2"/> 기본 설정</h3>
-             <div>
-                <label className="text-xs font-bold text-slate-500 block mb-1.5">지원 기업명</label>
-                <input value={inputs.company} onChange={e=>setInputs({...inputs, company:e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 outline-none" placeholder="예: 현대자동차"/>
-             </div>
-             <div>
-                <label className="text-xs font-bold text-slate-500 block mb-1.5">지원 직무</label>
-                <input value={inputs.job} onChange={e=>setInputs({...inputs, job:e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 outline-none" placeholder="예: R&D"/>
-             </div>
-             <div>
-                <label className="text-xs font-bold text-slate-500 block mb-1.5">추가 요구사항 (선택)</label>
-                <textarea value={inputs.request} onChange={e=>setInputs({...inputs, request:e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg h-24 resize-none focus:ring-2 focus:ring-rose-500 outline-none" placeholder="예: 최근 전기차 트렌드 반영"/>
-             </div>
-             <button onClick={handleGenerateTopics} disabled={loading} className="w-full bg-rose-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg shadow-rose-200 transition-all">{loading?<Loader2 className="animate-spin mx-auto"/>:"주제 추출 시작"}</button>
+             <input value={inputs.company} onChange={e=>setInputs({...inputs, company:e.target.value})} className="w-full p-3 border rounded-lg" placeholder="지원 기업명"/>
+             <input value={inputs.job} onChange={e=>setInputs({...inputs, job:e.target.value})} className="w-full p-3 border rounded-lg" placeholder="지원 직무"/>
+             <textarea value={inputs.request} onChange={e=>setInputs({...inputs, request:e.target.value})} className="w-full p-3 border rounded-lg h-24 resize-none" placeholder="추가 요구사항"/>
+             <button onClick={handleGenerateTopics} disabled={loading} className="w-full bg-rose-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"주제 추출"}</button>
            </div>}
            {step === 'list' && <div className="space-y-3">
              <h3 className="font-bold text-sm text-slate-500 mb-2 flex items-center"><Check size={16} className="mr-2"/> 주제 선택</h3>
-             {topics.map((t,i)=><button key={i} onClick={()=>handleGenerateScript(t)} disabled={loading} className="w-full text-left p-4 border border-slate-200 rounded-xl hover:bg-rose-50 hover:border-rose-200 text-sm transition-all font-medium text-slate-700 shadow-sm active:scale-95"><span className="text-rose-500 font-bold mr-2 block text-xs mb-1">TOPIC {i+1}</span>{t}</button>)}
-             <button onClick={()=>setStep('input')} className="w-full bg-slate-100 py-3 rounded-xl text-sm mt-4 font-bold text-slate-500 hover:bg-slate-200 transition-colors">이전 단계로</button>
+             {topics.map((t,i)=><button key={i} onClick={()=>handleGenerateScript(t)} disabled={loading} className="w-full text-left p-4 border rounded-xl hover:bg-rose-50 text-sm transition-all font-medium text-slate-700 shadow-sm"><span className="text-rose-500 font-bold mr-2 block text-xs mb-1">TOPIC {i+1}</span>{t}</button>)}
+             <button onClick={()=>setStep('input')} className="w-full bg-slate-100 py-3 rounded-xl text-sm mt-4 font-bold text-slate-500">뒤로가기</button>
            </div>}
-           {step === 'detail' && <button onClick={()=>setStep('input')} className="w-full bg-slate-200 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-300 transition-colors">새로 만들기</button>}
+           {step === 'detail' && <button onClick={()=>setStep('input')} className="w-full bg-slate-200 py-3 rounded-xl font-bold text-slate-600">새로 만들기</button>}
         </aside>
         <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
-           {script ? <div ref={reportRef} className="w-[210mm] bg-white shadow-2xl p-12 space-y-10 animate-in fade-in slide-in-from-bottom-4">
-             <div className="border-b-4 border-rose-500 pb-6">
-               <span className="bg-rose-100 text-rose-700 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">PT INTERVIEW GUIDE</span>
-               <h1 className="text-3xl font-extrabold mt-3 text-slate-900 leading-tight">{selectedTopic}</h1>
-               <div className="flex gap-4 mt-4 text-sm font-medium text-slate-500">
-                 <span>{inputs.company}</span> <span className="text-slate-300">|</span> <span>{inputs.job}</span>
-               </div>
+           {script ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-2xl p-12 flex flex-col animate-in fade-in slide-in-from-bottom-4">
+             <div className="border-b-4 border-rose-500 pb-6 mb-8">
+               <span className="bg-rose-100 text-rose-700 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">PT INTERVIEW</span>
+               <h1 className="text-3xl font-extrabold mt-3 text-slate-900">{selectedTopic}</h1>
              </div>
-             <section>
-                <h3 className="text-xl font-bold text-slate-800 mb-3 border-l-4 border-rose-400 pl-3">Introduction</h3>
-                <div className="text-base text-slate-700 bg-slate-50 p-6 rounded-xl border border-slate-100 leading-loose">{script.intro}</div>
-             </section>
-             <section>
-                <h3 className="text-xl font-bold text-slate-800 mb-3 border-l-4 border-rose-500 pl-3">Body</h3>
-                <div className="text-base text-slate-700 pl-6 py-2 leading-loose whitespace-pre-line border-l-2 border-slate-200 ml-2">{script.body}</div>
-             </section>
-             <section>
-                <h3 className="text-xl font-bold text-slate-800 mb-3 border-l-4 border-rose-600 pl-3">Conclusion</h3>
-                <div className="text-base text-white bg-rose-600 p-6 rounded-xl shadow-lg leading-loose font-medium">{script.conclusion}</div>
-             </section>
-             <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400">
+             <div className="space-y-8 flex-1">
+                <section><h3 className="text-xl font-bold text-slate-800 mb-3 border-l-4 border-rose-400 pl-3">Introduction</h3><div className="text-base text-slate-700 bg-slate-50 p-6 rounded-xl border leading-loose">{script.intro}</div></section>
+                <section><h3 className="text-xl font-bold text-slate-800 mb-3 border-l-4 border-rose-500 pl-3">Body</h3><div className="text-base text-slate-700 pl-6 py-2 leading-loose border-l-2 border-slate-200 ml-2">{script.body}</div></section>
+                <section><h3 className="text-xl font-bold text-slate-800 mb-3 border-l-4 border-rose-600 pl-3">Conclusion</h3><div className="text-base text-white bg-rose-600 p-6 rounded-xl shadow-lg leading-loose font-medium">{script.conclusion}</div></section>
+             </div>
+             <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto">
                 <div className="flex items-center"><MonitorPlay className="w-4 h-4 mr-1 text-rose-500" /><span>Career Vitamin</span></div>
                 <span>AI-Generated PT Script</span>
               </div>
-           </div> : <div className="flex flex-col items-center justify-center h-full text-slate-400">
-              <MonitorPlay size={64} className="mb-4 opacity-20"/>
-              <p>주제를 선택하면 발표 대본이 생성됩니다.</p>
-           </div>}
+           </div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><MonitorPlay size={64} className="mb-4 opacity-20"/><p>주제를 선택하면 발표 대본이 생성됩니다.</p></div>}
         </main>
-        {script && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
+        {script && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
       </div>
     </div>
   );
@@ -494,24 +426,12 @@ function SituationInterviewApp({ onClose }) {
       <div className="flex flex-1 overflow-hidden">
         <aside className="w-80 bg-white border-r p-6 overflow-y-auto shrink-0"><div className="space-y-5">
           <h3 className="font-bold text-sm text-teal-700 flex items-center uppercase tracking-wider"><Settings size={16} className="mr-2"/> 질문 설정</h3>
-          <div>
-            <label className="text-xs font-bold text-slate-500 block mb-1.5">면접 질문</label>
-            <textarea value={inputs.question} onChange={e=>setInputs({...inputs, question:e.target.value})} className="w-full p-3 border border-slate-300 rounded-xl h-32 text-sm resize-none focus:ring-2 focus:ring-teal-500 outline-none" placeholder="예: 상사가 부당한 지시를 내린다면?"/>
-          </div>
-          <div>
-            <label className="text-xs font-bold text-slate-500 block mb-1.5">분리 기준 (옵션)</label>
-            <input value={inputs.criteria} onChange={e=>setInputs({...inputs, criteria:e.target.value})} className="w-full p-3 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-teal-500 outline-none" placeholder="예: 회사의 이익 vs 개인의 양심"/>
-          </div>
-          <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-teal-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg shadow-teal-200 transition-all disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"답변 생성"}</button>
+          <textarea value={inputs.question} onChange={e=>setInputs({...inputs, question:e.target.value})} className="w-full p-3 border rounded-xl h-32 resize-none" placeholder="면접 질문"/>
+          <input value={inputs.criteria} onChange={e=>setInputs({...inputs, criteria:e.target.value})} className="w-full p-3 border rounded-xl" placeholder="분리 기준 (옵션)"/>
+          <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-teal-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"답변 생성"}</button>
         </div></aside>
-        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{result ? <div ref={reportRef} className="w-[210mm] bg-white shadow-lg p-10 space-y-6"><h2 className="text-3xl font-extrabold mb-6 text-slate-900 border-b-2 border-teal-500 pb-4 inline-block">상황면접 가이드</h2><div className="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-8"><h3 className="font-bold text-slate-500 text-xs mb-2 tracking-widest">QUESTION</h3><p className="font-bold text-xl text-slate-800 leading-normal">"{inputs.question}"</p></div><div className="grid grid-cols-1 gap-8"><div className="border-l-4 border-teal-500 pl-6 py-2"><h3 className="font-bold text-teal-800 text-xl mb-3">{result.situation_a?.title}</h3><p className="text-slate-600 leading-relaxed text-lg">{result.situation_a?.content}</p></div><div className="border-l-4 border-slate-400 pl-6 py-2"><h3 className="font-bold text-slate-700 text-xl mb-3">{result.situation_b?.title}</h3><p className="text-slate-600 leading-relaxed text-lg">{result.situation_b?.content}</p></div></div><div className="mt-8 bg-teal-50 p-6 rounded-xl border border-teal-100 text-teal-900 text-base font-medium leading-relaxed">💡 <span className="font-bold">Coach's Advice:</span> {result.advice}</div>
-        {/* [요청 반영] 저작권 표시 및 하단 여백 */}
-        <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400">
-          <div className="flex items-center"><Split className="w-4 h-4 mr-1 text-teal-500" /><span>Career Vitamin</span></div>
-          <span>AI-Powered Situation Guide</span>
-        </div>
-        </div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Split size={64} className="mb-4 opacity-20"/><p>질문을 입력하면 답변이 생성됩니다.</p></div>}</main>
-        {result && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
+        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{result ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-lg p-10 flex flex-col animate-in fade-in zoom-in-95 duration-500"><h2 className="text-3xl font-extrabold mb-6 text-slate-900 border-b-2 border-teal-500 pb-4">상황면접 가이드</h2><div className="flex-1 space-y-6"><div className="bg-slate-50 p-6 rounded-xl border mb-8"><h3 className="font-bold text-slate-500 text-xs mb-2 tracking-widest">QUESTION</h3><p className="font-bold text-xl text-slate-800">"{inputs.question}"</p></div><div className="grid grid-cols-1 gap-8"><div className="border-l-4 border-teal-500 pl-6 py-2"><h3 className="font-bold text-teal-800 text-xl mb-3">{result.situation_a?.title}</h3><p className="text-slate-600 leading-relaxed text-lg">{result.situation_a?.content}</p></div><div className="border-l-4 border-slate-400 pl-6 py-2"><h3 className="font-bold text-slate-700 text-xl mb-3">{result.situation_b?.title}</h3><p className="text-slate-600 leading-relaxed text-lg">{result.situation_b?.content}</p></div></div><div className="mt-8 bg-teal-50 p-6 rounded-xl border border-teal-100 text-teal-900 text-base font-medium">💡 Advice: {result.advice}</div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><Split className="w-4 h-4 mr-1 text-teal-500" /><span>Career Vitamin</span></div><span>AI-Powered Situation Guide</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Split size={64} className="mb-4 opacity-20"/><p>질문을 입력하면 답변이 생성됩니다.</p></div>}</main>
+        {result && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
       </div>
     </div>
   );
@@ -543,25 +463,19 @@ function SelfIntroApp({ onClose }) {
         <aside className="w-80 bg-white border-r p-6 shrink-0 overflow-y-auto"><div className="space-y-5">
           <h3 className="font-bold text-sm text-purple-700 flex items-center uppercase tracking-wider"><Settings size={16} className="mr-2"/> 전략 설정</h3>
           <div className="grid grid-cols-2 gap-2">
-            <input value={inputs.company} onChange={e=>setInputs({...inputs, company:e.target.value})} className="p-3 border rounded-lg text-sm focus:outline-none focus:border-purple-500" placeholder="기업명"/>
-            <input value={inputs.job} onChange={e=>setInputs({...inputs, job:e.target.value})} className="p-3 border rounded-lg text-sm focus:outline-none focus:border-purple-500" placeholder="직무명"/>
+            <input value={inputs.company} onChange={e=>setInputs({...inputs, company:e.target.value})} className="p-3 border rounded-lg" placeholder="기업명"/>
+            <input value={inputs.job} onChange={e=>setInputs({...inputs, job:e.target.value})} className="p-3 border rounded-lg" placeholder="직무명"/>
           </div>
           <div className="flex gap-2">
-            <button onClick={()=>setInputs({...inputs, concept:'competency'})} className={`flex-1 py-3 text-xs rounded-lg transition-all ${inputs.concept==='competency'?'bg-purple-600 text-white font-bold':'bg-slate-100 text-slate-600'}`}>직무역량 강조</button>
-            <button onClick={()=>setInputs({...inputs, concept:'character'})} className={`flex-1 py-3 text-xs rounded-lg transition-all ${inputs.concept==='character'?'bg-purple-600 text-white font-bold':'bg-slate-100 text-slate-600'}`}>인성/태도 강조</button>
+            <button onClick={()=>setInputs({...inputs, concept:'competency'})} className={`flex-1 py-3 text-xs rounded-lg transition-all ${inputs.concept==='competency'?'bg-purple-600 text-white font-bold':'bg-slate-100 text-slate-600'}`}>직무역량</button>
+            <button onClick={()=>setInputs({...inputs, concept:'character'})} className={`flex-1 py-3 text-xs rounded-lg transition-all ${inputs.concept==='character'?'bg-purple-600 text-white font-bold':'bg-slate-100 text-slate-600'}`}>인성/태도</button>
           </div>
-          <input value={inputs.keyword} onChange={e=>setInputs({...inputs, keyword:e.target.value})} className="w-full p-3 border rounded-lg text-sm font-bold focus:outline-none focus:border-purple-500" placeholder="핵심 키워드 (예: 소통, 분석력)"/>
-          <textarea value={inputs.exp} onChange={e=>setInputs({...inputs, exp:e.target.value})} className="w-full p-3 border rounded-lg text-sm h-32 resize-none focus:outline-none focus:border-purple-500" placeholder="관련 경험을 간단히 요약해주세요."/>
-          <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-purple-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg shadow-purple-200 transition-all disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"스크립트 생성"}</button>
+          <input value={inputs.keyword} onChange={e=>setInputs({...inputs, keyword:e.target.value})} className="w-full p-3 border rounded-lg font-bold" placeholder="핵심 키워드"/>
+          <textarea value={inputs.exp} onChange={e=>setInputs({...inputs, exp:e.target.value})} className="w-full p-3 border rounded-lg h-32 resize-none" placeholder="관련 경험 요약"/>
+          <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-purple-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"스크립트 생성"}</button>
         </div></aside>
-        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{script ? <div ref={reportRef} className="w-[210mm] bg-white shadow-lg p-10 space-y-8 animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-purple-600 pb-6 text-center"><span className="text-purple-600 font-bold text-sm tracking-widest block mb-2">1-MINUTE SPEECH</span><h1 className="text-3xl font-extrabold text-slate-900">"{script.slogan}"</h1></div><div className="space-y-8"><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-4 uppercase tracking-wider">Opening</div><div className="flex-1 bg-purple-50 p-6 rounded-2xl text-xl font-bold text-slate-800 leading-relaxed shadow-sm border border-purple-100">"{script.opening}"</div></div><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-1 uppercase tracking-wider">Body</div><div className="flex-1 text-slate-700 leading-loose pl-6 border-l-2 border-purple-200 text-lg">{script.body}</div></div><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-4 uppercase tracking-wider">Closing</div><div className="flex-1 bg-slate-50 p-6 rounded-2xl font-medium text-slate-800 text-lg leading-relaxed border border-slate-200">"{script.closing}"</div></div></div>
-        {/* [요청 반영] 저작권 표시 및 하단 여백 */}
-        <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400">
-          <div className="flex items-center"><Mic className="w-4 h-4 mr-1 text-purple-500" /><span>Career Vitamin</span></div>
-          <span>AI-Generated Speech Script</span>
-        </div>
-        </div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Mic size={64} className="mb-4 opacity-20"/><p>정보를 입력하면 스크립트가 생성됩니다.</p></div>}</main>
-        {script && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
+        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{script ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-lg p-10 flex flex-col animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-purple-600 pb-6 text-center"><span className="text-purple-600 font-bold text-sm tracking-widest block mb-2">1-MINUTE SPEECH</span><h1 className="text-3xl font-extrabold text-slate-900">"{script.slogan}"</h1></div><div className="space-y-8 flex-1 mt-8"><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-4 uppercase">Opening</div><div className="flex-1 bg-purple-50 p-6 rounded-2xl text-xl font-bold text-slate-800 shadow-sm">"{script.opening}"</div></div><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-1 uppercase">Body</div><div className="flex-1 text-slate-700 leading-loose pl-6 border-l-2 border-purple-200 text-lg">{script.body}</div></div><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-4 uppercase">Closing</div><div className="flex-1 bg-slate-50 p-6 rounded-2xl font-medium text-slate-800 text-lg">"{script.closing}"</div></div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><Mic className="w-4 h-4 mr-1 text-purple-500" /><span>Career Vitamin</span></div><span>AI-Generated Speech Script</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Mic size={64} className="mb-4 opacity-20"/><p>정보를 입력하면 스크립트가 생성됩니다.</p></div>}</main>
+        {script && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
       </div>
     </div>
   );
@@ -593,21 +507,15 @@ function ExperienceStructuringApp({ onClose }) {
         <aside className="w-80 bg-white border-r p-6 shrink-0 overflow-y-auto"><div className="space-y-5">
           <h3 className="font-bold text-sm text-indigo-700 flex items-center uppercase tracking-wider"><Sparkles size={16} className="mr-2"/> 경험 입력</h3>
           <div className="grid grid-cols-2 gap-2">
-            <input value={inputs.company} onChange={e=>setInputs({...inputs, company:e.target.value})} className="p-3 border rounded-lg text-sm focus:outline-none focus:border-indigo-500" placeholder="기업명"/>
-            <input value={inputs.job} onChange={e=>setInputs({...inputs, job:e.target.value})} className="p-3 border rounded-lg text-sm focus:outline-none focus:border-indigo-500" placeholder="직무명"/>
+            <input value={inputs.company} onChange={e=>setInputs({...inputs, company:e.target.value})} className="p-3 border rounded-lg text-sm" placeholder="기업명"/>
+            <input value={inputs.job} onChange={e=>setInputs({...inputs, job:e.target.value})} className="p-3 border rounded-lg text-sm" placeholder="직무명"/>
           </div>
-          <input value={inputs.keyword} onChange={e=>setInputs({...inputs, keyword:e.target.value})} className="w-full p-3 border rounded-lg text-sm font-bold focus:outline-none focus:border-indigo-500" placeholder="핵심 역량 키워드"/>
-          <textarea value={inputs.desc} onChange={e=>setInputs({...inputs, desc:e.target.value})} className="w-full p-3 border rounded-lg h-40 text-sm resize-none focus:outline-none focus:border-indigo-500" placeholder="경험 내용을 자유롭게 서술하세요 (당시 상황, 내가 한 행동, 결과 등)"/>
-          <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg shadow-indigo-200 transition-all disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"구조화 실행"}</button>
+          <input value={inputs.keyword} onChange={e=>setInputs({...inputs, keyword:e.target.value})} className="w-full p-3 border rounded-lg font-bold" placeholder="핵심 키워드"/>
+          <textarea value={inputs.desc} onChange={e=>setInputs({...inputs, desc:e.target.value})} className="w-full p-3 border rounded-lg h-40 resize-none" placeholder="경험 내용"/>
+          <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"구조화 실행"}</button>
         </div></aside>
-        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{starData.s ? <div ref={reportRef} className="w-[210mm] bg-white shadow-lg p-10 space-y-6 animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-indigo-600 pb-6 mb-6"><h1 className="text-4xl font-extrabold text-slate-900">STAR Analysis</h1><p className="text-slate-500 mt-2 text-lg">경험 구조화 워크시트</p></div><div className="space-y-6"><div className="bg-slate-50 p-6 rounded-2xl border-l-8 border-slate-400"><h3 className="font-bold text-slate-500 mb-2 text-sm tracking-widest">SITUATION</h3><p className="text-slate-800 text-lg leading-relaxed">{starData.s}</p></div><div className="bg-slate-50 p-6 rounded-2xl border-l-8 border-slate-500"><h3 className="font-bold text-slate-500 mb-2 text-sm tracking-widest">TASK</h3><p className="text-slate-800 text-lg leading-relaxed">{starData.t}</p></div><div className="bg-white border-2 border-indigo-100 p-6 rounded-2xl shadow-sm"><h3 className="font-bold text-indigo-600 mb-2 text-sm tracking-widest">ACTION</h3><p className="text-slate-800 font-medium text-lg leading-relaxed">{starData.a}</p></div><div className="bg-indigo-50 p-6 rounded-2xl border-l-8 border-indigo-600"><h3 className="font-bold text-indigo-800 mb-2 text-sm tracking-widest">RESULT</h3><p className="text-slate-800 font-bold text-lg leading-relaxed">{starData.r}</p></div></div>
-        {/* [요청 반영] 저작권 표시 및 하단 여백 */}
-        <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400">
-          <div className="flex items-center"><LayoutList className="w-4 h-4 mr-1 text-indigo-500" /><span>Career Vitamin</span></div>
-          <span>AI-Powered STAR Analysis</span>
-        </div>
-        </div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><LayoutList size={64} className="mb-4 opacity-20"/><p>경험을 입력하면 STAR 기법으로 구조화합니다.</p></div>}</main>
-        {starData.s && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
+        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{starData.s ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-lg p-10 flex flex-col animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-indigo-600 pb-6 mb-6"><h1 className="text-4xl font-extrabold text-slate-900">STAR Analysis</h1><p className="text-slate-500 mt-2 text-lg">경험 구조화 워크시트</p></div><div className="space-y-6 flex-1"><div className="bg-slate-50 p-6 rounded-2xl border-l-8 border-slate-400"><h3 className="font-bold text-slate-500 mb-2 text-sm tracking-widest">SITUATION</h3><p className="text-slate-800 text-lg leading-relaxed">{starData.s}</p></div><div className="bg-slate-50 p-6 rounded-2xl border-l-8 border-slate-500"><h3 className="font-bold text-slate-500 mb-2 text-sm tracking-widest">TASK</h3><p className="text-slate-800 text-lg leading-relaxed">{starData.t}</p></div><div className="bg-white border-2 border-indigo-100 p-6 rounded-2xl shadow-sm"><h3 className="font-bold text-indigo-600 mb-2 text-sm tracking-widest">ACTION</h3><p className="text-slate-800 font-medium text-lg leading-relaxed">{starData.a}</p></div><div className="bg-indigo-50 p-6 rounded-2xl border-l-8 border-indigo-600"><h3 className="font-bold text-indigo-800 mb-2 text-sm tracking-widest">RESULT</h3><p className="text-slate-800 font-bold text-lg leading-relaxed">{starData.r}</p></div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><LayoutList className="w-4 h-4 mr-1 text-indigo-500" /><span>Career Vitamin</span></div><span>AI-Powered STAR Analysis</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><LayoutList size={64} className="mb-4 opacity-20"/><p>경험을 입력하면 STAR 기법으로 구조화합니다.</p></div>}</main>
+        {starData.s && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
       </div>
     </div>
   );
@@ -637,17 +545,11 @@ function RoleModelGuideApp({ onClose }) {
       <div className="flex flex-1 overflow-hidden">
         <aside className="w-80 bg-white border-r p-6 shrink-0"><div className="space-y-5">
           <h3 className="font-bold text-sm text-orange-700 flex items-center uppercase tracking-wider"><Search size={16} className="mr-2"/> 인물 검색</h3>
-          <input value={data.name} onChange={e=>setData({...data, name:e.target.value})} className="w-full p-3 border border-slate-300 rounded-xl font-bold text-lg focus:ring-2 focus:ring-orange-500 outline-none" placeholder="예: 스티브 잡스" onKeyDown={(e) => e.key === 'Enter' && handleAIAnalysis()}/>
-          <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-orange-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg shadow-orange-200 transition-all disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"분석 시작"}</button>
+          <input value={data.name} onChange={e=>setData({...data, name:e.target.value})} className="w-full p-3 border border-slate-300 rounded-xl font-bold text-lg" placeholder="예: 스티브 잡스" onKeyDown={(e) => e.key === 'Enter' && handleAIAnalysis()}/>
+          <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-orange-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"분석 시작"}</button>
         </div></aside>
-        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{data.role ? <div ref={reportRef} className="w-[210mm] bg-white shadow-lg p-10 space-y-8 animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-orange-500 pb-6"><span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-xs font-bold">ROLE MODEL</span><h1 className="text-4xl font-extrabold mt-3">{data.name}</h1><p className="text-slate-500 text-lg mt-1">{data.role}</p></div><div className="flex gap-8 items-start"><div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center shrink-0"><User className="w-8 h-8 text-orange-600"/></div><p className="text-slate-700 leading-loose text-lg flex-1">{data.intro}</p></div><div className="bg-orange-50 p-8 rounded-2xl italic text-orange-900 font-serif text-xl border-l-8 border-orange-400 leading-relaxed">"{data.quotes}"</div><div className="border-t border-slate-200 pt-8"><h3 className="font-bold text-xl mb-4 flex items-center text-slate-800"><MessageSquare className="mr-2 text-orange-500"/> 면접 활용 Tip</h3><p className="text-slate-600 leading-relaxed text-lg">{data.reason}</p></div>
-        {/* [요청 반영] 저작권 표시 및 하단 여백 */}
-        <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400">
-          <div className="flex items-center"><Award className="w-4 h-4 mr-1 text-orange-500" /><span>Career Vitamin</span></div>
-          <span>AI-Powered Role Model Analysis</span>
-        </div>
-        </div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Award size={64} className="mb-4 opacity-20"/><p>롤모델 이름을 입력하세요.</p></div>}</main>
-        {data.role && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
+        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{data.role ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-lg p-10 flex flex-col animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-orange-500 pb-6"><span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-xs font-bold">ROLE MODEL</span><h1 className="text-4xl font-extrabold mt-3">{data.name}</h1><p className="text-slate-500 text-lg mt-1">{data.role}</p></div><div className="flex-1 space-y-8 mt-8"><div className="flex gap-8 items-start"><div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center shrink-0"><User className="w-8 h-8 text-orange-600"/></div><p className="text-slate-700 leading-loose text-lg flex-1">{data.intro}</p></div><div className="bg-orange-50 p-8 rounded-2xl italic text-orange-900 font-serif text-xl border-l-8 border-orange-400 leading-relaxed">"{data.quotes}"</div><div className="border-t border-slate-200 pt-8"><h3 className="font-bold text-xl mb-4 flex items-center text-slate-800"><MessageSquare className="mr-2 text-orange-500"/> 면접 활용 Tip</h3><p className="text-slate-600 leading-relaxed text-lg">{data.reason}</p></div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><Award className="w-4 h-4 mr-1 text-orange-500" /><span>Career Vitamin</span></div><span>AI-Powered Role Model Analysis</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Award size={64} className="mb-4 opacity-20"/><p>롤모델 이름을 입력하세요.</p></div>}</main>
+        {data.role && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
       </div>
     </div>
   );
@@ -686,16 +588,16 @@ function SelfDiscoveryMapApp({ onClose }) {
           </section>
         </aside>
         <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
-          <div ref={reportRef} className="w-[210mm] bg-white shadow-lg p-10 h-min min-h-[297mm] relative">
+          <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-lg p-10 flex flex-col relative">
              <div className="border-b-2 border-slate-800 pb-4 mb-10 flex justify-between items-end"><div><h1 className="text-4xl font-extrabold text-slate-900">Self-Discovery Map</h1><p className="text-slate-500 mt-1">Career Vitamin Analysis</p></div><div className="text-right"><div className="text-2xl font-bold text-blue-600">{profile.name}</div><div className="text-sm text-slate-500">{profile.targetJob}</div><div className="text-xs text-slate-400 mt-1">{profile.date}</div></div></div>
-             <div className="mb-12">
+             <div className="mb-12 flex-1">
                <h3 className="font-bold text-lg border-l-4 border-blue-600 pl-3 mb-6 text-slate-800">Core Keywords</h3>
                <div className="flex flex-wrap gap-3 min-h-[100px] content-start">{keywords.length > 0 ? keywords.map(k=><span key={k.id} className={`px-4 py-2 rounded-xl font-bold text-sm border cursor-pointer hover:opacity-70 flex items-center shadow-sm ${k.type==='strength'?'bg-blue-50 border-blue-200 text-blue-700':'bg-emerald-50 border-emerald-200 text-emerald-700'}`} onClick={()=>removeKeyword(k.id)}>{k.text}<X size={14} className="ml-2 opacity-50"/></span>) : <span className="text-slate-400 italic">키워드를 입력해주세요.</span>}</div>
              </div>
-             <div className="absolute bottom-10 left-10 right-10 border-t pt-4 flex justify-between text-slate-400 text-xs"><span>Powered by Career Vitamin</span><span>Confidential Report</span></div>
+             <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><span>Powered by Career Vitamin</span><span>Confidential Report</span></div>
           </div>
         </main>
-        <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:bg-slate-800 transition-transform hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>
+        <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>
       </div>
     </div>
   );
@@ -790,7 +692,7 @@ export default function App() {
         <div className="p-4 border-t border-slate-700">
           <div className="text-xs text-slate-500 mb-2 px-2">{user.displayName}님 ({role === 'owner' ? '관리자' : '전문가'})</div>
           <button onClick={()=>signOut(auth)} className="w-full border border-slate-600 text-slate-400 py-2 rounded hover:bg-slate-800 hover:text-white transition-colors flex items-center justify-center gap-2"><LogOut size={16}/> 로그아웃</button>
-          <div className="mt-4 text-xs text-center text-slate-600 opacity-50">v5.0 (Final & Complete)</div>
+          <div className="mt-4 text-xs text-center text-slate-600 opacity-50">v6.0 (Fixed PNG Save)</div>
         </div>
       </aside>
       

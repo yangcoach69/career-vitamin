@@ -89,7 +89,7 @@ const renderText = (content) => {
   return content;
 };
 
-// [수정됨] PNG 저장 함수 (Clone 방식 도입으로 잘림/배경 문제 완벽 해결)
+// [수정됨] PNG 저장 함수: 래퍼(Wrapper) 방식 도입으로 배경 잘림 완벽 해결
 const saveAsPng = async (elementRef, fileName, showToast) => {
   if (!elementRef.current) return;
   
@@ -105,60 +105,78 @@ const saveAsPng = async (elementRef, fileName, showToast) => {
     }
 
     const originalElement = elementRef.current;
-    
-    // 1. 요소 복제 (화면 영향 없이 조작하기 위함)
+    const width = originalElement.offsetWidth;
+    const height = originalElement.scrollHeight; // 전체 스크롤 높이 사용
+
+    // 1. 캡처용 임시 컨테이너 생성 (흰색 배경 보장)
+    const container = document.createElement('div');
+    container.style.position = 'absolute';
+    container.style.left = '-9999px';
+    container.style.top = '0';
+    container.style.width = `${width}px`;
+    container.style.minHeight = `${height}px`; // 최소 높이 확보
+    container.style.backgroundColor = '#ffffff'; // 강력한 흰색 배경
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column';
+    document.body.appendChild(container);
+
+    // 2. 요소 복제 및 컨테이너 삽입
     const clone = originalElement.cloneNode(true);
-    document.body.appendChild(clone);
+    
+    // 복제본 스타일 초기화 (스크롤 제거, 전체 펼치기)
+    clone.style.height = 'auto';
+    clone.style.maxHeight = 'none';
+    clone.style.overflow = 'visible';
+    clone.style.width = '100%';
+    clone.style.margin = '0';
+    clone.style.boxShadow = 'none'; // 그림자 제거 (깔끔하게)
+    clone.style.backgroundColor = 'transparent'; // 배경 투명화 (컨테이너 배경 사용)
+    
+    container.appendChild(clone);
 
-    // 2. 복제본 스타일 강제 적용 (전체 펼치기 & 흰 배경)
-    clone.style.position = 'absolute';
-    clone.style.left = '-9999px'; // 화면 밖으로 숨김
-    clone.style.top = '0';
-    clone.style.width = `${originalElement.offsetWidth}px`; // 너비 유지
-    clone.style.height = 'auto'; // 높이 자동 확장
-    clone.style.minHeight = `${originalElement.scrollHeight}px`; // 최소 높이를 전체 스크롤 높이로
-    clone.style.overflow = 'visible'; // 스크롤 제거
-    clone.style.backgroundColor = '#ffffff'; // 흰 배경 강제
-    clone.style.zIndex = '-1';
-    clone.style.borderRadius = '0';
-    clone.style.boxShadow = 'none';
+    // 3. 캡처 실행 (컨테이너 기준)
+    // 렌더링 안정화를 위해 잠시 대기
+    await new Promise(resolve => setTimeout(resolve, 100));
 
-    // 3. 캡처 실행
-    const canvas = await window.html2canvas(clone, {
+    const canvas = await window.html2canvas(container, {
       scale: 2, // 고해상도
       useCORS: true,
       logging: false,
       allowTaint: true,
-      backgroundColor: '#ffffff',
-      windowWidth: clone.scrollWidth,
-      windowHeight: clone.scrollHeight + 100, // 넉넉한 높이 확보
+      backgroundColor: '#ffffff', // 캔버스 배경도 흰색
+      width: width,
+      height: container.scrollHeight, // 컨테이너의 실제 높이
+      windowWidth: width,
+      windowHeight: container.scrollHeight + 100, // 넉넉하게 잡음
       x: 0,
       y: 0,
       scrollX: 0,
       scrollY: 0
     });
     
-    // 4. 복제본 제거
-    document.body.removeChild(clone);
+    // 4. 정리
+    document.body.removeChild(container);
     
     const link = document.createElement('a');
     link.download = `${fileName}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
-    if(showToast) showToast("이미지가 저장되었습니다.");
+    if(showToast) showToast("이미지가 성공적으로 저장되었습니다.");
   } catch (error) {
     console.error("이미지 저장 실패:", error);
     if(showToast) showToast("저장 중 오류가 발생했습니다.");
   }
 };
 
+// [수정됨] Google Search Tool 연동
 const fetchGemini = async (prompt) => {
   const apiKey = localStorage.getItem("custom_gemini_key");
   if (!apiKey) {
     throw new Error("API 키가 없습니다. [시스템 관리]에서 키를 등록해주세요.");
   }
   
-  const models = ["gemini-2.5-flash-lite", "gemini-2.5-pro", "gemini-1.5-flash"];
+  // Google Search Grounding을 지원하는 모델 위주로 구성
+  const models = ["gemini-2.5-pro", "gemini-1.5-pro", "gemini-1.5-flash"];
   let lastError = null;
 
   for (const model of models) {
@@ -169,6 +187,8 @@ const fetchGemini = async (prompt) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
+          // [핵심 수정] 구글 검색 도구 추가: 최신 정보 반영
+          tools: [{ google_search: {} }],
           generationConfig: { responseMimeType: "application/json" }
         })
       });
@@ -764,7 +784,7 @@ function RoleModelGuideApp({ onClose }) {
     if (!data.name) return showToast("이름을 입력해주세요.");
     setLoading(true);
     try {
-      const prompt = `롤모델 '${data.name}' 분석. JSON: { "role": "...", "intro": "...", "quotes": "...", "media": "...", "reason": "..." }`;
+      const prompt = `롤모델 '${data.name}' 분석. 이 인물의 최신 근황과 업적을 포함하여 분석해줘. JSON: { "role": "...", "intro": "...", "quotes": "...", "media": "...", "reason": "..." }`;
       const parsed = await fetchGemini(prompt);
       setData(prev => ({ ...prev, ...parsed }));
     } catch (e) { showToast(e.message); } finally { setLoading(false); }

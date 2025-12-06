@@ -5,7 +5,9 @@ import {
   signInWithPopup, 
   GoogleAuthProvider, 
   signOut, 
-  onAuthStateChanged
+  onAuthStateChanged,
+  signInWithCustomToken,
+  signInAnonymously
 } from "firebase/auth";
 import { 
   getFirestore, 
@@ -25,16 +27,15 @@ import {
   User, Hash, Star, X, ChevronLeft, Compass, 
   MessageSquare, Sparkles, Award, Search, BookOpen, Quote, Download, TrendingUp, Calendar, Target, 
   Edit3, MonitorPlay, Zap, LayoutList, Split, Mic, BarChart3, Link as LinkIcon, 
-  Globe, Trophy, Stethoscope, Key, AlertCircle, ExternalLink
+  Globe, Trophy, Stethoscope, Key, AlertCircle, ExternalLink,
+  Info
 } from 'lucide-react';
 
-import html2canvas from "html2canvas";
+// html2canvas import 제거 (CDN 동적 로드로 변경)
 
 // =============================================================================
 // [설정 구역]
 // =============================================================================
-
-const DEFAULT_API_KEY = ""; 
 
 const firebaseConfig = {
   apiKey: "AIzaSyCNc2Ht2PJAdcxfXraBwu6Afj02dUEV0gM",
@@ -56,6 +57,21 @@ const db = getFirestore(app);
 
 // --- Helpers ---
 
+// 간단한 토스트 메시지 컴포넌트 (alert 대체)
+const Toast = ({ message, onClose }) => {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 3000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 z-[100] animate-in slide-in-from-bottom-5 fade-in">
+      <Info size={20} className="text-indigo-400" />
+      <span className="text-sm font-medium">{message}</span>
+    </div>
+  );
+};
+
 const safeJsonParse = (str) => {
   try { return JSON.parse(str); } catch (e) {
     try {
@@ -75,42 +91,74 @@ const renderText = (content) => {
   return content;
 };
 
-// [핵심 수정] PNG 저장 함수 개선 (전체 영역 캡처 + 흰 배경)
-const saveAsPng = async (elementRef, fileName) => {
+// PNG 저장 함수 개선 (배경 잘림 방지 강화)
+const saveAsPng = async (elementRef, fileName, showToast) => {
   if (!elementRef.current) return;
   
   try {
-    // 1. 캡처 전 스타일 강제 조정 (잘림 방지)
-    const originalStyle = elementRef.current.style.cssText;
-    // 높이를 자동으로 늘려서 스크롤 없이 전체가 보이게 함
-    elementRef.current.style.height = 'auto';
-    elementRef.current.style.overflow = 'visible';
-    elementRef.current.style.position = 'relative'; // 배경색 적용을 위해
+    // html2canvas 동적 로드
+    if (!window.html2canvas) {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+    }
 
-    const canvas = await html2canvas(elementRef.current, {
+    const element = elementRef.current;
+    
+    // 1. 현재 스타일 백업
+    const originalStyle = {
+      height: element.style.height,
+      minHeight: element.style.minHeight,
+      maxHeight: element.style.maxHeight,
+      overflow: element.style.overflow,
+      backgroundColor: element.style.backgroundColor,
+      width: element.style.width,
+      position: element.style.position
+    };
+
+    // 2. 캡처를 위한 스타일 강제 조정 (전체 내용 표시 및 배경 확보)
+    element.style.backgroundColor = '#ffffff'; // 배경을 강제로 흰색으로 설정
+    element.style.height = 'auto'; // 높이를 내용에 맞게 자동으로 늘림
+    element.style.minHeight = 'auto'; 
+    element.style.maxHeight = 'none'; // 최대 높이 제한 해제
+    element.style.overflow = 'visible'; // 스크롤 없이 전체 표시
+    // element.style.width = '210mm'; // 너비 고정 (A4 규격 유지 시 필요하다면 주석 해제)
+
+    // 3. 캡처 실행
+    const canvas = await window.html2canvas(element, {
       scale: 2, // 고해상도
       useCORS: true, 
+      allowTaint: true, // 크로스 오리진 이미지 허용 시도
       logging: false,
-      backgroundColor: '#ffffff', // 투명 배경 방지
-      // 전체 스크롤 영역 크기만큼 캡처
-      width: elementRef.current.scrollWidth,
-      height: elementRef.current.scrollHeight,
-      windowWidth: elementRef.current.scrollWidth,
-      windowHeight: elementRef.current.scrollHeight,
-      x: 0,
-      y: 0
+      backgroundColor: '#ffffff', // 캔버스 배경색
+      width: element.scrollWidth,
+      height: element.scrollHeight,
+      scrollY: 0, // 스크롤 위치 초기화 (위쪽 잘림 방지)
+      windowWidth: document.documentElement.scrollWidth, // 전체 너비 확보
+      windowHeight: document.documentElement.scrollHeight // 전체 높이 확보
     });
     
-    // 2. 스타일 원상 복구
-    elementRef.current.style.cssText = originalStyle;
+    // 4. 스타일 원상 복구
+    element.style.height = originalStyle.height;
+    element.style.minHeight = originalStyle.minHeight;
+    element.style.maxHeight = originalStyle.maxHeight;
+    element.style.overflow = originalStyle.overflow;
+    element.style.backgroundColor = originalStyle.backgroundColor;
+    element.style.width = originalStyle.width;
+    element.style.position = originalStyle.position;
     
     const link = document.createElement('a');
     link.download = `${fileName}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
+    if(showToast) showToast("이미지가 저장되었습니다.");
   } catch (error) {
     console.error("이미지 저장 실패:", error);
-    alert("이미지 저장 중 오류가 발생했습니다.");
+    if(showToast) showToast("이미지 저장 중 오류가 발생했습니다.");
   }
 };
 
@@ -120,7 +168,7 @@ const fetchGemini = async (prompt) => {
     throw new Error("API 키가 없습니다. [시스템 관리]에서 키를 등록해주세요.");
   }
   
-  // [요청 반영] 상위 버전 모델 우선 시도
+  // 상위 버전 모델 우선 시도
   const models = ["gemini-2.5-flash-lite", "gemini-2.5-pro", "gemini-1.5-flash"];
   let lastError = null;
 
@@ -138,7 +186,6 @@ const fetchGemini = async (prompt) => {
 
       if (!response.ok) {
         const errData = await response.json();
-        // 모델을 찾을 수 없는 경우(404)는 다음 모델 시도
         if (response.status === 404) throw new Error(`Model ${model} not found`);
         throw new Error(errData.error?.message || `HTTP Error ${response.status}`);
       }
@@ -150,7 +197,6 @@ const fetchGemini = async (prompt) => {
     } catch (e) {
       console.warn(`${model} 실패:`, e);
       lastError = e;
-      // 키 자체가 틀린 경우(API key not valid)는 더 시도하지 않고 중단
       if (e.message.includes("API key")) throw e; 
     }
   }
@@ -158,7 +204,6 @@ const fetchGemini = async (prompt) => {
 };
 
 // --- UI Components for Editing ---
-// [신규] 수정 가능한 텍스트 박스 (textarea 대신 div contentEditable 사용 -> 이미지 저장 시 줄바꿈 유지됨)
 const EditableContent = ({ value, onSave, className }) => {
   return (
     <div
@@ -173,7 +218,6 @@ const EditableContent = ({ value, onSave, className }) => {
 };
 
 // --- Constants ---
-const CATEGORIES = [{ id: 'ai_tools', title: 'AI 코칭 어시스턴트', icon: Sparkles }];
 const SERVICES = {
   gpt_guide: { name: "[GPT] 직업 탐색 가이드", desc: "관심 있는 직업/직무 입력 시 가이드 생성", link: "https://chatgpt.com/g/g-Uch9gJR4b-job-explorer-guide-report", internal: false, icon: Compass, color: "emerald" },
   card_bot: { name: "[노트북LM] 커리어스타일 챗봇", desc: "유료 프로그램 전용 챗봇", link: "https://notebooklm.google.com/notebook/595da4c0-fcc1-4064-82c8-9901e6dd8772", internal: false, icon: MessageSquare, color: "violet" },
@@ -206,16 +250,19 @@ function CompanyAnalysisApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', url: '', job: '' });
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [toastMsg, setToastMsg] = useState(null);
   const reportRef = useRef(null);
+
+  const showToast = (msg) => setToastMsg(msg);
   
   const handleAIAnalysis = async () => {
-    if (!inputs.company || !inputs.job) return alert("기업명과 직무를 입력해주세요.");
+    if (!inputs.company || !inputs.job) return showToast("기업명과 직무를 입력해주세요.");
     setLoading(true);
     try {
       const prompt = `당신은 전문 커리어 코치입니다. 기업명: ${inputs.company}, 직무: ${inputs.job}. 심층 기업 분석 리포트 작성. JSON 포맷: { "overview": { "vision": "...", "values": "..." }, "business": { "history": "...", "biz_area": "...", "issues": ["...", "..."] }, "market": { "trends": "...", "swot": { "s": "...", "w": "...", "o": "...", "t": "..." } }, "competitor": "...", "strategy": "..." }`;
       const parsed = await fetchGemini(prompt);
       if (parsed) setResult(parsed);
-    } catch (e) { alert(e.message); } finally { setLoading(false); }
+    } catch (e) { showToast(e.message); } finally { setLoading(false); }
   };
   
   const handleEdit = (section, key, value) => {
@@ -235,10 +282,11 @@ function CompanyAnalysisApp({ onClose }) {
     });
   };
 
-  const handleDownload = () => saveAsPng(reportRef, `기업분석_${inputs.company}`);
+  const handleDownload = () => saveAsPng(reportRef, `기업분석_${inputs.company}`, showToast);
   
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
+      {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
       <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
         <div className="flex items-center gap-3"><BarChart3 className="text-indigo-400" /><h1 className="font-bold text-lg">기업분석 리포트</h1></div>
         <button onClick={onClose} className="flex items-center text-sm hover:text-indigo-200 transition-colors"><ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기</button>
@@ -328,15 +376,19 @@ function CareerRoadmapApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', job: '', years: '5' });
   const [roadmapData, setRoadmapData] = useState(null); 
   const [loading, setLoading] = useState(false);
+  const [toastMsg, setToastMsg] = useState(null);
   const reportRef = useRef(null);
+
+  const showToast = (msg) => setToastMsg(msg);
+
   const handleAIPlan = async () => {
-    if (!inputs.company || !inputs.job) return alert("입력 필요");
+    if (!inputs.company || !inputs.job) return showToast("기업명과 직무를 입력해주세요.");
     setLoading(true);
     try {
       const prompt = `커리어 로드맵 설계. 기업:${inputs.company}, 직무:${inputs.job}, 목표기간:${inputs.years}년. JSON: { "goal": "최종목표", "roadmap": [{"stage": "단계명", "action": "실천내용"}], "script": "입사후포부" }`;
       const parsed = await fetchGemini(prompt);
       setRoadmapData(parsed);
-    } catch (e) { alert(e.message); } finally { setLoading(false); }
+    } catch (e) { showToast(e.message); } finally { setLoading(false); }
   };
   
   const handleEdit = (key, value) => setRoadmapData(prev => ({ ...prev, [key]: value }));
@@ -348,10 +400,11 @@ function CareerRoadmapApp({ onClose }) {
     });
   };
 
-  const handleDownload = () => saveAsPng(reportRef, `커리어로드맵_${inputs.company}`);
+  const handleDownload = () => saveAsPng(reportRef, `커리어로드맵_${inputs.company}`, showToast);
   
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
+      {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
       <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
         <div className="flex items-center gap-3"><TrendingUp className="text-blue-400"/><h1 className="font-bold text-lg">커리어 로드맵</h1></div>
         <button onClick={onClose} className="flex items-center text-sm hover:text-blue-200 transition-colors"><ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기</button>
@@ -414,16 +467,19 @@ function PtInterviewApp({ onClose }) {
   const [selectedTopic, setSelectedTopic] = useState(null);
   const [script, setScript] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [toastMsg, setToastMsg] = useState(null);
   const reportRef = useRef(null);
+
+  const showToast = (msg) => setToastMsg(msg);
   
   const handleGenerateTopics = async () => {
-    if (!inputs.company) return alert("입력 필요");
+    if (!inputs.company) return showToast("기업명을 입력해주세요.");
     setLoading(true);
     try {
       const prompt = `기업:${inputs.company}, 직무:${inputs.job}, 요구사항:${inputs.request}. PT 면접 주제 5개 추천. JSON Array only: ["주제1", "주제2"...]`;
       const parsed = await fetchGemini(prompt);
       if(parsed) { setTopics(parsed); setStep('list'); }
-    } catch (e) { alert(e.message); } finally { setLoading(false); }
+    } catch (e) { showToast(e.message); } finally { setLoading(false); }
   };
   
   const handleGenerateScript = async (topic) => {
@@ -433,14 +489,15 @@ function PtInterviewApp({ onClose }) {
       const prompt = `PT주제: "${topic}", 기업:${inputs.company}. 발표 대본(서론/본론/결론). JSON: {"intro": "...", "body": "...", "conclusion": "..."}`;
       const parsed = await fetchGemini(prompt);
       if(parsed) { setScript(parsed); setStep('detail'); }
-    } catch(e){ alert(e.message); } finally { setLoading(false); }
+    } catch(e){ showToast(e.message); } finally { setLoading(false); }
   };
   
   const handleEditScript = (key, value) => setScript(prev => ({ ...prev, [key]: value }));
-  const handleDownload = () => saveAsPng(reportRef, `PT면접_${inputs.company}`);
+  const handleDownload = () => saveAsPng(reportRef, `PT면접_${inputs.company}`, showToast);
 
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
+      {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
       <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
         <div className="flex items-center gap-3"><MonitorPlay className="text-rose-400"/><h1 className="font-bold text-lg">PT 면접 가이드</h1></div>
         <button onClick={onClose} className="flex items-center text-sm hover:text-rose-200 transition-colors"><ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기</button>
@@ -495,15 +552,19 @@ function SituationInterviewApp({ onClose }) {
   const [inputs, setInputs] = useState({ question: '', criteria: '' });
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [toastMsg, setToastMsg] = useState(null);
   const reportRef = useRef(null);
+  
+  const showToast = (msg) => setToastMsg(msg);
+
   const handleAIAnalysis = async () => {
-    if (!inputs.question) return alert("질문 입력 필요");
+    if (!inputs.question) return showToast("질문을 입력해주세요.");
     setLoading(true);
     try {
       const prompt = `상황면접 질문: ${inputs.question}, 판단기준: ${inputs.criteria}. 답변 2가지 버전(A/B)과 조언. JSON: { "situation_a": {"title": "...", "content": "..."}, "situation_b": {"title": "...", "content": "..."}, "advice": "..." }`;
       const parsed = await fetchGemini(prompt);
       setResult(parsed);
-    } catch (e) { alert(e.message); } finally { setLoading(false); }
+    } catch (e) { showToast(e.message); } finally { setLoading(false); }
   };
   
   const handleEdit = (key, subKey, value) => {
@@ -513,10 +574,11 @@ function SituationInterviewApp({ onClose }) {
     });
   };
 
-  const handleDownload = () => saveAsPng(reportRef, `상황면접`);
+  const handleDownload = () => saveAsPng(reportRef, `상황면접`, showToast);
   
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
+      {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
       <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
         <div className="flex items-center gap-3"><Split className="text-teal-400"/><h1 className="font-bold text-lg">상황면접 가이드</h1></div>
         <button onClick={onClose} className="flex items-center text-sm hover:text-teal-200 transition-colors"><ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기</button>
@@ -540,22 +602,27 @@ function SelfIntroApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', job: '', concept: 'competency', keyword: '', exp: '' });
   const [script, setScript] = useState(null); 
   const [loading, setLoading] = useState(false);
+  const [toastMsg, setToastMsg] = useState(null);
   const reportRef = useRef(null);
+
+  const showToast = (msg) => setToastMsg(msg);
+
   const handleAIAnalysis = async () => {
-    if (!inputs.company) return alert("입력 필요");
+    if (!inputs.company) return showToast("기업명을 입력해주세요.");
     setLoading(true);
     try {
       const prompt = `1분 자기소개. 기업:${inputs.company}, 직무:${inputs.job}, 컨셉:${inputs.concept}, 키워드:${inputs.keyword}, 경험:${inputs.exp}. JSON: { "slogan": "...", "opening": "...", "body": "...", "closing": "..." }`;
       const parsed = await fetchGemini(prompt);
       setScript(parsed);
-    } catch (e) { alert(e.message); } finally { setLoading(false); }
+    } catch (e) { showToast(e.message); } finally { setLoading(false); }
   };
   
   const handleEdit = (key, value) => setScript(prev => ({ ...prev, [key]: value }));
-  const handleDownload = () => saveAsPng(reportRef, `자기소개_${inputs.company}`);
+  const handleDownload = () => saveAsPng(reportRef, `자기소개_${inputs.company}`, showToast);
   
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
+      {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
       <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
         <div className="flex items-center gap-3"><Mic className="text-purple-400"/><h1 className="font-bold text-lg">1분 자기소개</h1></div>
         <button onClick={onClose} className="flex items-center text-sm hover:text-purple-200 transition-colors"><ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기</button>
@@ -587,22 +654,27 @@ function ExperienceStructuringApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', job: '', keyword: '', desc: '' });
   const [starData, setStarData] = useState({ s: '', t: '', a: '', r: '' });
   const [loading, setLoading] = useState(false);
+  const [toastMsg, setToastMsg] = useState(null);
   const reportRef = useRef(null);
+  
+  const showToast = (msg) => setToastMsg(msg);
+
   const handleAIAnalysis = async () => {
-    if (!inputs.desc) return alert("내용 입력 필요");
+    if (!inputs.desc) return showToast("내용을 입력해주세요.");
     setLoading(true);
     try {
       const prompt = `경험 STAR 구조화. 기업:${inputs.company}, 직무:${inputs.job}, 키워드:${inputs.keyword}, 내용:${inputs.desc}. JSON: { "s": "...", "t": "...", "a": "...", "r": "..." }`;
       const parsed = await fetchGemini(prompt);
       setStarData(parsed);
-    } catch (e) { alert(e.message); } finally { setLoading(false); }
+    } catch (e) { showToast(e.message); } finally { setLoading(false); }
   };
   
   const handleEdit = (key, value) => setStarData(prev => ({ ...prev, [key]: value }));
-  const handleDownload = () => saveAsPng(reportRef, `STAR_${inputs.keyword}`);
+  const handleDownload = () => saveAsPng(reportRef, `STAR_${inputs.keyword}`, showToast);
   
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
+      {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
       <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
         <div className="flex items-center gap-3"><LayoutList className="text-indigo-400"/><h1 className="font-bold text-lg">STAR 워크시트</h1></div>
         <button onClick={onClose} className="flex items-center text-sm hover:text-indigo-200 transition-colors"><ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기</button>
@@ -629,21 +701,26 @@ function ExperienceStructuringApp({ onClose }) {
 function RoleModelGuideApp({ onClose }) {
   const [data, setData] = useState({ name: '', role: '', intro: '', quotes: '', media: '', reason: '' });
   const [loading, setLoading] = useState(false);
+  const [toastMsg, setToastMsg] = useState(null);
   const reportRef = useRef(null);
+  
+  const showToast = (msg) => setToastMsg(msg);
+
   const handleAIAnalysis = async () => {
-    if (!data.name) return alert("이름 입력 필요");
+    if (!data.name) return showToast("이름을 입력해주세요.");
     setLoading(true);
     try {
       const prompt = `롤모델 '${data.name}' 분석. JSON: { "role": "...", "intro": "...", "quotes": "...", "media": "...", "reason": "..." }`;
       const parsed = await fetchGemini(prompt);
       setData(prev => ({ ...prev, ...parsed }));
-    } catch (e) { alert(e.message); } finally { setLoading(false); }
+    } catch (e) { showToast(e.message); } finally { setLoading(false); }
   };
   const handleEdit = (key, value) => setData(prev => ({ ...prev, [key]: value }));
-  const handleDownload = () => saveAsPng(reportRef, `롤모델_${data.name}`);
+  const handleDownload = () => saveAsPng(reportRef, `롤모델_${data.name}`, showToast);
   
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
+      {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
       <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
         <div className="flex items-center gap-3"><Award className="text-orange-400"/><h1 className="font-bold text-lg">롤모델 분석</h1></div>
         <button onClick={onClose} className="flex items-center text-sm hover:text-orange-200 transition-colors"><ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기</button>
@@ -667,12 +744,16 @@ function SelfDiscoveryMapApp({ onClose }) {
   const [keywords, setKeywords] = useState([]);
   const [currentKeyword, setCurrentKeyword] = useState('');
   const [keywordType, setKeywordType] = useState('strength');
+  const [toastMsg, setToastMsg] = useState(null);
   const reportRef = useRef(null);
+
+  const showToast = (msg) => setToastMsg(msg);
   const addKeyword = (e) => { if (e.key === 'Enter' && currentKeyword.trim()) { setKeywords([...keywords, { id: Date.now(), text: currentKeyword.trim(), type: keywordType }]); setCurrentKeyword(''); } };
   const removeKeyword = (id) => setKeywords(keywords.filter(k => k.id !== id));
-  const handleDownload = () => saveAsPng(reportRef, `지도_${profile.name}`);
+  const handleDownload = () => saveAsPng(reportRef, `지도_${profile.name}`, showToast);
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
+      {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
       <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
         <div className="flex items-center gap-3"><Map className="text-blue-400"/><h1 className="font-bold text-lg">나를 찾는 지도</h1></div>
         <button onClick={onClose} className="flex items-center text-sm hover:text-blue-200 transition-colors"><ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기</button>
@@ -720,6 +801,9 @@ export default function App() {
   const [newExpertName, setNewExpertName] = useState(''); 
   const [currentApp, setCurrentApp] = useState('none');
   const [customKey, setCustomKey] = useState(localStorage.getItem("custom_gemini_key") || "");
+  const [toastMsg, setToastMsg] = useState(null);
+
+  const showToast = (msg) => setToastMsg(msg);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
@@ -755,11 +839,11 @@ export default function App() {
 
   const handleSaveKey = () => {
     if (!customKey.startsWith("AIza")) {
-      alert("올바른 Google API Key 형식이 아닙니다 (AIza로 시작해야 함).");
+      showToast("올바른 Google API Key 형식이 아닙니다 (AIza로 시작해야 함).");
       return;
     }
     localStorage.setItem("custom_gemini_key", customKey);
-    alert("API 키가 저장되었습니다. 이제 AI 기능을 다시 시도해보세요!");
+    showToast("API 키가 저장되었습니다. 이제 AI 기능을 다시 시도해보세요!");
   };
 
   const handleAddExpert = async (e) => {
@@ -769,14 +853,19 @@ export default function App() {
       email: newExpertEmail, displayName: newExpertName, addedAt: new Date().toISOString()
     });
     setNewExpertEmail(''); setNewExpertName('');
+    showToast("전문가가 추가되었습니다.");
   };
 
   const handleDeleteExpert = async (id) => {
-    if(window.confirm("삭제하시겠습니까?")) await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts', id));
+    if(window.confirm("삭제하시겠습니까?")) {
+      await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts', id));
+      showToast("삭제되었습니다.");
+    }
   };
 
   if (!user || role === 'guest') return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+      {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
       <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md w-full">
         <h1 className="text-3xl font-bold mb-2 text-slate-900">Career Vitamin</h1>
         <p className="text-slate-500 mb-6">전문가 전용 AI 솔루션</p>
@@ -789,6 +878,7 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans text-slate-800">
+      {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
       <aside className="w-64 bg-slate-900 text-white flex flex-col shrink-0">
         <div className="p-6 border-b border-slate-700 font-bold text-xl flex items-center gap-2"><LayoutDashboard className="text-indigo-400"/> Career Vitamin</div>
         <nav className="flex-1 p-4 space-y-2">
@@ -798,7 +888,7 @@ export default function App() {
         <div className="p-4 border-t border-slate-700">
           <div className="text-xs text-slate-500 mb-2 px-2">{user.displayName}님 ({role === 'owner' ? '관리자' : '전문가'})</div>
           <button onClick={()=>signOut(auth)} className="w-full border border-slate-600 text-slate-400 py-2 rounded hover:bg-slate-800 hover:text-white transition-colors flex items-center justify-center gap-2"><LogOut size={16}/> 로그아웃</button>
-          <div className="mt-4 text-xs text-center text-slate-600 opacity-50">v7.1 (PNG Fix)</div>
+          <div className="mt-4 text-xs text-center text-slate-600 opacity-50">v7.2 (Toast Updated)</div>
         </div>
       </aside>
       

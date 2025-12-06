@@ -28,7 +28,7 @@ import {
   MessageSquare, Sparkles, Award, Search, BookOpen, Quote, Download, TrendingUp, Calendar, Target, 
   Edit3, MonitorPlay, Zap, LayoutList, Split, Mic, BarChart3, Link as LinkIcon, 
   Globe, Trophy, Stethoscope, Key, AlertCircle, ExternalLink,
-  Info
+  Info, ArrowRight
 } from 'lucide-react';
 
 // html2canvas import 제거 (CDN 동적 로드 유지)
@@ -89,7 +89,7 @@ const renderText = (content) => {
   return content;
 };
 
-// [수정됨] PNG 저장 함수 개선 (높이 계산 및 배경 처리 강화)
+// [수정됨] PNG 저장 함수 (Clone 방식 도입으로 잘림/배경 문제 완벽 해결)
 const saveAsPng = async (elementRef, fileName, showToast) => {
   if (!elementRef.current) return;
   
@@ -104,64 +104,51 @@ const saveAsPng = async (elementRef, fileName, showToast) => {
       });
     }
 
-    const element = elementRef.current;
+    const originalElement = elementRef.current;
     
-    // 1. 스타일 백업
-    const originalStyle = {
-      height: element.style.height,
-      minHeight: element.style.minHeight,
-      maxHeight: element.style.maxHeight,
-      overflow: element.style.overflow,
-      backgroundColor: element.style.backgroundColor,
-      borderRadius: element.style.borderRadius,
-      boxShadow: element.style.boxShadow
-    };
+    // 1. 요소 복제 (화면 영향 없이 조작하기 위함)
+    const clone = originalElement.cloneNode(true);
+    document.body.appendChild(clone);
 
-    // 2. 캡처용 스타일 강제 적용
-    // 전체 내용을 포함하도록 높이를 scrollHeight로 고정하고, 배경을 흰색으로 덮음
-    const fullHeight = element.scrollHeight;
-    element.style.height = `${fullHeight}px`;
-    element.style.minHeight = `${fullHeight}px`;
-    element.style.maxHeight = 'none';
-    element.style.overflow = 'visible';
-    element.style.backgroundColor = '#ffffff'; 
-    element.style.borderRadius = '0'; // 저장 시 둥근 모서리 제거 (선택사항)
-    element.style.boxShadow = 'none'; // 그림자 제거하여 깔끔하게
+    // 2. 복제본 스타일 강제 적용 (전체 펼치기 & 흰 배경)
+    clone.style.position = 'absolute';
+    clone.style.left = '-9999px'; // 화면 밖으로 숨김
+    clone.style.top = '0';
+    clone.style.width = `${originalElement.offsetWidth}px`; // 너비 유지
+    clone.style.height = 'auto'; // 높이 자동 확장
+    clone.style.minHeight = `${originalElement.scrollHeight}px`; // 최소 높이를 전체 스크롤 높이로
+    clone.style.overflow = 'visible'; // 스크롤 제거
+    clone.style.backgroundColor = '#ffffff'; // 흰 배경 강제
+    clone.style.zIndex = '-1';
+    clone.style.borderRadius = '0';
+    clone.style.boxShadow = 'none';
 
-    // 3. html2canvas 실행
-    const canvas = await window.html2canvas(element, {
-      scale: 2, // 해상도 2배
+    // 3. 캡처 실행
+    const canvas = await window.html2canvas(clone, {
+      scale: 2, // 고해상도
       useCORS: true,
       logging: false,
       allowTaint: true,
-      backgroundColor: '#ffffff', // 캔버스 배경색 흰색
-      width: element.offsetWidth, 
-      height: fullHeight, // 전체 높이 명시
-      windowWidth: element.scrollWidth, // 가상 윈도우 너비 확보
-      windowHeight: fullHeight + 1000, // 가상 윈도우 높이를 충분히 확보하여 잘림 방지
+      backgroundColor: '#ffffff',
+      windowWidth: clone.scrollWidth,
+      windowHeight: clone.scrollHeight + 100, // 넉넉한 높이 확보
       x: 0,
       y: 0,
       scrollX: 0,
       scrollY: 0
     });
     
-    // 4. 스타일 원복
-    element.style.height = originalStyle.height;
-    element.style.minHeight = originalStyle.minHeight;
-    element.style.maxHeight = originalStyle.maxHeight;
-    element.style.overflow = originalStyle.overflow;
-    element.style.backgroundColor = originalStyle.backgroundColor;
-    element.style.borderRadius = originalStyle.borderRadius;
-    element.style.boxShadow = originalStyle.boxShadow;
+    // 4. 복제본 제거
+    document.body.removeChild(clone);
     
     const link = document.createElement('a');
     link.download = `${fileName}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
-    if(showToast) showToast("성공적으로 저장되었습니다.");
+    if(showToast) showToast("이미지가 저장되었습니다.");
   } catch (error) {
     console.error("이미지 저장 실패:", error);
-    if(showToast) showToast("저장 중 오류가 발생했습니다. 다시 시도해주세요.");
+    if(showToast) showToast("저장 중 오류가 발생했습니다.");
   }
 };
 
@@ -457,12 +444,11 @@ function CareerRoadmapApp({ onClose }) {
   );
 }
 
-// [수정됨] PT 면접 앱 - 프롬프트 강화
+// [수정됨] PT 면접 앱 - 15개 주제, 좌측 목록, 하단 생성 버튼, 본론 생성 강화
 function PtInterviewApp({ onClose }) {
-  const [step, setStep] = useState('input'); 
   const [inputs, setInputs] = useState({ company: '', job: '', request: '' });
   const [topics, setTopics] = useState([]);
-  const [selectedTopic, setSelectedTopic] = useState(null);
+  const [selectedTopic, setSelectedTopic] = useState('');
   const [script, setScript] = useState(null);
   const [loading, setLoading] = useState(false);
   const [toastMsg, setToastMsg] = useState(null);
@@ -474,26 +460,43 @@ function PtInterviewApp({ onClose }) {
     if (!inputs.company) return showToast("기업명을 입력해주세요.");
     setLoading(true);
     try {
-      // 프롬프트 수정: 기업 특화 및 구체적 주제 요구
       const prompt = `지원 기업: ${inputs.company}, 지원 직무: ${inputs.job}, 추가 요구사항: ${inputs.request}. 
-      해당 기업의 최신 이슈, 비즈니스 과제, 그리고 해당 직무에서 실제로 마주할 수 있는 실무적인 문제 상황을 반영하여, 논리적인 해결책 제시가 필요한 고품질 PT 면접 주제 5개를 추천해줘.
-      단순히 '장단점 분석' 같은 주제보다는 '구체적인 상황(Scenario)과 해결 과제'가 명시된 주제여야 함.
-      Format: JSON Array of strings (e.g., ["주제1...", "주제2..."])`;
+      해당 기업의 최신 뉴스, 사업 보고서, 직무 기술서 등을 바탕으로 실제 면접에서 나올법한 고품질 PT 면접 주제 15개를 추천해줘.
+      각 주제는 단순한 키워드가 아니라 구체적인 문제 상황(Scenario)과 해결 과제가 포함된 문장이어야 함.
+      Format strictly: JSON Array of strings (e.g., ["주제1: ~~~", "주제2: ~~~"])`;
       
       const parsed = await fetchGemini(prompt);
-      if(parsed) { setTopics(parsed); setStep('list'); }
+      if(parsed && Array.isArray(parsed)) { 
+        setTopics(parsed); 
+      } else {
+        throw new Error("주제 생성 형식이 올바르지 않습니다.");
+      }
     } catch (e) { showToast(e.message); } finally { setLoading(false); }
   };
   
-  const handleGenerateScript = async (topic) => {
+  const handleGenerateScript = async () => {
+    if (!selectedTopic) return showToast("주제를 먼저 선택해주세요.");
     setLoading(true);
-    setSelectedTopic(topic);
     try {
-      const prompt = `PT주제: "${topic}", 기업:${inputs.company}. 
-      전문적인 PT 발표 대본을 작성해줘. 서론-본론-결론 구조를 갖추고, 논리적 근거와 구체적인 실행 방안을 포함할 것.
-      JSON: {"intro": "청중의 이목을 끄는 서론...", "body": "핵심 주장과 2-3가지 상세 근거...", "conclusion": "요약 및 강한 마무리..."}`;
+      // 본론(Body) 생성을 위한 프롬프트 강화
+      const prompt = `PT주제: "${selectedTopic}", 기업:${inputs.company}, 직무:${inputs.job}. 
+      이 주제에 대한 전문적인 PT 발표 대본을 작성해줘.
+      
+      반드시 다음 JSON 형식을 지킬 것:
+      {
+        "intro": "청중의 주의를 환기하고 주제를 소개하는 서론 (2-3문장)",
+        "body": "핵심 주장, 논거 1, 논거 2, 구체적 실행 방안 등을 포함한 매우 상세하고 긴 본론 (줄바꿈 포함)",
+        "conclusion": "핵심 요약 및 입사 후 포부를 담은 강력한 결론 (2-3문장)"
+      }
+      
+      Body 부분은 절대 비워두지 말고, 구체적인 수치나 예시를 들어서 풍부하게 작성할 것.`;
+      
       const parsed = await fetchGemini(prompt);
-      if(parsed) { setScript(parsed); setStep('detail'); }
+      if(parsed && parsed.body) { // body 체크
+        setScript(parsed); 
+      } else {
+        throw new Error("스크립트 생성 중 오류가 발생했습니다. (Body 누락)");
+      }
     } catch(e){ showToast(e.message); } finally { setLoading(false); }
   };
   
@@ -508,43 +511,93 @@ function PtInterviewApp({ onClose }) {
         <button onClick={onClose} className="flex items-center text-sm hover:text-rose-200 transition-colors"><ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기</button>
       </header>
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-80 bg-white border-r p-6 overflow-y-auto shrink-0">
-           {step === 'input' && <div className="space-y-5">
-             <h3 className="font-bold text-sm text-rose-700 flex items-center uppercase tracking-wider"><Settings size={16} className="mr-2"/> 기본 설정</h3>
-             <input value={inputs.company} onChange={e=>setInputs({...inputs, company:e.target.value})} className="w-full p-3 border rounded-lg" placeholder="지원 기업명"/>
-             <input value={inputs.job} onChange={e=>setInputs({...inputs, job:e.target.value})} className="w-full p-3 border rounded-lg" placeholder="지원 직무"/>
-             <textarea value={inputs.request} onChange={e=>setInputs({...inputs, request:e.target.value})} className="w-full p-3 border rounded-lg h-24 resize-none" placeholder="추가 요구사항 (예: 신사업 기획 위주로, 마케팅 전략 위주로 등)"/>
-             <button onClick={handleGenerateTopics} disabled={loading} className="w-full bg-rose-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"주제 추출 시작"}</button>
-           </div>}
-           {step === 'list' && <div className="space-y-3">
-             <h3 className="font-bold text-sm text-slate-500 mb-2 flex items-center"><Check size={16} className="mr-2"/> 주제 선택</h3>
-             {topics.map((t,i)=><button key={i} onClick={()=>handleGenerateScript(t)} disabled={loading} className="w-full text-left p-4 border rounded-xl hover:bg-rose-50 text-sm transition-all font-medium text-slate-700 shadow-sm active:scale-95"><span className="text-rose-500 font-bold mr-2 block text-xs mb-1">TOPIC {i+1}</span>{t}</button>)}
-             <button onClick={()=>setStep('input')} className="w-full bg-slate-100 py-3 rounded-xl text-sm mt-4 font-bold text-slate-500">뒤로가기</button>
-           </div>}
-           {step === 'detail' && <button onClick={()=>setStep('input')} className="w-full bg-slate-200 py-3 rounded-xl font-bold text-slate-600">새로 만들기</button>}
+        {/* 좌측 사이드바: 입력 + 주제 목록 */}
+        <aside className="w-96 bg-white border-r flex flex-col shrink-0">
+           <div className="p-6 border-b space-y-4 bg-slate-50">
+             <h3 className="font-bold text-sm text-rose-700 flex items-center uppercase tracking-wider"><Settings size={16} className="mr-2"/> 설정</h3>
+             <input value={inputs.company} onChange={e=>setInputs({...inputs, company:e.target.value})} className="w-full p-3 border rounded-lg text-sm" placeholder="지원 기업명"/>
+             <input value={inputs.job} onChange={e=>setInputs({...inputs, job:e.target.value})} className="w-full p-3 border rounded-lg text-sm" placeholder="지원 직무"/>
+             <textarea value={inputs.request} onChange={e=>setInputs({...inputs, request:e.target.value})} className="w-full p-3 border rounded-lg text-sm h-16 resize-none" placeholder="추가 요구사항 (옵션)"/>
+             <button onClick={handleGenerateTopics} disabled={loading} className="w-full bg-rose-600 text-white py-3 rounded-xl font-bold shadow-sm hover:bg-rose-700 text-sm">{loading && topics.length === 0 ? <Loader2 className="animate-spin mx-auto w-4 h-4"/> : "주제 15개 추출하기"}</button>
+           </div>
+           
+           <div className="flex-1 overflow-y-auto p-4 space-y-2">
+             {topics.length > 0 ? (
+               topics.map((t, i) => (
+                 <button 
+                   key={i} 
+                   onClick={() => setSelectedTopic(t)}
+                   className={`w-full text-left p-3 rounded-xl text-sm transition-all border ${selectedTopic === t ? 'bg-rose-50 border-rose-500 text-rose-900 shadow-sm ring-1 ring-rose-200' : 'bg-white border-slate-100 text-slate-600 hover:bg-slate-50'}`}
+                 >
+                   <span className="font-bold text-rose-500 mr-2 text-xs">Q{i+1}.</span>
+                   {t}
+                 </button>
+               ))
+             ) : (
+               <div className="text-center text-slate-400 py-10 text-sm">
+                 설정 입력 후 <br/>주제 추출 버튼을 눌러주세요.
+               </div>
+             )}
+           </div>
+
+           {/* 하단 생성 버튼 (주제 선택 시 활성화) */}
+           <div className="p-4 border-t bg-white">
+             <button 
+               onClick={handleGenerateScript} 
+               disabled={!selectedTopic || loading}
+               className="w-full bg-slate-800 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-slate-900 disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+             >
+               {loading && topics.length > 0 ? <Loader2 className="animate-spin w-5 h-5"/> : <>스크립트 생성 <ArrowRight size={18}/></>}
+             </button>
+           </div>
         </aside>
+
+        {/* 우측 메인: 콘텐츠 */}
         <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
            {script ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-2xl p-12 flex flex-col animate-in fade-in slide-in-from-bottom-4">
              <div className="border-b-4 border-rose-500 pb-6 mb-8">
-               <span className="bg-rose-100 text-rose-700 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">PT INTERVIEW</span>
-               <h1 className="text-3xl font-extrabold mt-3 text-slate-900">{selectedTopic}</h1>
+               <span className="bg-rose-100 text-rose-700 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">PT INTERVIEW SCRIPT</span>
+               <h1 className="text-2xl font-extrabold mt-3 text-slate-900 leading-tight">{selectedTopic}</h1>
              </div>
              <div className="space-y-8 flex-1">
-                <section><h3 className="text-xl font-bold text-slate-800 mb-3 border-l-4 border-rose-400 pl-3">Introduction</h3>
-                  <EditableContent className="text-base text-slate-700 bg-slate-50 p-6 rounded-xl border leading-loose" value={script.intro} onSave={(v)=>handleEditScript('intro', v)} />
+                <section>
+                  <h3 className="text-xl font-bold text-slate-800 mb-3 border-l-4 border-rose-400 pl-3">Introduction</h3>
+                  <div className="bg-slate-50 p-6 rounded-xl border border-slate-100">
+                    <EditableContent className="text-base text-slate-700 leading-loose" value={script.intro} onSave={(v)=>handleEditScript('intro', v)} />
+                  </div>
                 </section>
-                <section><h3 className="text-xl font-bold text-slate-800 mb-3 border-l-4 border-rose-500 pl-3">Body</h3>
-                  <EditableContent className="text-base text-slate-700 pl-6 py-2 leading-loose border-l-2 border-slate-200 ml-2" value={script.body} onSave={(v)=>handleEditScript('body', v)} />
+                <section>
+                  <h3 className="text-xl font-bold text-slate-800 mb-3 border-l-4 border-rose-500 pl-3">Body</h3>
+                  <div className="pl-2">
+                    <EditableContent className="text-base text-slate-700 pl-6 py-2 leading-loose border-l-2 border-slate-200 ml-2 min-h-[200px]" value={script.body} onSave={(v)=>handleEditScript('body', v)} />
+                  </div>
                 </section>
-                <section><h3 className="text-xl font-bold text-slate-800 mb-3 border-l-4 border-rose-600 pl-3">Conclusion</h3>
-                  <EditableContent className="text-base text-white bg-rose-600 p-6 rounded-xl shadow-lg leading-loose font-medium" value={script.conclusion} onSave={(v)=>handleEditScript('conclusion', v)} />
+                <section>
+                  <h3 className="text-xl font-bold text-slate-800 mb-3 border-l-4 border-rose-600 pl-3">Conclusion</h3>
+                  <div className="bg-rose-600 p-6 rounded-xl shadow-lg">
+                    <EditableContent className="text-base text-white leading-loose font-medium" value={script.conclusion} onSave={(v)=>handleEditScript('conclusion', v)} />
+                  </div>
                 </section>
              </div>
              <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto">
                 <div className="flex items-center"><MonitorPlay className="w-4 h-4 mr-1 text-rose-500" /><span>Career Vitamin</span></div>
-                <span>AI-Generated PT Script</span>
+                <span>AI-Generated PT Script (Confidential)</span>
               </div>
-           </div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><MonitorPlay size={64} className="mb-4 opacity-20"/><p>주제를 선택하면 발표 대본이 생성됩니다.</p></div>}
+           </div> : (
+             <div className="flex flex-col items-center justify-center h-full text-slate-400">
+               {loading ? (
+                 <>
+                   <Loader2 size={64} className="mb-4 animate-spin text-rose-500"/>
+                   <p className="animate-pulse">AI가 최적의 답변을 작성 중입니다...</p>
+                 </>
+               ) : (
+                 <>
+                   <MonitorPlay size={64} className="mb-4 opacity-20"/>
+                   <p>좌측에서 주제를 선택하고 생성 버튼을 눌러주세요.</p>
+                 </>
+               )}
+             </div>
+           )}
         </main>
         {script && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
       </div>

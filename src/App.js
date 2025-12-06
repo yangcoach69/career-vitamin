@@ -36,7 +36,6 @@ import html2canvas from "html2canvas";
 
 const DEFAULT_API_KEY = ""; 
 
-// Firebase 설정
 const firebaseConfig = {
   apiKey: "AIzaSyCNc2Ht2PJAdcxfXraBwu6Afj02dUEV0gM",
   authDomain: "career-vitamin.firebaseapp.com",
@@ -68,28 +67,36 @@ const safeJsonParse = (str) => {
   }
 };
 
+// [수정] 텍스트 렌더링 헬퍼 (Editable TextArea 값 처리를 위해 단순화)
 const renderText = (content) => {
   if (!content) return '';
-  if (Array.isArray(content)) return content.join(' ');
-  if (typeof content === 'object') return JSON.stringify(content);
+  if (Array.isArray(content)) return content.join('\n'); // 줄바꿈으로 연결
+  if (typeof content === 'object') return JSON.stringify(content, null, 2);
   return content;
 };
 
-// [수정] PNG 저장 함수 (스크롤 영역 전체 포함)
+// [수정] PNG 저장 함수 (전체 스크롤 영역 캡처 보장)
 const saveAsPng = async (elementRef, fileName) => {
   if (!elementRef.current) return;
+  
   try {
+    // 캡처 전 스타일 강제 조정 (잘림 방지)
+    const originalStyle = elementRef.current.style.cssText;
+    elementRef.current.style.height = 'auto';
+    elementRef.current.style.overflow = 'visible';
+
     const canvas = await html2canvas(elementRef.current, {
       scale: 2, // 고해상도
       useCORS: true, 
       logging: false,
-      backgroundColor: '#ffffff', // 투명 배경 방지
-      // 화면에 보이지 않는 스크롤 영역까지 전체 캡처
-      width: elementRef.current.scrollWidth,
-      height: elementRef.current.scrollHeight,
-      windowWidth: elementRef.current.scrollWidth,
-      windowHeight: elementRef.current.scrollHeight
+      backgroundColor: '#ffffff',
+      scrollY: -window.scrollY, // 스크롤 위치 보정
+      windowWidth: document.documentElement.offsetWidth,
+      windowHeight: document.documentElement.offsetHeight
     });
+    
+    // 스타일 복구
+    elementRef.current.style.cssText = originalStyle;
     
     const link = document.createElement('a');
     link.download = `${fileName}.png`;
@@ -166,11 +173,9 @@ const COLOR_VARIANTS = {
   orange: "bg-orange-100 text-orange-600",
 };
 
-// --- Sub Components (Apps) ---
-// [수정] 모든 앱의 리포트 컨테이너에 'flex flex-col' 및 'min-h-[297mm]' 적용하여
-// 내용이 길어지면 배경도 함께 늘어나도록 수정함. Footer는 'mt-auto'로 하단 고정.
+// --- Sub Components (Apps with Editable Features) ---
 
-// 1. 기업분석 앱
+// 1. 기업분석 앱 (수정 가능)
 function CompanyAnalysisApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', url: '', job: '' });
   const [result, setResult] = useState(null);
@@ -187,6 +192,25 @@ function CompanyAnalysisApp({ onClose }) {
     } catch (e) { alert(e.message); } finally { setLoading(false); }
   };
   
+  // 수정 핸들러
+  const handleEdit = (section, key, value) => {
+    setResult(prev => {
+      const newData = { ...prev };
+      if (section) newData[section][key] = value;
+      else newData[key] = value; // Root level key
+      return newData;
+    });
+  };
+
+  // Issues 배열 수정 핸들러
+  const handleIssueEdit = (index, value) => {
+    setResult(prev => {
+      const newIssues = [...prev.business.issues];
+      newIssues[index] = value;
+      return { ...prev, business: { ...prev.business, issues: newIssues } };
+    });
+  };
+
   const handleDownload = () => saveAsPng(reportRef, `기업분석_${inputs.company}`);
   
   return (
@@ -211,35 +235,53 @@ function CompanyAnalysisApp({ onClose }) {
               <div className="border-b-4 border-indigo-600 pb-6 mb-8">
                  <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">COMPANY REPORT</span>
                  <h1 className="text-4xl font-extrabold text-slate-900 mt-2">{inputs.company}</h1>
-                 <p className="text-lg text-slate-500 mt-2">기업분석 리포트</p>
+                 <p className="text-lg text-slate-500 mt-2">기업분석 리포트 ({new Date().toLocaleDateString()})</p>
               </div>
               <div className="space-y-10 flex-1">
                 <section>
                   <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center"><Star size={24} className="mr-2"/> 1. 기업 개요</h3>
                   <div className="grid grid-cols-2 gap-6">
-                     <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100"><h4 className="font-bold text-xs text-slate-400 mb-2 tracking-wider">VISION</h4><p className="text-slate-700 text-sm">{renderText(result.overview?.vision)}</p></div>
-                     <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100"><h4 className="font-bold text-xs text-slate-400 mb-2 tracking-wider">VALUES</h4><p className="text-slate-700 text-sm">{renderText(result.overview?.values)}</p></div>
+                     <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100">
+                       <h4 className="font-bold text-xs text-slate-400 mb-2 tracking-wider">VISION</h4>
+                       <textarea className="w-full bg-transparent border-none resize-none focus:ring-0 text-sm text-slate-700" rows={3} value={renderText(result.overview?.vision)} onChange={(e)=>handleEdit('overview', 'vision', e.target.value)} />
+                     </div>
+                     <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100">
+                       <h4 className="font-bold text-xs text-slate-400 mb-2 tracking-wider">VALUES</h4>
+                       <textarea className="w-full bg-transparent border-none resize-none focus:ring-0 text-sm text-slate-700" rows={3} value={renderText(result.overview?.values)} onChange={(e)=>handleEdit('overview', 'values', e.target.value)} />
+                     </div>
                   </div>
                 </section>
                 <section>
                   <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center"><Building2 size={24} className="mr-2"/> 2. 사업 현황</h3>
-                  <p className="text-slate-700 mb-4 bg-white border p-5 rounded-2xl text-sm">{renderText(result.business?.history)}</p>
+                  <textarea className="w-full text-slate-700 mb-4 bg-white border p-5 rounded-2xl text-sm resize-none focus:ring-indigo-500" rows={4} value={renderText(result.business?.history)} onChange={(e)=>handleEdit('business', 'history', e.target.value)} />
                   <div className="space-y-3">
-                    {result.business?.issues?.map((iss, idx) => <div key={idx} className="text-sm bg-indigo-50 p-4 rounded-xl border border-indigo-100"><span className="font-bold text-indigo-600 mr-2">Issue {idx+1}</span>{renderText(iss)}</div>)}
+                    {result.business?.issues?.map((iss, idx) => (
+                      <div key={idx} className="text-sm bg-indigo-50 p-4 rounded-xl border border-indigo-100 flex items-start">
+                        <span className="bg-white text-indigo-600 px-2 py-0.5 rounded text-xs font-bold mr-3 border border-indigo-200 shrink-0 mt-0.5">ISSUE {idx+1}</span>
+                        <textarea className="w-full bg-transparent border-none resize-none focus:ring-0 text-slate-700" rows={2} value={renderText(iss)} onChange={(e)=>handleIssueEdit(idx, e.target.value)} />
+                      </div>
+                    ))}
                   </div>
                 </section>
                 <section>
                   <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center"><Globe size={24} className="mr-2"/> 3. SWOT</h3>
                   <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="bg-blue-50 p-4 rounded-xl"><span className="text-blue-700 font-bold">S</span><p>{renderText(result.market?.swot?.s)}</p></div>
-                    <div className="bg-orange-50 p-4 rounded-xl"><span className="text-orange-700 font-bold">W</span><p>{renderText(result.market?.swot?.w)}</p></div>
-                    <div className="bg-emerald-50 p-4 rounded-xl"><span className="text-emerald-700 font-bold">O</span><p>{renderText(result.market?.swot?.o)}</p></div>
-                    <div className="bg-red-50 p-4 rounded-xl"><span className="text-red-700 font-bold">T</span><p>{renderText(result.market?.swot?.t)}</p></div>
+                    {['s', 'w', 'o', 't'].map((key) => (
+                      <div key={key} className={`p-5 rounded-2xl border ${key==='s'?'bg-blue-50 border-blue-100':key==='w'?'bg-orange-50 border-orange-100':key==='o'?'bg-emerald-50 border-emerald-100':'bg-red-50 border-red-100'}`}>
+                        <span className={`font-bold text-lg block mb-2 uppercase ${key==='s'?'text-blue-700':key==='w'?'text-orange-700':key==='o'?'text-emerald-700':'text-red-700'}`}>{key === 's' ? 'Strength' : key === 'w' ? 'Weakness' : key === 'o' ? 'Opportunity' : 'Threat'}</span>
+                        <textarea className="w-full bg-transparent border-none resize-none focus:ring-0 text-slate-700" rows={4} value={renderText(result.market?.swot?.[key])} onChange={(e)=>{
+                          const newSwot = { ...result.market.swot, [key]: e.target.value };
+                          handleEdit('market', 'swot', newSwot);
+                        }} />
+                      </div>
+                    ))}
                   </div>
                 </section>
                 <section>
                    <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center"><Target size={24} className="mr-2"/> 4. 전략</h3>
-                   <div className="bg-indigo-600 text-white p-6 rounded-xl text-sm leading-relaxed">{renderText(result.strategy)}</div>
+                   <div className="bg-indigo-600 p-8 rounded-2xl shadow-xl shadow-indigo-200">
+                     <textarea className="w-full bg-transparent border-none resize-none focus:ring-0 text-white font-medium leading-loose text-lg placeholder-white/50" rows={4} value={renderText(result.strategy)} onChange={(e)=>handleEdit(null, 'strategy', e.target.value)} />
+                   </div>
                 </section>
               </div>
               <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto">
@@ -255,7 +297,7 @@ function CompanyAnalysisApp({ onClose }) {
   );
 }
 
-// 2. 커리어 로드맵 앱
+// 2. 커리어 로드맵 앱 (수정 가능)
 function CareerRoadmapApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', job: '', years: '5' });
   const [roadmapData, setRoadmapData] = useState(null); 
@@ -270,7 +312,18 @@ function CareerRoadmapApp({ onClose }) {
       setRoadmapData(parsed);
     } catch (e) { alert(e.message); } finally { setLoading(false); }
   };
+  
+  const handleEdit = (key, value) => setRoadmapData(prev => ({ ...prev, [key]: value }));
+  const handleRoadmapEdit = (index, key, value) => {
+    setRoadmapData(prev => {
+      const newMap = [...prev.roadmap];
+      newMap[index] = { ...newMap[index], [key]: value };
+      return { ...prev, roadmap: newMap };
+    });
+  };
+
   const handleDownload = () => saveAsPng(reportRef, `커리어로드맵_${inputs.company}`);
+  
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
       <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
@@ -297,22 +350,22 @@ function CareerRoadmapApp({ onClose }) {
               <div className="border-b-4 border-blue-600 pb-6 mb-10">
                 <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">CAREER ROADMAP</span>
                 <h1 className="text-4xl font-extrabold text-slate-900">{inputs.company}</h1>
-                <p className="text-blue-600 font-bold text-xl mt-3">"{roadmapData.goal}"</p>
+                <textarea className="w-full text-blue-600 font-bold text-xl mt-3 bg-transparent border-none resize-none focus:ring-0" value={roadmapData.goal} onChange={(e)=>handleEdit('goal', e.target.value)} />
               </div>
               <div className="space-y-8 flex-1 relative before:absolute before:left-[27px] before:top-4 before:bottom-4 before:w-0.5 before:bg-slate-200">
                 {roadmapData.roadmap?.map((r,i)=>(
                   <div key={i} className="flex gap-6 relative">
                     <div className="w-14 h-14 rounded-full bg-white border-4 border-blue-100 flex items-center justify-center font-bold text-blue-600 shadow-sm z-10 shrink-0 text-xl">{i+1}</div>
-                    <div className="flex-1 p-6 border border-slate-200 rounded-2xl bg-white shadow-sm">
-                      <h3 className="font-bold text-blue-800 mb-2 text-lg">{r.stage}</h3>
-                      <p className="text-slate-600 leading-relaxed">{r.action}</p>
+                    <div className="flex-1 p-6 border border-slate-200 rounded-2xl bg-white shadow-sm hover:shadow-md transition-shadow">
+                      <input className="font-bold text-blue-800 mb-2 text-lg w-full border-none focus:ring-0" value={r.stage} onChange={(e)=>handleRoadmapEdit(i, 'stage', e.target.value)} />
+                      <textarea className="text-slate-600 leading-relaxed w-full border-none resize-none focus:ring-0 bg-transparent" rows={3} value={r.action} onChange={(e)=>handleRoadmapEdit(i, 'action', e.target.value)} />
                     </div>
                   </div>
                 ))}
               </div>
               <div className="mt-12 bg-slate-900 p-8 rounded-2xl text-white shadow-xl">
                 <h3 className="font-bold text-blue-300 mb-4 flex items-center text-lg"><MessageSquare className="mr-2"/> 입사 후 포부</h3>
-                <p className="text-slate-300 leading-loose whitespace-pre-line text-lg">"{roadmapData.script}"</p>
+                <textarea className="w-full bg-transparent border-none resize-none focus:ring-0 text-slate-300 leading-loose text-lg font-light" rows={5} value={roadmapData.script} onChange={(e)=>handleEdit('script', e.target.value)} />
               </div>
               <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto">
                 <div className="flex items-center"><TrendingUp className="w-4 h-4 mr-1 text-blue-500" /><span>Career Vitamin</span></div>
@@ -327,7 +380,7 @@ function CareerRoadmapApp({ onClose }) {
   );
 }
 
-// 3. PT 면접 앱
+// 3. PT 면접 앱 (수정 가능)
 function PtInterviewApp({ onClose }) {
   const [step, setStep] = useState('input'); 
   const [inputs, setInputs] = useState({ company: '', job: '', request: '' });
@@ -336,6 +389,7 @@ function PtInterviewApp({ onClose }) {
   const [script, setScript] = useState(null);
   const [loading, setLoading] = useState(false);
   const reportRef = useRef(null);
+  
   const handleGenerateTopics = async () => {
     if (!inputs.company) return alert("입력 필요");
     setLoading(true);
@@ -345,6 +399,7 @@ function PtInterviewApp({ onClose }) {
       if(parsed) { setTopics(parsed); setStep('list'); }
     } catch (e) { alert(e.message); } finally { setLoading(false); }
   };
+  
   const handleGenerateScript = async (topic) => {
     setLoading(true);
     setSelectedTopic(topic);
@@ -354,6 +409,8 @@ function PtInterviewApp({ onClose }) {
       if(parsed) { setScript(parsed); setStep('detail'); }
     } catch(e){ alert(e.message); } finally { setLoading(false); }
   };
+  
+  const handleEditScript = (key, value) => setScript(prev => ({ ...prev, [key]: value }));
   const handleDownload = () => saveAsPng(reportRef, `PT면접_${inputs.company}`);
 
   return (
@@ -369,11 +426,11 @@ function PtInterviewApp({ onClose }) {
              <input value={inputs.company} onChange={e=>setInputs({...inputs, company:e.target.value})} className="w-full p-3 border rounded-lg" placeholder="지원 기업명"/>
              <input value={inputs.job} onChange={e=>setInputs({...inputs, job:e.target.value})} className="w-full p-3 border rounded-lg" placeholder="지원 직무"/>
              <textarea value={inputs.request} onChange={e=>setInputs({...inputs, request:e.target.value})} className="w-full p-3 border rounded-lg h-24 resize-none" placeholder="추가 요구사항"/>
-             <button onClick={handleGenerateTopics} disabled={loading} className="w-full bg-rose-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"주제 추출"}</button>
+             <button onClick={handleGenerateTopics} disabled={loading} className="w-full bg-rose-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"주제 추출 시작"}</button>
            </div>}
            {step === 'list' && <div className="space-y-3">
              <h3 className="font-bold text-sm text-slate-500 mb-2 flex items-center"><Check size={16} className="mr-2"/> 주제 선택</h3>
-             {topics.map((t,i)=><button key={i} onClick={()=>handleGenerateScript(t)} disabled={loading} className="w-full text-left p-4 border rounded-xl hover:bg-rose-50 text-sm transition-all font-medium text-slate-700 shadow-sm"><span className="text-rose-500 font-bold mr-2 block text-xs mb-1">TOPIC {i+1}</span>{t}</button>)}
+             {topics.map((t,i)=><button key={i} onClick={()=>handleGenerateScript(t)} disabled={loading} className="w-full text-left p-4 border rounded-xl hover:bg-rose-50 text-sm transition-all font-medium text-slate-700 shadow-sm active:scale-95"><span className="text-rose-500 font-bold mr-2 block text-xs mb-1">TOPIC {i+1}</span>{t}</button>)}
              <button onClick={()=>setStep('input')} className="w-full bg-slate-100 py-3 rounded-xl text-sm mt-4 font-bold text-slate-500">뒤로가기</button>
            </div>}
            {step === 'detail' && <button onClick={()=>setStep('input')} className="w-full bg-slate-200 py-3 rounded-xl font-bold text-slate-600">새로 만들기</button>}
@@ -385,9 +442,15 @@ function PtInterviewApp({ onClose }) {
                <h1 className="text-3xl font-extrabold mt-3 text-slate-900">{selectedTopic}</h1>
              </div>
              <div className="space-y-8 flex-1">
-                <section><h3 className="text-xl font-bold text-slate-800 mb-3 border-l-4 border-rose-400 pl-3">Introduction</h3><div className="text-base text-slate-700 bg-slate-50 p-6 rounded-xl border leading-loose">{script.intro}</div></section>
-                <section><h3 className="text-xl font-bold text-slate-800 mb-3 border-l-4 border-rose-500 pl-3">Body</h3><div className="text-base text-slate-700 pl-6 py-2 leading-loose border-l-2 border-slate-200 ml-2">{script.body}</div></section>
-                <section><h3 className="text-xl font-bold text-slate-800 mb-3 border-l-4 border-rose-600 pl-3">Conclusion</h3><div className="text-base text-white bg-rose-600 p-6 rounded-xl shadow-lg leading-loose font-medium">{script.conclusion}</div></section>
+                <section><h3 className="text-xl font-bold text-slate-800 mb-3 border-l-4 border-rose-400 pl-3">Introduction</h3>
+                  <textarea className="w-full text-base text-slate-700 bg-slate-50 p-6 rounded-xl border leading-loose resize-none focus:ring-rose-500" rows={4} value={script.intro} onChange={(e)=>handleEditScript('intro', e.target.value)} />
+                </section>
+                <section><h3 className="text-xl font-bold text-slate-800 mb-3 border-l-4 border-rose-500 pl-3">Body</h3>
+                  <textarea className="w-full text-base text-slate-700 pl-6 py-2 leading-loose border-l-2 border-slate-200 ml-2 resize-none focus:ring-0" rows={10} value={script.body} onChange={(e)=>handleEditScript('body', e.target.value)} />
+                </section>
+                <section><h3 className="text-xl font-bold text-slate-800 mb-3 border-l-4 border-rose-600 pl-3">Conclusion</h3>
+                  <textarea className="w-full text-base text-white bg-rose-600 p-6 rounded-xl shadow-lg leading-loose font-medium resize-none focus:ring-0 placeholder-white/70" rows={4} value={script.conclusion} onChange={(e)=>handleEditScript('conclusion', e.target.value)} />
+                </section>
              </div>
              <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto">
                 <div className="flex items-center"><MonitorPlay className="w-4 h-4 mr-1 text-rose-500" /><span>Career Vitamin</span></div>
@@ -401,7 +464,7 @@ function PtInterviewApp({ onClose }) {
   );
 }
 
-// 4. 상황면접 앱
+// 4. 상황면접 앱 (수정 가능)
 function SituationInterviewApp({ onClose }) {
   const [inputs, setInputs] = useState({ question: '', criteria: '' });
   const [result, setResult] = useState(null);
@@ -416,7 +479,16 @@ function SituationInterviewApp({ onClose }) {
       setResult(parsed);
     } catch (e) { alert(e.message); } finally { setLoading(false); }
   };
+  
+  const handleEdit = (key, subKey, value) => {
+    setResult(prev => {
+        if (subKey) return { ...prev, [key]: { ...prev[key], [subKey]: value } };
+        return { ...prev, [key]: value };
+    });
+  };
+
   const handleDownload = () => saveAsPng(reportRef, `상황면접`);
+  
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
       <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
@@ -430,14 +502,14 @@ function SituationInterviewApp({ onClose }) {
           <input value={inputs.criteria} onChange={e=>setInputs({...inputs, criteria:e.target.value})} className="w-full p-3 border rounded-xl" placeholder="분리 기준 (옵션)"/>
           <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-teal-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"답변 생성"}</button>
         </div></aside>
-        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{result ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-lg p-10 flex flex-col animate-in fade-in zoom-in-95 duration-500"><h2 className="text-3xl font-extrabold mb-6 text-slate-900 border-b-2 border-teal-500 pb-4">상황면접 가이드</h2><div className="flex-1 space-y-6"><div className="bg-slate-50 p-6 rounded-xl border mb-8"><h3 className="font-bold text-slate-500 text-xs mb-2 tracking-widest">QUESTION</h3><p className="font-bold text-xl text-slate-800">"{inputs.question}"</p></div><div className="grid grid-cols-1 gap-8"><div className="border-l-4 border-teal-500 pl-6 py-2"><h3 className="font-bold text-teal-800 text-xl mb-3">{result.situation_a?.title}</h3><p className="text-slate-600 leading-relaxed text-lg">{result.situation_a?.content}</p></div><div className="border-l-4 border-slate-400 pl-6 py-2"><h3 className="font-bold text-slate-700 text-xl mb-3">{result.situation_b?.title}</h3><p className="text-slate-600 leading-relaxed text-lg">{result.situation_b?.content}</p></div></div><div className="mt-8 bg-teal-50 p-6 rounded-xl border border-teal-100 text-teal-900 text-base font-medium">💡 Advice: {result.advice}</div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><Split className="w-4 h-4 mr-1 text-teal-500" /><span>Career Vitamin</span></div><span>AI-Powered Situation Guide</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Split size={64} className="mb-4 opacity-20"/><p>질문을 입력하면 답변이 생성됩니다.</p></div>}</main>
+        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{result ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-lg p-10 flex flex-col animate-in fade-in zoom-in-95 duration-500"><h2 className="text-3xl font-extrabold mb-6 text-slate-900 border-b-2 border-teal-500 pb-4">상황면접 가이드</h2><div className="flex-1 space-y-6"><div className="bg-slate-50 p-6 rounded-xl border mb-8"><h3 className="font-bold text-slate-500 text-xs mb-2 tracking-widest">QUESTION</h3><p className="font-bold text-xl text-slate-800">"{inputs.question}"</p></div><div className="grid grid-cols-1 gap-8"><div className="border-l-4 border-teal-500 pl-6 py-2"><input className="font-bold text-teal-800 text-xl mb-3 w-full border-none focus:ring-0" value={result.situation_a?.title} onChange={(e)=>handleEdit('situation_a', 'title', e.target.value)} /><textarea className="w-full text-slate-600 leading-relaxed text-lg border-none resize-none focus:ring-0" rows={4} value={result.situation_a?.content} onChange={(e)=>handleEdit('situation_a', 'content', e.target.value)} /></div><div className="border-l-4 border-slate-400 pl-6 py-2"><input className="font-bold text-slate-700 text-xl mb-3 w-full border-none focus:ring-0" value={result.situation_b?.title} onChange={(e)=>handleEdit('situation_b', 'title', e.target.value)} /><textarea className="w-full text-slate-600 leading-relaxed text-lg border-none resize-none focus:ring-0" rows={4} value={result.situation_b?.content} onChange={(e)=>handleEdit('situation_b', 'content', e.target.value)} /></div></div><div className="mt-8 bg-teal-50 p-6 rounded-xl border border-teal-100 text-teal-900 text-base font-medium">💡 Advice: <textarea className="w-full bg-transparent border-none resize-none focus:ring-0 mt-2" rows={3} value={result.advice} onChange={(e)=>handleEdit('advice', null, e.target.value)} /></div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><Split className="w-4 h-4 mr-1 text-teal-500" /><span>Career Vitamin</span></div><span>AI-Powered Situation Guide</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Split size={64} className="mb-4 opacity-20"/><p>질문을 입력하면 답변이 생성됩니다.</p></div>}</main>
         {result && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
       </div>
     </div>
   );
 }
 
-// 5. 1분 자기소개 앱
+// 5. 1분 자기소개 앱 (수정 가능)
 function SelfIntroApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', job: '', concept: 'competency', keyword: '', exp: '' });
   const [script, setScript] = useState(null); 
@@ -452,7 +524,10 @@ function SelfIntroApp({ onClose }) {
       setScript(parsed);
     } catch (e) { alert(e.message); } finally { setLoading(false); }
   };
+  
+  const handleEdit = (key, value) => setScript(prev => ({ ...prev, [key]: value }));
   const handleDownload = () => saveAsPng(reportRef, `자기소개_${inputs.company}`);
+  
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
       <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
@@ -463,25 +538,25 @@ function SelfIntroApp({ onClose }) {
         <aside className="w-80 bg-white border-r p-6 shrink-0 overflow-y-auto"><div className="space-y-5">
           <h3 className="font-bold text-sm text-purple-700 flex items-center uppercase tracking-wider"><Settings size={16} className="mr-2"/> 전략 설정</h3>
           <div className="grid grid-cols-2 gap-2">
-            <input value={inputs.company} onChange={e=>setInputs({...inputs, company:e.target.value})} className="p-3 border rounded-lg" placeholder="기업명"/>
-            <input value={inputs.job} onChange={e=>setInputs({...inputs, job:e.target.value})} className="p-3 border rounded-lg" placeholder="직무명"/>
+            <input value={inputs.company} onChange={e=>setInputs({...inputs, company:e.target.value})} className="p-3 border rounded-lg text-sm focus:outline-none focus:border-purple-500" placeholder="기업명"/>
+            <input value={inputs.job} onChange={e=>setInputs({...inputs, job:e.target.value})} className="p-3 border rounded-lg text-sm focus:outline-none focus:border-purple-500" placeholder="직무명"/>
           </div>
           <div className="flex gap-2">
-            <button onClick={()=>setInputs({...inputs, concept:'competency'})} className={`flex-1 py-3 text-xs rounded-lg transition-all ${inputs.concept==='competency'?'bg-purple-600 text-white font-bold':'bg-slate-100 text-slate-600'}`}>직무역량</button>
-            <button onClick={()=>setInputs({...inputs, concept:'character'})} className={`flex-1 py-3 text-xs rounded-lg transition-all ${inputs.concept==='character'?'bg-purple-600 text-white font-bold':'bg-slate-100 text-slate-600'}`}>인성/태도</button>
+            <button onClick={()=>setInputs({...inputs, concept:'competency'})} className={`flex-1 py-3 text-xs rounded-lg transition-all ${inputs.concept==='competency'?'bg-purple-600 text-white font-bold':'bg-slate-100 text-slate-600'}`}>직무역량 강조</button>
+            <button onClick={()=>setInputs({...inputs, concept:'character'})} className={`flex-1 py-3 text-xs rounded-lg transition-all ${inputs.concept==='character'?'bg-purple-600 text-white font-bold':'bg-slate-100 text-slate-600'}`}>인성/태도 강조</button>
           </div>
           <input value={inputs.keyword} onChange={e=>setInputs({...inputs, keyword:e.target.value})} className="w-full p-3 border rounded-lg font-bold" placeholder="핵심 키워드"/>
           <textarea value={inputs.exp} onChange={e=>setInputs({...inputs, exp:e.target.value})} className="w-full p-3 border rounded-lg h-32 resize-none" placeholder="관련 경험 요약"/>
           <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-purple-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"스크립트 생성"}</button>
         </div></aside>
-        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{script ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-lg p-10 flex flex-col animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-purple-600 pb-6 text-center"><span className="text-purple-600 font-bold text-sm tracking-widest block mb-2">1-MINUTE SPEECH</span><h1 className="text-3xl font-extrabold text-slate-900">"{script.slogan}"</h1></div><div className="space-y-8 flex-1 mt-8"><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-4 uppercase">Opening</div><div className="flex-1 bg-purple-50 p-6 rounded-2xl text-xl font-bold text-slate-800 shadow-sm">"{script.opening}"</div></div><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-1 uppercase">Body</div><div className="flex-1 text-slate-700 leading-loose pl-6 border-l-2 border-purple-200 text-lg">{script.body}</div></div><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-4 uppercase">Closing</div><div className="flex-1 bg-slate-50 p-6 rounded-2xl font-medium text-slate-800 text-lg">"{script.closing}"</div></div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><Mic className="w-4 h-4 mr-1 text-purple-500" /><span>Career Vitamin</span></div><span>AI-Generated Speech Script</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Mic size={64} className="mb-4 opacity-20"/><p>정보를 입력하면 스크립트가 생성됩니다.</p></div>}</main>
+        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{script ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-lg p-10 flex flex-col animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-purple-600 pb-6 text-center"><span className="text-purple-600 font-bold text-sm tracking-widest block mb-2">1-MINUTE SPEECH</span><input className="text-3xl font-extrabold text-slate-900 text-center w-full border-none focus:ring-0" value={script.slogan} onChange={(e)=>handleEdit('slogan', e.target.value)} /></div><div className="space-y-8 flex-1 mt-8"><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-4 uppercase">Opening</div><div className="flex-1 bg-purple-50 p-6 rounded-2xl text-xl font-bold text-slate-800 shadow-sm"><textarea className="w-full bg-transparent border-none resize-none focus:ring-0" rows={2} value={script.opening} onChange={(e)=>handleEdit('opening', e.target.value)} /></div></div><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-1 uppercase">Body</div><div className="flex-1 text-slate-700 leading-loose pl-6 border-l-2 border-purple-200 text-lg"><textarea className="w-full border-none resize-none focus:ring-0" rows={8} value={script.body} onChange={(e)=>handleEdit('body', e.target.value)} /></div></div><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-4 uppercase">Closing</div><div className="flex-1 bg-slate-50 p-6 rounded-2xl font-medium text-slate-800 text-lg"><textarea className="w-full bg-transparent border-none resize-none focus:ring-0" rows={2} value={script.closing} onChange={(e)=>handleEdit('closing', e.target.value)} /></div></div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><Mic className="w-4 h-4 mr-1 text-purple-500" /><span>Career Vitamin</span></div><span>AI-Generated Speech Script</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Mic size={64} className="mb-4 opacity-20"/><p>정보를 입력하면 스크립트가 생성됩니다.</p></div>}</main>
         {script && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
       </div>
     </div>
   );
 }
 
-// 6. STAR 경험 구조화 앱
+// 6. STAR 경험 구조화 앱 (수정 가능)
 function ExperienceStructuringApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', job: '', keyword: '', desc: '' });
   const [starData, setStarData] = useState({ s: '', t: '', a: '', r: '' });
@@ -496,7 +571,10 @@ function ExperienceStructuringApp({ onClose }) {
       setStarData(parsed);
     } catch (e) { alert(e.message); } finally { setLoading(false); }
   };
+  
+  const handleEdit = (key, value) => setStarData(prev => ({ ...prev, [key]: value }));
   const handleDownload = () => saveAsPng(reportRef, `STAR_${inputs.keyword}`);
+  
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
       <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
@@ -514,14 +592,14 @@ function ExperienceStructuringApp({ onClose }) {
           <textarea value={inputs.desc} onChange={e=>setInputs({...inputs, desc:e.target.value})} className="w-full p-3 border rounded-lg h-40 resize-none" placeholder="경험 내용"/>
           <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"구조화 실행"}</button>
         </div></aside>
-        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{starData.s ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-lg p-10 flex flex-col animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-indigo-600 pb-6 mb-6"><h1 className="text-4xl font-extrabold text-slate-900">STAR Analysis</h1><p className="text-slate-500 mt-2 text-lg">경험 구조화 워크시트</p></div><div className="space-y-6 flex-1"><div className="bg-slate-50 p-6 rounded-2xl border-l-8 border-slate-400"><h3 className="font-bold text-slate-500 mb-2 text-sm tracking-widest">SITUATION</h3><p className="text-slate-800 text-lg leading-relaxed">{starData.s}</p></div><div className="bg-slate-50 p-6 rounded-2xl border-l-8 border-slate-500"><h3 className="font-bold text-slate-500 mb-2 text-sm tracking-widest">TASK</h3><p className="text-slate-800 text-lg leading-relaxed">{starData.t}</p></div><div className="bg-white border-2 border-indigo-100 p-6 rounded-2xl shadow-sm"><h3 className="font-bold text-indigo-600 mb-2 text-sm tracking-widest">ACTION</h3><p className="text-slate-800 font-medium text-lg leading-relaxed">{starData.a}</p></div><div className="bg-indigo-50 p-6 rounded-2xl border-l-8 border-indigo-600"><h3 className="font-bold text-indigo-800 mb-2 text-sm tracking-widest">RESULT</h3><p className="text-slate-800 font-bold text-lg leading-relaxed">{starData.r}</p></div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><LayoutList className="w-4 h-4 mr-1 text-indigo-500" /><span>Career Vitamin</span></div><span>AI-Powered STAR Analysis</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><LayoutList size={64} className="mb-4 opacity-20"/><p>경험을 입력하면 STAR 기법으로 구조화합니다.</p></div>}</main>
+        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{starData.s ? <div ref={reportRef} className="w-[210mm] bg-white shadow-lg p-10 space-y-6 animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-indigo-600 pb-6 mb-6"><h1 className="text-4xl font-extrabold text-slate-900">STAR Analysis</h1><p className="text-slate-500 mt-2 text-lg">경험 구조화 워크시트</p></div><div className="space-y-6 flex-1"><div className="bg-slate-50 p-6 rounded-2xl border-l-8 border-slate-400"><h3 className="font-bold text-slate-500 mb-2 text-sm tracking-widest">SITUATION</h3><textarea className="w-full bg-transparent border-none resize-none focus:ring-0 text-slate-800 text-lg leading-relaxed" rows={3} value={starData.s} onChange={(e)=>handleEdit('s', e.target.value)} /></div><div className="bg-slate-50 p-6 rounded-2xl border-l-8 border-slate-500"><h3 className="font-bold text-slate-500 mb-2 text-sm tracking-widest">TASK</h3><textarea className="w-full bg-transparent border-none resize-none focus:ring-0 text-slate-800 text-lg leading-relaxed" rows={3} value={starData.t} onChange={(e)=>handleEdit('t', e.target.value)} /></div><div className="bg-white border-2 border-indigo-100 p-6 rounded-2xl shadow-sm"><h3 className="font-bold text-indigo-600 mb-2 text-sm tracking-widest">ACTION</h3><textarea className="w-full border-none resize-none focus:ring-0 text-slate-800 font-medium text-lg leading-relaxed" rows={5} value={starData.a} onChange={(e)=>handleEdit('a', e.target.value)} /></div><div className="bg-indigo-50 p-6 rounded-2xl border-l-8 border-indigo-600"><h3 className="font-bold text-indigo-800 mb-2 text-sm tracking-widest">RESULT</h3><textarea className="w-full bg-transparent border-none resize-none focus:ring-0 text-slate-800 font-bold text-lg leading-relaxed" rows={3} value={starData.r} onChange={(e)=>handleEdit('r', e.target.value)} /></div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><LayoutList className="w-4 h-4 mr-1 text-indigo-500" /><span>Career Vitamin</span></div><span>AI-Powered STAR Analysis</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><LayoutList size={64} className="mb-4 opacity-20"/><p>경험을 입력하면 STAR 기법으로 구조화합니다.</p></div>}</main>
         {starData.s && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
       </div>
     </div>
   );
 }
 
-// 7. 롤모델 분석 앱
+// 7. 롤모델 분석 앱 (수정 가능)
 function RoleModelGuideApp({ onClose }) {
   const [data, setData] = useState({ name: '', role: '', intro: '', quotes: '', media: '', reason: '' });
   const [loading, setLoading] = useState(false);
@@ -535,7 +613,9 @@ function RoleModelGuideApp({ onClose }) {
       setData(prev => ({ ...prev, ...parsed }));
     } catch (e) { alert(e.message); } finally { setLoading(false); }
   };
+  const handleEdit = (key, value) => setData(prev => ({ ...prev, [key]: value }));
   const handleDownload = () => saveAsPng(reportRef, `롤모델_${data.name}`);
+  
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
       <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
@@ -545,10 +625,10 @@ function RoleModelGuideApp({ onClose }) {
       <div className="flex flex-1 overflow-hidden">
         <aside className="w-80 bg-white border-r p-6 shrink-0"><div className="space-y-5">
           <h3 className="font-bold text-sm text-orange-700 flex items-center uppercase tracking-wider"><Search size={16} className="mr-2"/> 인물 검색</h3>
-          <input value={data.name} onChange={e=>setData({...data, name:e.target.value})} className="w-full p-3 border border-slate-300 rounded-xl font-bold text-lg" placeholder="예: 스티브 잡스" onKeyDown={(e) => e.key === 'Enter' && handleAIAnalysis()}/>
+          <input value={data.name} onChange={e=>setData({...data, name:e.target.value})} className="w-full p-3 border border-slate-300 rounded-xl font-bold text-lg focus:ring-2 focus:ring-orange-500 outline-none" placeholder="예: 스티브 잡스" onKeyDown={(e) => e.key === 'Enter' && handleAIAnalysis()}/>
           <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-orange-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"분석 시작"}</button>
         </div></aside>
-        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{data.role ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-lg p-10 flex flex-col animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-orange-500 pb-6"><span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-xs font-bold">ROLE MODEL</span><h1 className="text-4xl font-extrabold mt-3">{data.name}</h1><p className="text-slate-500 text-lg mt-1">{data.role}</p></div><div className="flex-1 space-y-8 mt-8"><div className="flex gap-8 items-start"><div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center shrink-0"><User className="w-8 h-8 text-orange-600"/></div><p className="text-slate-700 leading-loose text-lg flex-1">{data.intro}</p></div><div className="bg-orange-50 p-8 rounded-2xl italic text-orange-900 font-serif text-xl border-l-8 border-orange-400 leading-relaxed">"{data.quotes}"</div><div className="border-t border-slate-200 pt-8"><h3 className="font-bold text-xl mb-4 flex items-center text-slate-800"><MessageSquare className="mr-2 text-orange-500"/> 면접 활용 Tip</h3><p className="text-slate-600 leading-relaxed text-lg">{data.reason}</p></div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><Award className="w-4 h-4 mr-1 text-orange-500" /><span>Career Vitamin</span></div><span>AI-Powered Role Model Analysis</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Award size={64} className="mb-4 opacity-20"/><p>롤모델 이름을 입력하세요.</p></div>}</main>
+        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{data.role ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-lg p-10 flex flex-col animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-orange-500 pb-6"><span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-xs font-bold">ROLE MODEL</span><h1 className="text-4xl font-extrabold mt-3">{data.name}</h1><input className="text-slate-500 text-lg mt-1 w-full border-none focus:ring-0" value={data.role} onChange={(e)=>handleEdit('role', e.target.value)} /></div><div className="flex-1 space-y-8 mt-8"><div className="flex gap-8 items-start"><div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center shrink-0"><User className="w-8 h-8 text-orange-600"/></div><textarea className="text-slate-700 leading-loose text-lg flex-1 border-none resize-none focus:ring-0" rows={4} value={data.intro} onChange={(e)=>handleEdit('intro', e.target.value)} /></div><div className="bg-orange-50 p-8 rounded-2xl italic text-orange-900 font-serif text-xl border-l-8 border-orange-400 leading-relaxed"><textarea className="w-full bg-transparent border-none resize-none focus:ring-0 text-center" rows={2} value={data.quotes} onChange={(e)=>handleEdit('quotes', e.target.value)} /></div><div className="border-t border-slate-200 pt-8"><h3 className="font-bold text-xl mb-4 flex items-center text-slate-800"><MessageSquare className="mr-2 text-orange-500"/> 면접 활용 Tip</h3><textarea className="w-full text-slate-600 leading-relaxed text-lg border-none resize-none focus:ring-0" rows={4} value={data.reason} onChange={(e)=>handleEdit('reason', e.target.value)} /></div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><Award className="w-4 h-4 mr-1 text-orange-500" /><span>Career Vitamin</span></div><span>AI-Powered Role Model Analysis</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Award size={64} className="mb-4 opacity-20"/><p>롤모델 이름을 입력하세요.</p></div>}</main>
         {data.role && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
       </div>
     </div>
@@ -588,13 +668,13 @@ function SelfDiscoveryMapApp({ onClose }) {
           </section>
         </aside>
         <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
-          <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-lg p-10 flex flex-col relative">
+          <div ref={reportRef} className="w-[210mm] bg-white shadow-lg p-10 h-min min-h-[297mm] relative flex flex-col">
              <div className="border-b-2 border-slate-800 pb-4 mb-10 flex justify-between items-end"><div><h1 className="text-4xl font-extrabold text-slate-900">Self-Discovery Map</h1><p className="text-slate-500 mt-1">Career Vitamin Analysis</p></div><div className="text-right"><div className="text-2xl font-bold text-blue-600">{profile.name}</div><div className="text-sm text-slate-500">{profile.targetJob}</div><div className="text-xs text-slate-400 mt-1">{profile.date}</div></div></div>
              <div className="mb-12 flex-1">
                <h3 className="font-bold text-lg border-l-4 border-blue-600 pl-3 mb-6 text-slate-800">Core Keywords</h3>
                <div className="flex flex-wrap gap-3 min-h-[100px] content-start">{keywords.length > 0 ? keywords.map(k=><span key={k.id} className={`px-4 py-2 rounded-xl font-bold text-sm border cursor-pointer hover:opacity-70 flex items-center shadow-sm ${k.type==='strength'?'bg-blue-50 border-blue-200 text-blue-700':'bg-emerald-50 border-emerald-200 text-emerald-700'}`} onClick={()=>removeKeyword(k.id)}>{k.text}<X size={14} className="ml-2 opacity-50"/></span>) : <span className="text-slate-400 italic">키워드를 입력해주세요.</span>}</div>
              </div>
-             <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><span>Powered by Career Vitamin</span><span>Confidential Report</span></div>
+             <div className="mt-auto pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400"><span>Powered by Career Vitamin</span><span>Confidential Report</span></div>
           </div>
         </main>
         <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>
@@ -692,7 +772,7 @@ export default function App() {
         <div className="p-4 border-t border-slate-700">
           <div className="text-xs text-slate-500 mb-2 px-2">{user.displayName}님 ({role === 'owner' ? '관리자' : '전문가'})</div>
           <button onClick={()=>signOut(auth)} className="w-full border border-slate-600 text-slate-400 py-2 rounded hover:bg-slate-800 hover:text-white transition-colors flex items-center justify-center gap-2"><LogOut size={16}/> 로그아웃</button>
-          <div className="mt-4 text-xs text-center text-slate-600 opacity-50">v6.0 (Fixed PNG Save)</div>
+          <div className="mt-4 text-xs text-center text-slate-600 opacity-50">v7.0 (Full Fix)</div>
         </div>
       </aside>
       

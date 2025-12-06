@@ -44,7 +44,7 @@ const firebaseConfig = {
   appId: "1:1056766630872:web:5d2149f6a0f0fd5cd130ad"
 };
 
-const OWNER_UID = "16844976501121414234"; 
+const OWNER_UID = "TN8orW7kwuTzAnFWNM8jCiixt3r2"; 
 const APP_ID = 'career-vitamin'; 
 
 // =============================================================================

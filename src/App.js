@@ -31,8 +31,6 @@ import {
   Info, ArrowRight
 } from 'lucide-react';
 
-// html2canvas import 제거 (CDN 동적 로드 유지)
-
 // =============================================================================
 // [설정 구역]
 // =============================================================================
@@ -72,13 +70,28 @@ const Toast = ({ message, onClose }) => {
 };
 
 const safeJsonParse = (str) => {
+  if (!str) return null;
   try { return JSON.parse(str); } catch (e) {
     try {
+      // 마크다운 코드 블록 제거 및 정제
       let cleaned = str.replace(/```json/g, '').replace(/```/g, '').trim();
-      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-      if (jsonMatch) return JSON.parse(jsonMatch[0]);
+      // 중괄호로 시작하고 끝나는 부분만 추출 시도
+      const firstBrace = cleaned.indexOf('{');
+      const lastBrace = cleaned.lastIndexOf('}');
+      const firstBracket = cleaned.indexOf('[');
+      const lastBracket = cleaned.lastIndexOf(']');
+
+      if (firstBrace !== -1 && lastBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
+         cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+      } else if (firstBracket !== -1 && lastBracket !== -1) {
+         cleaned = cleaned.substring(firstBracket, lastBracket + 1);
+      }
+      
       return JSON.parse(cleaned);
-    } catch (e2) { return null; }
+    } catch (e2) { 
+      console.error("JSON Parse Error:", e2);
+      return null; 
+    }
   }
 };
 
@@ -106,7 +119,7 @@ const saveAsPng = async (elementRef, fileName, showToast) => {
 
     const originalElement = elementRef.current;
     const width = originalElement.offsetWidth;
-    const height = originalElement.scrollHeight; // 전체 스크롤 높이 사용
+    const height = originalElement.scrollHeight; 
 
     // 1. 캡처용 임시 컨테이너 생성 (흰색 배경 보장)
     const container = document.createElement('div');
@@ -129,13 +142,12 @@ const saveAsPng = async (elementRef, fileName, showToast) => {
     clone.style.overflow = 'visible';
     clone.style.width = '100%';
     clone.style.margin = '0';
-    clone.style.boxShadow = 'none'; // 그림자 제거 (깔끔하게)
-    clone.style.backgroundColor = 'transparent'; // 배경 투명화 (컨테이너 배경 사용)
+    clone.style.boxShadow = 'none'; 
+    clone.style.backgroundColor = 'transparent'; 
     
     container.appendChild(clone);
 
     // 3. 캡처 실행 (컨테이너 기준)
-    // 렌더링 안정화를 위해 잠시 대기
     await new Promise(resolve => setTimeout(resolve, 100));
 
     const canvas = await window.html2canvas(container, {
@@ -145,9 +157,9 @@ const saveAsPng = async (elementRef, fileName, showToast) => {
       allowTaint: true,
       backgroundColor: '#ffffff', // 캔버스 배경도 흰색
       width: width,
-      height: container.scrollHeight, // 컨테이너의 실제 높이
+      height: container.scrollHeight, 
       windowWidth: width,
-      windowHeight: container.scrollHeight + 100, // 넉넉하게 잡음
+      windowHeight: container.scrollHeight + 100, 
       x: 0,
       y: 0,
       scrollX: 0,
@@ -168,16 +180,26 @@ const saveAsPng = async (elementRef, fileName, showToast) => {
   }
 };
 
-// [수정됨] Google Search Tool 연동
+// [수정됨] Google Search Tool 연동 및 JSON 모드 충돌 해결
 const fetchGemini = async (prompt) => {
   const apiKey = localStorage.getItem("custom_gemini_key");
   if (!apiKey) {
     throw new Error("API 키가 없습니다. [시스템 관리]에서 키를 등록해주세요.");
   }
   
-  // 시도할 모델 목록 (순서대로 시도)
-  const models = ["gemini-2.5-flash-lite", "gemini-2.5-pro"];
+  // 1.5 모델 제거, 최신 2.5 모델 사용
+  const models = ["gemini-2.5-flash-preview-09-2025", "gemini-2.5-pro"];
   let lastError = null;
+
+  // JSON 포맷 강제 프롬프트 추가 (responseMimeType 대신 사용)
+  const jsonInstruction = `
+  IMPORTANT: You must return the result strictly as a valid JSON string. 
+  Do not wrap the JSON in markdown code blocks (like \`\`\`json ... \`\`\`).
+  Do not include any explanations or extra text outside the JSON object.
+  If searching, use the latest information found.
+  `;
+
+  const finalPrompt = prompt + jsonInstruction;
 
   for (const model of models) {
     try {
@@ -186,22 +208,28 @@ const fetchGemini = async (prompt) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          // [핵심 수정] 구글 검색 도구 추가: 최신 정보 반영
+          contents: [{ parts: [{ text: finalPrompt }] }],
+          // 도구 사용: 구글 검색 (최신 정보 반영)
           tools: [{ google_search: {} }],
-          generationConfig: { responseMimeType: "application/json" }
+          // responseMimeType: "application/json"  <-- 이 줄을 제거하여 도구 사용과 충돌 방지
         })
       });
 
       if (!response.ok) {
         const errData = await response.json();
-        if (response.status === 404) throw new Error(`Model ${model} not found`);
+        if (response.status === 404) continue; // 모델 없으면 다음 모델 시도
         throw new Error(errData.error?.message || `HTTP Error ${response.status}`);
       }
 
       const data = await response.json();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      return safeJsonParse(text);
+      
+      const parsed = safeJsonParse(text);
+      if (!parsed) {
+        console.warn("JSON 파싱 실패, 텍스트 원본:", text);
+        throw new Error("AI 응답을 처리할 수 없습니다. (JSON 형식 오류)");
+      }
+      return parsed;
       
     } catch (e) {
       console.warn(`${model} 실패:`, e);
@@ -209,7 +237,7 @@ const fetchGemini = async (prompt) => {
       if (e.message.includes("API key")) throw e; 
     }
   }
-  throw lastError || new Error("모든 AI 모델이 응답하지 않습니다.");
+  throw lastError || new Error("AI 모델 연결에 실패했습니다.");
 };
 
 const EditableContent = ({ value, onSave, className }) => {
@@ -464,7 +492,6 @@ function CareerRoadmapApp({ onClose }) {
   );
 }
 
-// [수정됨] PT 면접 앱 - 15개 주제, 좌측 목록, 하단 생성 버튼, 본론 생성 강화
 function PtInterviewApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', job: '', request: '' });
   const [topics, setTopics] = useState([]);

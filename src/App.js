@@ -59,18 +59,19 @@ const db = getFirestore(app);
 
 const Toast = ({ message, onClose }) => {
   useEffect(() => {
-    const timer = setTimeout(onClose, 3000);
+    const timer = setTimeout(onClose, 5000); // 에러 메시지 확인을 위해 시간 5초로 연장
     return () => clearTimeout(timer);
   }, [onClose]);
 
   return (
-    <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 z-[100] animate-in slide-in-from-bottom-5 fade-in">
-      <Info size={20} className="text-indigo-400" />
-      <span className="text-sm font-medium">{message}</span>
+    <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 z-[100] animate-in slide-in-from-bottom-5 fade-in max-w-[90vw]">
+      <Info size={20} className="text-indigo-400 shrink-0" />
+      <span className="text-sm font-medium break-keep">{message}</span>
     </div>
   );
 };
 
+// JSON 파싱 로직 강화
 const safeJsonParse = (str) => {
   if (!str) return null;
   try { return JSON.parse(str); } catch (e) {
@@ -101,6 +102,9 @@ const renderText = (content) => {
   if (typeof content === 'object') return JSON.stringify(content, null, 2);
   return content;
 };
+
+// 재시도 대기 함수
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // PNG 저장 함수 (Wrapper 방식)
 const saveAsPng = async (elementRef, fileName, showToast) => {
@@ -184,7 +188,7 @@ const saveAsPng = async (elementRef, fileName, showToast) => {
   }
 };
 
-// [수정됨] AI 키 관리 로직: 2.5 버전만 사용하도록 롤백
+// [수정됨] AI 키 관리 및 호출 로직 (안정적인 1.5, 2.0 모델 우선 사용)
 const fetchGemini = async (prompt) => {
   let apiKey = localStorage.getItem("custom_gemini_key");
 
@@ -192,10 +196,12 @@ const fetchGemini = async (prompt) => {
     throw new Error("🚨 API 키가 없습니다. [대시보드] 상단에서 본인의 Google API 키를 먼저 등록해주세요.");
   }
   
-  // [수정] 1.5 버전 제거, 2.5 버전만 유지
-  const models = ["gemini-2.5-flash-preview-09-2025", "gemini-2.5-pro"];
+  // [중요 변경] 1.5-flash (가장 안정적), 2.0-flash-exp (최신 성능), 2.5-preview 순으로 배치
+  // 1.5 모델은 이전에 'JSON 설정' 충돌로 안 되었던 것이며, 현재는 충돌이 해결되어 가장 안전한 선택지입니다.
+  const models = ["gemini-1.5-flash", "gemini-2.0-flash-exp", "gemini-2.5-flash-preview-09-2025"];
   let lastError = null;
 
+  // JSON 포맷 강제 프롬프트
   const jsonInstruction = `
   IMPORTANT: You must return the result strictly as a valid JSON string. 
   Do not wrap the JSON in markdown code blocks (like \`\`\`json ... \`\`\`).
@@ -206,43 +212,63 @@ const fetchGemini = async (prompt) => {
   const finalPrompt = prompt + jsonInstruction;
 
   for (const model of models) {
-    try {
-      console.log(`AI 호출 시도: ${model}`);
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: finalPrompt }] }],
-          tools: [{ google_search: {} }],
-        })
-      });
+    // 모델별 최대 2회 재시도
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        console.log(`AI 호출 시도: ${model} (${attempt}회차)`);
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: finalPrompt }] }],
+            tools: [{ google_search: {} }], // 검색 도구 사용 (최신 정보)
+          })
+        });
 
-      if (!response.ok) {
-        const errData = await response.json();
-        if (response.status === 404 || response.status === 429) {
-          console.warn(`Model ${model} failed (Status ${response.status}): moving to next model.`);
-          continue; 
+        if (!response.ok) {
+          const errData = await response.json();
+          const status = response.status;
+          const errMsg = errData.error?.message || `HTTP Error ${status}`;
+          
+          // 429(Too Many Requests), 503(Service Unavailable)일 때 대기 후 재시도
+          if (status === 429 || status === 503) {
+             console.warn(`Model ${model} busy (Status ${status}). Retrying...`);
+             await delay(2000); 
+             continue;
+          }
+          // 404(모델 없음)는 다음 모델로
+          if (status === 404) break;
+
+          // 그 외 에러는 기록 후 다음 시도
+          throw new Error(errMsg);
         }
-        throw new Error(errData.error?.message || `HTTP Error ${response.status}`);
-      }
 
-      const data = await response.json();
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      
-      const parsed = safeJsonParse(text);
-      if (!parsed) {
-        console.warn("JSON 파싱 실패, 텍스트 원본:", text);
-        continue;
+        const data = await response.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        
+        if (!text) throw new Error("AI가 빈 응답을 보냈습니다.");
+
+        const parsed = safeJsonParse(text);
+        if (!parsed) {
+          console.warn("JSON 파싱 실패, 재시도합니다.", text);
+          await delay(1000);
+          continue;
+        }
+        return parsed;
+      } catch (e) {
+        console.warn(`${model} 오류 (${attempt}회차):`, e);
+        lastError = e;
+        // 키 자체가 틀린 경우는 재시도 의미 없음 (즉시 중단)
+        if (e.message && (e.message.includes("API key") || e.message.includes("key not valid"))) {
+            throw new Error("API 키가 올바르지 않습니다. 키를 다시 확인해서 등록해주세요.");
+        }
       }
-      return parsed;
-      
-    } catch (e) {
-      console.warn(`${model} 실패:`, e);
-      lastError = e;
-      if (e.message.includes("API key")) throw e; 
     }
   }
-  throw lastError || new Error("AI 모델 연결에 실패했습니다. (개인 키를 확인하거나 잠시 후 다시 시도하세요)");
+  
+  // 모든 시도 실패 시 상세 에러 메시지 반환
+  const errorReason = lastError ? `(${lastError.message})` : "";
+  throw new Error(`모든 AI 모델 연결에 실패했습니다. ${errorReason}`);
 };
 
 const EditableContent = ({ value, onSave, className }) => {
@@ -284,7 +310,7 @@ const COLOR_VARIANTS = {
   orange: "bg-orange-100 text-orange-600",
 };
 
-// ... (Sub Apps code is same as before, omitted for brevity but assumed included in full file) ...
+// ... (Sub Apps code remains the same, assuming it's part of the file. No changes needed in sub-apps logic, only in fetchGemini which they all use.)
 
 function CompanyAnalysisApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', url: '', job: '' });
@@ -1163,7 +1189,7 @@ export default function App() {
             ({role === 'owner' ? '관리자' : '전문가'})
           </div>
           <button onClick={()=>signOut(auth)} className="w-full border border-slate-600 text-slate-400 py-2 rounded hover:bg-slate-800 hover:text-white transition-colors flex items-center justify-center gap-2"><LogOut size={16}/> 로그아웃</button>
-          <div className="mt-4 text-xs text-center text-slate-600 opacity-50">v8.0 (Personal Key Mandatory)</div>
+          <div className="mt-4 text-xs text-center text-slate-600 opacity-50">v9.1 (Model Retry Update)</div>
         </div>
       </aside>
       

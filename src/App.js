@@ -30,7 +30,7 @@ import {
   MessageSquare, Sparkles, Award, Search, BookOpen, Quote, Download, TrendingUp, Calendar, Target, 
   Edit3, MonitorPlay, Zap, LayoutList, Split, Mic, BarChart3, Link as LinkIcon, 
   Globe, Trophy, Stethoscope, Key, AlertCircle, ExternalLink,
-  Info, ArrowRight, PenTool, Lightbulb, Users, ThumbsUp, ShieldAlert, LogIn, Lock
+  Info, ArrowRight, PenTool, Lightbulb, Users, ThumbsUp, ShieldAlert, LogIn, Lock, ClipboardList
 } from 'lucide-react';
 
 // =============================================================================
@@ -265,8 +265,9 @@ const EditableContent = ({ value, onSave, className }) => {
   );
 };
 
-// ... (Constants & Sub Apps) ...
+// --- Constants ---
 const SERVICES = {
+  holland_test: { name: "[GPT] 홀랜드 검사 가이드 Report", desc: "홀랜드 흥미 유형 검사 및 분석 리포트 제공", link: "https://chatgpt.com/g/g-6871bb8ebc308191ba718e387bac5105-holland-interest-test-guide-report", internal: false, icon: ClipboardList, color: "pink" },
   gpt_guide: { name: "[GPT] 직업 탐색 가이드", desc: "관심 있는 직업/직무 입력 시 가이드 생성", link: "https://chatgpt.com/g/g-Uch9gJR4b-job-explorer-guide-report", internal: false, icon: Compass, color: "emerald" },
   card_bot: { name: "[노트북LM] 커리어스타일 챗봇", desc: "유료 프로그램 전용 챗봇", link: "https://notebooklm.google.com/notebook/595da4c0-fcc1-4064-82c8-9901e6dd8772", internal: false, icon: MessageSquare, color: "violet" },
   rubric_clinic: { name: "[Gem] 자소서 코칭 클리닉", desc: "유료 워크숍 전용", link: "https://gemini.google.com/gem/1jXo4wyUvzepwmP_diVl-FQzg05EkexIg?usp=sharing", internal: false, icon: Stethoscope, color: "cyan" },
@@ -289,6 +290,7 @@ const COLOR_VARIANTS = {
   teal: "bg-teal-100 text-teal-600",
   purple: "bg-purple-100 text-purple-600",
   orange: "bg-orange-100 text-orange-600",
+  pink: "bg-pink-100 text-pink-600",
 };
 
 // ... (Sub Apps code remains the same) ...
@@ -1178,7 +1180,7 @@ export default function App() {
             ({role === 'owner' ? '관리자' : '전문가'})
           </div>
           <button onClick={()=>signOut(auth)} className="w-full border border-slate-600 text-slate-400 py-2 rounded hover:bg-slate-800 hover:text-white transition-colors flex items-center justify-center gap-2"><LogOut size={16}/> 로그아웃</button>
-          <div className="mt-4 text-xs text-center text-slate-600 opacity-50">v9.4 (Stable 2.5)</div>
+          <div className="mt-4 text-xs text-center text-slate-600 opacity-50">v9.5 (Stable 2.5)</div>
         </div>
       </aside>
       

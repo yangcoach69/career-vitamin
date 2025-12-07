@@ -107,6 +107,7 @@ const saveAsPng = async (elementRef, fileName, showToast) => {
   if (!elementRef.current) return;
   
   try {
+    // html2canvas 로드 확인
     if (!window.html2canvas) {
       await new Promise((resolve, reject) => {
         const script = document.createElement('script');
@@ -119,33 +120,53 @@ const saveAsPng = async (elementRef, fileName, showToast) => {
 
     const originalElement = elementRef.current;
     const width = originalElement.offsetWidth;
-    const height = originalElement.scrollHeight; 
+    // 여기서 높이를 미리 가져오지 않고, 복제 후 실제 높이를 측정합니다.
 
+    // 1. 캡처용 임시 컨테이너 생성 (흰색 배경 보장)
     const container = document.createElement('div');
     container.style.position = 'absolute';
     container.style.left = '-9999px';
     container.style.top = '0';
     container.style.width = `${width}px`;
-    container.style.minHeight = `${height}px`; 
+    // container.style.minHeight는 설정하지 않고 나중에 전체 높이로 설정합니다.
     container.style.backgroundColor = '#ffffff'; 
     container.style.display = 'flex';
     container.style.flexDirection = 'column';
-    document.body.appendChild(container);
+    // 중요: 복제된 내용이 컨테이너 밖으로 넘치지 않게 visible 설정 (기본값이지만 명시)
+    container.style.overflow = 'visible'; 
 
+    // 2. 요소 복제 및 컨테이너 삽입
     const clone = originalElement.cloneNode(true);
     
-    clone.style.height = 'auto';
-    clone.style.maxHeight = 'none';
-    clone.style.overflow = 'visible';
-    clone.style.width = '100%';
-    clone.style.margin = '0';
-    clone.style.boxShadow = 'none'; 
-    clone.style.backgroundColor = 'transparent'; 
+    // 복제본 스타일 초기화 (스크롤 제거, 전체 펼치기, 스타일 강제 적용)
+    clone.style.cssText = `
+      height: auto !important;
+      max-height: none !important;
+      overflow: visible !important;
+      width: 100% !important;
+      margin: 0 !important;
+      box-shadow: none !important;
+      background-color: transparent !important;
+      transform: none !important; /* 좌표 계산 단순화 */
+    `;
     
     container.appendChild(clone);
+    document.body.appendChild(container);
 
+    // 3. 렌더링 대기 및 실제 전체 높이 재계산 (핵심)
+    // 브라우저가 복제된 요소의 레이아웃을 다시 계산할 시간을 충분히 줍니다.
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // 복제된 요소가 포함된 컨테이너의 실제 전체 높이를 구합니다.
+    const fullHeight = container.scrollHeight;
+    
+    // 컨테이너의 높이를 실제 전체 높이로 강제 설정합니다. 이래야 흰색 배경이 끝까지 덮힙니다.
+    container.style.height = `${fullHeight}px`;
+
+    // 높이 변경 후 잠시 대기
     await new Promise(resolve => setTimeout(resolve, 100));
 
+    // 4. 캡처 실행 (컨테이너 기준, 계산된 전체 높이 사용)
     const canvas = await window.html2canvas(container, {
       scale: 2, 
       useCORS: true,
@@ -153,15 +174,16 @@ const saveAsPng = async (elementRef, fileName, showToast) => {
       allowTaint: true,
       backgroundColor: '#ffffff',
       width: width,
-      height: container.scrollHeight, 
+      height: fullHeight, // 전체 높이 명시
       windowWidth: width,
-      windowHeight: container.scrollHeight + 100, 
+      windowHeight: fullHeight, // 전체 높이 명시
       x: 0,
       y: 0,
-      scrollX: 0,
+      scrollX: 0, // 스크롤 위치 초기화
       scrollY: 0
     });
     
+    // 5. 정리 및 다운로드
     document.body.removeChild(container);
     
     const link = document.createElement('a');
@@ -175,7 +197,7 @@ const saveAsPng = async (elementRef, fileName, showToast) => {
   }
 };
 
-// [수정됨] API 키 관리 로직: DB 우선 조회
+// API 키 관리 로직: DB 우선 조회
 const fetchGemini = async (prompt) => {
   // 1. 브라우저 저장소 확인 (개발자 오버라이드용)
   let apiKey = localStorage.getItem("custom_gemini_key");
@@ -285,7 +307,7 @@ const COLOR_VARIANTS = {
   orange: "bg-orange-100 text-orange-600",
 };
 
-// [수정됨] 기업분석 앱
+// 기업분석 앱
 function CompanyAnalysisApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', url: '', job: '' });
   const [result, setResult] = useState(null);
@@ -376,7 +398,7 @@ function CompanyAnalysisApp({ onClose }) {
                  <p className="text-lg text-slate-500 mt-2">Premium Corporate Analysis</p>
               </div>
               
-              <div className="space-y-10 flex-1">
+              <div className="space-y-10"> {/* flex-1 제거됨 */}
                 {/* 1. 기업 개요 */}
                 <section>
                   <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center border-b-2 border-indigo-100 pb-2"><Building2 size={24} className="mr-2"/> 1. 기업 개요 및 현황</h3>
@@ -522,7 +544,7 @@ function CareerRoadmapApp({ onClose }) {
                 <h1 className="text-4xl font-extrabold text-slate-900">{inputs.company}</h1>
                 <EditableContent className="text-blue-600 font-bold text-xl mt-3" value={roadmapData.goal} onSave={(v)=>handleEdit('goal', v)} />
               </div>
-              <div className="space-y-8 flex-1 relative before:absolute before:left-[27px] before:top-4 before:bottom-4 before:w-0.5 before:bg-slate-200">
+              <div className="space-y-8 relative before:absolute before:left-[27px] before:top-4 before:bottom-4 before:w-0.5 before:bg-slate-200"> {/* flex-1 제거됨 */}
                 {roadmapData.roadmap?.map((r,i)=>(
                   <div key={i} className="flex gap-6 relative">
                     <div className="w-14 h-14 rounded-full bg-white border-4 border-blue-100 flex items-center justify-center font-bold text-blue-600 shadow-sm z-10 shrink-0 text-xl">{i+1}</div>
@@ -669,7 +691,7 @@ function PtInterviewApp({ onClose }) {
                <span className="bg-rose-100 text-rose-700 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">PT INTERVIEW SCRIPT</span>
                <h1 className="text-2xl font-extrabold mt-3 text-slate-900 leading-tight">{mode === 'recommend' ? selectedTopic : manualTopic}</h1>
              </div>
-             <div className="space-y-8 flex-1">
+             <div className="space-y-8"> {/* flex-1 제거됨 */}
                 <section>
                   <h3 className="text-xl font-bold text-slate-800 mb-3 border-l-4 border-rose-400 pl-3">Introduction</h3>
                   <div className="bg-slate-50 p-6 rounded-xl border border-slate-100">
@@ -757,7 +779,7 @@ function SituationInterviewApp({ onClose }) {
           <input value={inputs.criteria} onChange={e=>setInputs({...inputs, criteria:e.target.value})} className="w-full p-3 border rounded-xl" placeholder="분리 기준 (옵션)"/>
           <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-teal-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"답변 생성"}</button>
         </div></aside>
-        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{result ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-lg p-10 flex flex-col animate-in fade-in zoom-in-95 duration-500"><h2 className="text-3xl font-extrabold mb-6 text-slate-900 border-b-2 border-teal-500 pb-4">상황면접 가이드</h2><div className="flex-1 space-y-6"><div className="bg-slate-50 p-6 rounded-xl border mb-8"><h3 className="font-bold text-slate-500 text-xs mb-2 tracking-widest">QUESTION</h3><p className="font-bold text-xl text-slate-800">"{inputs.question}"</p></div><div className="grid grid-cols-1 gap-8"><div className="border-l-4 border-teal-500 pl-6 py-2"><EditableContent className="font-bold text-teal-800 text-xl mb-3" value={result.situation_a?.title} onSave={(v)=>handleEdit('situation_a', 'title', v)} /><EditableContent className="text-slate-600 leading-relaxed text-lg" value={result.situation_a?.content} onSave={(v)=>handleEdit('situation_a', 'content', v)} /></div><div className="border-l-4 border-slate-400 pl-6 py-2"><EditableContent className="font-bold text-slate-700 text-xl mb-3" value={result.situation_b?.title} onSave={(v)=>handleEdit('situation_b', 'title', v)} /><EditableContent className="text-slate-600 leading-relaxed text-lg" value={result.situation_b?.content} onSave={(v)=>handleEdit('situation_b', 'content', v)} /></div></div><div className="mt-8 bg-teal-50 p-6 rounded-xl border border-teal-100 text-teal-900 text-base font-medium">💡 Advice: <EditableContent className="mt-2" value={result.advice} onSave={(v)=>handleEdit('advice', null, v)} /></div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><Split className="w-4 h-4 mr-1 text-teal-500" /><span>Career Vitamin</span></div><span>AI-Powered Situation Guide</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Split size={64} className="mb-4 opacity-20"/><p>질문을 입력하면 답변이 생성됩니다.</p></div>}</main>
+        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{result ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-lg p-10 flex flex-col animate-in fade-in zoom-in-95 duration-500"><h2 className="text-3xl font-extrabold mb-6 text-slate-900 border-b-2 border-teal-500 pb-4">상황면접 가이드</h2><div className="space-y-6"> {/* flex-1 제거됨 */} <div className="bg-slate-50 p-6 rounded-xl border mb-8"><h3 className="font-bold text-slate-500 text-xs mb-2 tracking-widest">QUESTION</h3><p className="font-bold text-xl text-slate-800">"{inputs.question}"</p></div><div className="grid grid-cols-1 gap-8"><div className="border-l-4 border-teal-500 pl-6 py-2"><EditableContent className="font-bold text-teal-800 text-xl mb-3" value={result.situation_a?.title} onSave={(v)=>handleEdit('situation_a', 'title', v)} /><EditableContent className="text-slate-600 leading-relaxed text-lg" value={result.situation_a?.content} onSave={(v)=>handleEdit('situation_a', 'content', v)} /></div><div className="border-l-4 border-slate-400 pl-6 py-2"><EditableContent className="font-bold text-slate-700 text-xl mb-3" value={result.situation_b?.title} onSave={(v)=>handleEdit('situation_b', 'title', v)} /><EditableContent className="text-slate-600 leading-relaxed text-lg" value={result.situation_b?.content} onSave={(v)=>handleEdit('situation_b', 'content', v)} /></div></div><div className="mt-8 bg-teal-50 p-6 rounded-xl border border-teal-100 text-teal-900 text-base font-medium">💡 Advice: <EditableContent className="mt-2" value={result.advice} onSave={(v)=>handleEdit('advice', null, v)} /></div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><Split className="w-4 h-4 mr-1 text-teal-500" /><span>Career Vitamin</span></div><span>AI-Powered Situation Guide</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Split size={64} className="mb-4 opacity-20"/><p>질문을 입력하면 답변이 생성됩니다.</p></div>}</main>
         {result && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
       </div>
     </div>
@@ -808,7 +830,7 @@ function SelfIntroApp({ onClose }) {
           <textarea value={inputs.exp} onChange={e=>setInputs({...inputs, exp:e.target.value})} className="w-full p-3 border rounded-lg h-32 resize-none" placeholder="관련 경험 요약"/>
           <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-purple-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"스크립트 생성"}</button>
         </div></aside>
-        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{script ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-lg p-10 flex flex-col animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-purple-600 pb-6 text-center"><span className="text-purple-600 font-bold text-sm tracking-widest block mb-2">1-MINUTE SPEECH</span><EditableContent className="text-3xl font-extrabold text-slate-900 text-center" value={script.slogan} onSave={(v)=>handleEdit('slogan', v)} /></div><div className="space-y-8 flex-1 mt-8"><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-4 uppercase">Opening</div><div className="flex-1 bg-purple-50 p-6 rounded-2xl text-xl font-bold text-slate-800 shadow-sm"><EditableContent value={script.opening} onSave={(v)=>handleEdit('opening', v)} /></div></div><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-1 uppercase">Body</div><div className="flex-1 text-slate-700 leading-loose pl-6 border-l-2 border-purple-200 text-lg"><EditableContent value={script.body} onSave={(v)=>handleEdit('body', v)} /></div></div><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-4 uppercase">Closing</div><div className="flex-1 bg-slate-50 p-6 rounded-2xl font-medium text-slate-800 text-lg"><EditableContent value={script.closing} onSave={(v)=>handleEdit('closing', v)} /></div></div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><Mic className="w-4 h-4 mr-1 text-purple-500" /><span>Career Vitamin</span></div><span>AI-Generated Speech Script</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Mic size={64} className="mb-4 opacity-20"/><p>정보를 입력하면 스크립트가 생성됩니다.</p></div>}</main>
+        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{script ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-lg p-10 flex flex-col animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-purple-600 pb-6 text-center"><span className="text-purple-600 font-bold text-sm tracking-widest block mb-2">1-MINUTE SPEECH</span><EditableContent className="text-3xl font-extrabold text-slate-900 text-center" value={script.slogan} onSave={(v)=>handleEdit('slogan', v)} /></div><div className="space-y-8 mt-8"> {/* flex-1 제거됨 */} <div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-4 uppercase">Opening</div><div className="flex-1 bg-purple-50 p-6 rounded-2xl text-xl font-bold text-slate-800 shadow-sm"><EditableContent value={script.opening} onSave={(v)=>handleEdit('opening', v)} /></div></div><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-1 uppercase">Body</div><div className="flex-1 text-slate-700 leading-loose pl-6 border-l-2 border-purple-200 text-lg"><EditableContent value={script.body} onSave={(v)=>handleEdit('body', v)} /></div></div><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-4 uppercase">Closing</div><div className="flex-1 bg-slate-50 p-6 rounded-2xl font-medium text-slate-800 text-lg"><EditableContent value={script.closing} onSave={(v)=>handleEdit('closing', v)} /></div></div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><Mic className="w-4 h-4 mr-1 text-purple-500" /><span>Career Vitamin</span></div><span>AI-Generated Speech Script</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Mic size={64} className="mb-4 opacity-20"/><p>정보를 입력하면 스크립트가 생성됩니다.</p></div>}</main>
         {script && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
       </div>
     </div>
@@ -855,16 +877,16 @@ function ExperienceStructuringApp({ onClose }) {
           <textarea value={inputs.desc} onChange={e=>setInputs({...inputs, desc:e.target.value})} className="w-full p-3 border rounded-lg h-40 resize-none" placeholder="경험 내용을 자유롭게 서술하세요 (당시 상황, 내가 한 행동, 결과 등)"/>
           <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"구조화 실행"}</button>
         </div></aside>
-        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{starData.s ? <div ref={reportRef} className="w-[210mm] bg-white shadow-lg p-10 space-y-6 animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-indigo-600 pb-6 mb-6"><h1 className="text-4xl font-extrabold text-slate-900">STAR Analysis</h1><p className="text-slate-500 mt-2 text-lg">경험 구조화 워크시트</p></div><div className="space-y-6 flex-1"><div className="bg-slate-50 p-6 rounded-2xl border-l-8 border-slate-400"><h3 className="font-bold text-slate-500 mb-2 text-sm tracking-widest">SITUATION</h3><EditableContent className="text-slate-800 text-lg leading-relaxed" value={starData.s} onSave={(v)=>handleEdit('s', v)} /></div><div className="bg-slate-50 p-6 rounded-2xl border-l-8 border-slate-500"><h3 className="font-bold text-slate-500 mb-2 text-sm tracking-widest">TASK</h3><EditableContent className="text-slate-800 text-lg leading-relaxed" value={starData.t} onSave={(v)=>handleEdit('t', v)} /></div><div className="bg-white border-2 border-indigo-100 p-6 rounded-2xl shadow-sm"><h3 className="font-bold text-indigo-600 mb-2 text-sm tracking-widest">ACTION</h3><EditableContent className="text-slate-800 font-medium text-lg leading-relaxed" value={starData.a} onSave={(v)=>handleEdit('a', v)} /></div><div className="bg-indigo-50 p-6 rounded-2xl border-l-8 border-indigo-600"><h3 className="font-bold text-indigo-800 mb-2 text-sm tracking-widest">RESULT</h3><EditableContent className="text-slate-800 font-bold text-lg leading-relaxed" value={starData.r} onSave={(v)=>handleEdit('r', v)} /></div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><LayoutList className="w-4 h-4 mr-1 text-indigo-500" /><span>Career Vitamin</span></div><span>AI-Powered STAR Analysis</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><LayoutList size={64} className="mb-4 opacity-20"/><p>경험을 입력하면 STAR 기법으로 구조화합니다.</p></div>}</main>
+        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{starData.s ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-lg p-10 flex flex-col animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-indigo-600 pb-6 mb-6"><h1 className="text-4xl font-extrabold text-slate-900">STAR Analysis</h1><p className="text-slate-500 mt-2 text-lg">경험 구조화 워크시트</p></div><div className="space-y-6 flex-1"> {/* flex-1 제거됨 */} <div className="bg-slate-50 p-6 rounded-2xl border-l-8 border-slate-400"><h3 className="font-bold text-slate-500 mb-2 text-sm tracking-widest">SITUATION</h3><EditableContent className="text-slate-800 text-lg leading-relaxed" value={starData.s} onSave={(v)=>handleEdit('s', v)} /></div><div className="bg-slate-50 p-6 rounded-2xl border-l-8 border-slate-500"><h3 className="font-bold text-slate-500 mb-2 text-sm tracking-widest">TASK</h3><EditableContent className="text-slate-800 text-lg leading-relaxed" value={starData.t} onSave={(v)=>handleEdit('t', v)} /></div><div className="bg-white border-2 border-indigo-100 p-6 rounded-2xl shadow-sm"><h3 className="font-bold text-indigo-600 mb-2 text-sm tracking-widest">ACTION</h3><EditableContent className="text-slate-800 font-medium text-lg leading-relaxed" value={starData.a} onSave={(v)=>handleEdit('a', v)} /></div><div className="bg-indigo-50 p-6 rounded-2xl border-l-8 border-indigo-600"><h3 className="font-bold text-indigo-800 mb-2 text-sm tracking-widest">RESULT</h3><EditableContent className="text-slate-800 font-bold text-lg leading-relaxed" value={starData.r} onSave={(v)=>handleEdit('r', v)} /></div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><LayoutList className="w-4 h-4 mr-1 text-indigo-500" /><span>Career Vitamin</span></div><span>AI-Powered STAR Analysis</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><LayoutList size={64} className="mb-4 opacity-20"/><p>경험을 입력하면 STAR 기법으로 구조화합니다.</p></div>}</main>
         {starData.s && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
       </div>
     </div>
   );
 }
 
-// [수정됨] 롤모델 분석 앱 - 추가 입력 필드(어록, 책) 및 프롬프트 반영
+// 롤모델 분석 앱 - 추가 입력 필드(어록, 책) 및 프롬프트 반영
 function RoleModelGuideApp({ onClose }) {
-  // [수정] 입력 상태 분리: userQuotes, userBooks 추가
+  // 입력 상태 분리: userQuotes, userBooks 추가
   const [inputs, setInputs] = useState({ name: '', userQuotes: '', userBooks: '' });
   const [result, setResult] = useState(null); // 결과 데이터는 result에 저장
   const [loading, setLoading] = useState(false);
@@ -877,7 +899,7 @@ function RoleModelGuideApp({ onClose }) {
     if (!inputs.name) return showToast("이름을 입력해주세요.");
     setLoading(true);
     try {
-      // [수정] 프롬프트에 사용자 입력 정보 추가
+      // 프롬프트에 사용자 입력 정보 추가
       const prompt = `롤모델 '${inputs.name}' 분석. 
       [사용자 추가 정보]
       - 감명 깊게 본 어록: ${inputs.userQuotes || '없음'}
@@ -894,7 +916,7 @@ function RoleModelGuideApp({ onClose }) {
         "reason": "면접에서 이 인물을 롤모델로 언급할 때의 활용 포인트 및 본받을 점" 
       }`;
       const parsed = await fetchGemini(prompt);
-      // [수정] 결과에 이름 포함하여 저장
+      // 결과에 이름 포함하여 저장
       setResult({ ...parsed, name: inputs.name }); 
     } catch (e) { showToast(e.message); } finally { setLoading(false); }
   };
@@ -912,7 +934,7 @@ function RoleModelGuideApp({ onClose }) {
       <div className="flex flex-1 overflow-hidden">
         <aside className="w-80 bg-white border-r p-6 shrink-0"><div className="space-y-5">
           <h3 className="font-bold text-sm text-orange-700 flex items-center uppercase tracking-wider"><Search size={16} className="mr-2"/> 인물 검색</h3>
-          {/* [수정] 입력 필드 바인딩 변경 data -> inputs */}
+          {/* 입력 필드 바인딩 변경 data -> inputs */}
           <input value={inputs.name} onChange={e=>setInputs({...inputs, name:e.target.value})} className="w-full p-3 border border-slate-300 rounded-xl font-bold text-lg focus:ring-2 focus:ring-orange-500 outline-none" placeholder="예: 스티브 잡스"/>
           
           <div className="pt-4 border-t border-slate-100 space-y-3">
@@ -940,7 +962,7 @@ function RoleModelGuideApp({ onClose }) {
           <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-orange-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"분석 시작"}</button>
         </div></aside>
         <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
-          {/* [수정] 결과 표시 로직 data -> result */}
+          {/* 결과 표시 로직 data -> result */}
           {result ? (
             <div ref={reportRef} className="w-[210mm] min-h-[297mm] bg-white shadow-lg p-10 flex flex-col animate-in fade-in zoom-in-95 duration-500">
               <div className="border-b-4 border-orange-500 pb-6">
@@ -948,7 +970,7 @@ function RoleModelGuideApp({ onClose }) {
                 <h1 className="text-4xl font-extrabold mt-3">{result.name}</h1>
                 <EditableContent className="text-slate-500 text-lg mt-1" value={result.role} onSave={(v)=>handleEdit('role', v)} />
               </div>
-              <div className="flex-1 space-y-8 mt-8">
+              <div className="flex-1 space-y-8 mt-8"> {/* flex-1 제거됨 */}
                 <div className="flex gap-8 items-start">
                   <div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center shrink-0"><User className="w-8 h-8 text-orange-600"/></div>
                   <EditableContent className="text-slate-700 leading-loose text-lg flex-1" value={result.intro} onSave={(v)=>handleEdit('intro', v)} />
@@ -956,7 +978,7 @@ function RoleModelGuideApp({ onClose }) {
                 <div className="bg-orange-50 p-8 rounded-2xl italic text-orange-900 font-serif text-xl border-l-8 border-orange-400 leading-relaxed">
                   <EditableContent className="text-center" value={result.quotes} onSave={(v)=>handleEdit('quotes', v)} />
                 </div>
-                {/* [추가] 미디어 섹션이 있으면 표시 */}
+                {/* 추가 미디어 섹션이 있으면 표시 */}
                 {result.media && (
                   <div className="bg-slate-50 p-6 rounded-xl border border-slate-200">
                     <h4 className="font-bold text-sm text-slate-500 mb-2 flex items-center"><BookOpen size={16} className="mr-2"/> 추천 자료</h4>
@@ -1063,7 +1085,7 @@ export default function App() {
           const s = await getDocs(q);
           if (!s.empty) {
             setRole('expert');
-            // [수정] 전문가 인증 시 등록된 이름 가져와서 저장
+            // 전문가 인증 시 등록된 이름 가져와서 저장
             const expertDoc = s.docs[0];
             const expertData = expertDoc.data();
             if (expertData.displayName) {

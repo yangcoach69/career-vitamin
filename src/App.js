@@ -184,7 +184,7 @@ const saveAsPng = async (elementRef, fileName, showToast) => {
   }
 };
 
-// [수정됨] AI 키 관리 로직: 모델 순서 변경 (1.5-flash 우선)
+// [수정됨] AI 키 관리 로직: 2.5 버전만 사용하도록 롤백
 const fetchGemini = async (prompt) => {
   let apiKey = localStorage.getItem("custom_gemini_key");
 
@@ -192,8 +192,8 @@ const fetchGemini = async (prompt) => {
     throw new Error("🚨 API 키가 없습니다. [대시보드] 상단에서 본인의 Google API 키를 먼저 등록해주세요.");
   }
   
-  // 안정적인 1.5-flash를 최우선으로 배치
-  const models = ["gemini-1.5-flash", "gemini-2.5-flash-preview-09-2025", "gemini-2.5-pro"];
+  // [수정] 1.5 버전 제거, 2.5 버전만 유지
+  const models = ["gemini-2.5-flash-preview-09-2025", "gemini-2.5-pro"];
   let lastError = null;
 
   const jsonInstruction = `
@@ -219,7 +219,6 @@ const fetchGemini = async (prompt) => {
 
       if (!response.ok) {
         const errData = await response.json();
-        // 429: Quota Exceeded (사용량 초과) 시 다음 모델 시도
         if (response.status === 404 || response.status === 429) {
           console.warn(`Model ${model} failed (Status ${response.status}): moving to next model.`);
           continue; 
@@ -286,8 +285,6 @@ const COLOR_VARIANTS = {
 };
 
 // ... (Sub Apps code is same as before, omitted for brevity but assumed included in full file) ...
-// (Since the prompt asks to update the file, I must include the full code to be safe, but I will focus on the App component changes and keeping sub-apps intact.)
-// For brevity, I will paste the sub-apps code again to ensure the file is complete and runnable.
 
 function CompanyAnalysisApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', url: '', job: '' });
@@ -594,7 +591,6 @@ function PtInterviewApp({ onClose }) {
 
     setLoading(true);
     try {
-      // [수정] 프롬프트 보강: Body 부분을 구체적으로 작성하도록 지시
       const prompt = `PT주제: "${targetTopic}", 기업:${inputs.company}, 직무:${inputs.job}. 
       이 주제에 대한 전문적인 PT 발표 대본을 작성해줘.
       
@@ -1157,6 +1153,8 @@ export default function App() {
         <div className="p-6 border-b border-slate-700 font-bold text-xl flex items-center gap-2"><LayoutDashboard className="text-indigo-400"/> Career Vitamin</div>
         <nav className="flex-1 p-4 space-y-2">
           <button onClick={()=>setActiveTab('dashboard')} className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-colors ${activeTab==='dashboard'?'bg-indigo-600 text-white':'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><LayoutDashboard size={18}/> 대시보드</button>
+          {/* 관리자 탭 대신 대시보드 하단에 설정 기능 통합 (권한별 노출) */}
+          {role === 'owner' && <div className="px-4 py-2 text-xs text-slate-500 uppercase font-bold mt-4">Admin Only</div>}
           {role === 'owner' && <button onClick={()=>setActiveTab('admin')} className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-colors ${activeTab==='admin'?'bg-indigo-600 text-white':'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Settings size={18}/> 시스템 관리</button>}
         </nav>
         <div className="p-4 border-t border-slate-700">

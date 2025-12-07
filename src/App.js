@@ -184,17 +184,16 @@ const saveAsPng = async (elementRef, fileName, showToast) => {
   }
 };
 
-// [수정됨] AI 키 관리 로직: 공용 키 사용 금지 -> 개인 키 필수
+// [수정됨] AI 키 관리 로직: 모델 순서 변경 (1.5-flash 우선)
 const fetchGemini = async (prompt) => {
-  // 브라우저 저장소에서 개인 키 확인
   let apiKey = localStorage.getItem("custom_gemini_key");
 
-  // [중요] 키가 없으면 에러 발생 (공용 키 로직 삭제됨)
   if (!apiKey) {
     throw new Error("🚨 API 키가 없습니다. [대시보드] 상단에서 본인의 Google API 키를 먼저 등록해주세요.");
   }
   
-  const models = ["gemini-2.5-flash-preview-09-2025", "gemini-2.5-pro", "gemini-1.5-flash"];
+  // 안정적인 1.5-flash를 최우선으로 배치
+  const models = ["gemini-1.5-flash", "gemini-2.5-flash-preview-09-2025", "gemini-2.5-pro"];
   let lastError = null;
 
   const jsonInstruction = `
@@ -595,17 +594,18 @@ function PtInterviewApp({ onClose }) {
 
     setLoading(true);
     try {
+      // [수정] 프롬프트 보강: Body 부분을 구체적으로 작성하도록 지시
       const prompt = `PT주제: "${targetTopic}", 기업:${inputs.company}, 직무:${inputs.job}. 
       이 주제에 대한 전문적인 PT 발표 대본을 작성해줘.
       
       반드시 다음 JSON 형식을 지킬 것:
       {
         "intro": "청중의 주의를 환기하고 주제를 소개하는 서론 (2-3문장)",
-        "body": "핵심 주장, 논거 1, 논거 2, 구체적 실행 방안 등을 포함한 매우 상세하고 긴 본론 (줄바꿈 포함)",
+        "body": "핵심 주장, 논거 1, 논거 2, 구체적 실행 방안 등을 포함한 매우 상세하고 긴 본론 (각 논거마다 구체적인 예시나 수치를 포함하여 풍부하게 작성할 것, 줄바꿈 포함)",
         "conclusion": "핵심 요약 및 입사 후 포부를 담은 강력한 결론 (2-3문장)"
       }
       
-      Body 부분은 절대 비워두지 말고, 구체적인 수치나 예시를 들어서 풍부하게 작성할 것.`;
+      Body 부분은 절대 비워두지 말고, 실무자 입장에서 설득력 있게 작성할 것.`;
       
       const parsed = await fetchGemini(prompt);
       if(parsed && parsed.body) { 
@@ -1157,8 +1157,6 @@ export default function App() {
         <div className="p-6 border-b border-slate-700 font-bold text-xl flex items-center gap-2"><LayoutDashboard className="text-indigo-400"/> Career Vitamin</div>
         <nav className="flex-1 p-4 space-y-2">
           <button onClick={()=>setActiveTab('dashboard')} className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-colors ${activeTab==='dashboard'?'bg-indigo-600 text-white':'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><LayoutDashboard size={18}/> 대시보드</button>
-          {/* 관리자 탭 대신 대시보드 하단에 설정 기능 통합 (권한별 노출) */}
-          {role === 'owner' && <div className="px-4 py-2 text-xs text-slate-500 uppercase font-bold mt-4">Admin Only</div>}
           {role === 'owner' && <button onClick={()=>setActiveTab('admin')} className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-colors ${activeTab==='admin'?'bg-indigo-600 text-white':'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Settings size={18}/> 시스템 관리</button>}
         </nav>
         <div className="p-4 border-t border-slate-700">
@@ -1167,47 +1165,47 @@ export default function App() {
             ({role === 'owner' ? '관리자' : '전문가'})
           </div>
           <button onClick={()=>signOut(auth)} className="w-full border border-slate-600 text-slate-400 py-2 rounded hover:bg-slate-800 hover:text-white transition-colors flex items-center justify-center gap-2"><LogOut size={16}/> 로그아웃</button>
-          <div className="mt-4 text-xs text-center text-slate-600 opacity-50">v7.4 (BYOK Only)</div>
+          <div className="mt-4 text-xs text-center text-slate-600 opacity-50">v8.0 (Personal Key Mandatory)</div>
         </div>
       </aside>
       
       <main className="flex-1 p-8 overflow-y-auto">
         {activeTab === 'dashboard' ? (
            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
-             {/* 1. 개인 API 키 설정 (모든 사용자) */}
-             <div className="bg-white p-6 rounded-xl shadow-sm border border-indigo-100">
+             {/* 1. 개인 API 키 설정 (필수) */}
+             <div className={`bg-white p-6 rounded-xl shadow-sm border-2 transition-all ${!hasPersonalKey ? 'border-red-400 ring-4 ring-red-50' : 'border-indigo-100'}`}>
                 <div className="flex justify-between items-start mb-4">
                     <div>
-                        <h2 className="text-lg font-bold flex items-center gap-2 text-indigo-900">
-                            <Key className="text-indigo-500" size={20}/> 
+                        <h2 className={`text-lg font-bold flex items-center gap-2 ${!hasPersonalKey ? 'text-red-600' : 'text-indigo-900'}`}>
+                            <Key className={!hasPersonalKey ? 'text-red-500' : 'text-indigo-500'} size={20}/> 
                             AI 모델 설정 (API Key)
                         </h2>
                         <p className="text-sm text-slate-500 mt-1">
-                            AI 콘텐츠 생성을 위한 핵심 열쇠입니다.
+                            서비스 이용을 위해 본인의 Google AI 키가 반드시 필요합니다.
                         </p>
                     </div>
-                    <div className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${hasPersonalKey ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    <div className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${hasPersonalKey ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700 animate-pulse'}`}>
                         {hasPersonalKey ? <Check size={12}/> : <Lock size={12}/>}
-                        {hasPersonalKey ? "API 키 등록 완료" : "API 키 필요"}
+                        {hasPersonalKey ? "등록 완료" : "등록 필수"}
                     </div>
                 </div>
 
                 <div className="bg-slate-50 p-5 rounded-lg mb-6 text-sm text-slate-700 leading-relaxed border border-slate-200">
                     <h4 className="font-bold text-slate-900 mb-2 flex items-center gap-2">
-                        <Lightbulb size={16} className="text-yellow-500"/> 개인 키가 필요한 이유
+                        <Lightbulb size={16} className="text-yellow-500"/> 왜 내 키를 등록해야 하나요?
                     </h4>
                     <ul className="list-disc list-inside space-y-1 ml-1 text-slate-600 mb-3">
-                        <li>서비스 안정성을 위해 <strong>1인 1키 정책</strong>을 운영하고 있습니다.</li>
-                        <li>Google Gemini API는 개인에게 넉넉한 <strong>무료 사용량</strong>을 제공합니다.</li>
-                        <li>키는 서버에 저장되지 않고, 오직 <strong>현재 브라우저에만 저장</strong>되어 안전합니다.</li>
+                        <li><strong>무료 & 무제한:</strong> Google Gemini API는 개인 계정에 대해 충분한 무료 사용량을 제공합니다.</li>
+                        <li><strong>안정성:</strong> 나만의 키를 사용하므로 다른 사용자의 영향 없이 빠르고 안정적입니다.</li>
+                        <li><strong>보안:</strong> 키는 서버에 저장되지 않고, 오직 <strong>현재 브라우저에만 저장</strong>되어 안전합니다.</li>
                     </ul>
                     <a 
                         href="https://aistudio.google.com/app/apikey" 
                         target="_blank" 
                         rel="noreferrer"
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-lg text-indigo-600 font-bold hover:bg-indigo-50 transition-colors shadow-sm text-xs"
+                        className="inline-flex items-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-md text-sm"
                     >
-                        🔑 Google AI Studio에서 무료 키 발급받기 <ExternalLink size={12}/>
+                        🔑 Google AI Studio에서 무료 키 발급받기 <ExternalLink size={14}/>
                     </a>
                 </div>
 
@@ -1216,27 +1214,27 @@ export default function App() {
                     type="password" 
                     value={customKey} 
                     onChange={e=>setCustomKey(e.target.value)} 
-                    className={`flex-1 p-3 border rounded-lg focus:ring-2 outline-none transition-all ${hasPersonalKey ? 'border-green-300 bg-green-50' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'}`}
-                    placeholder={hasPersonalKey ? "API 키가 등록되어 있습니다." : "AIza로 시작하는 키를 입력하세요"} 
+                    className={`flex-1 p-3 border rounded-lg focus:ring-2 outline-none transition-all ${hasPersonalKey ? 'border-green-300 bg-green-50 text-green-800' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'}`}
+                    placeholder={hasPersonalKey ? "API 키가 안전하게 등록되어 있습니다." : "AIza로 시작하는 키를 여기에 붙여넣으세요"} 
                     disabled={hasPersonalKey}
                   />
                   {!hasPersonalKey ? (
                     <button onClick={handleSavePersonalKey} className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors shadow-md shrink-0">등록하기</button>
                   ) : (
-                    <button onClick={handleRemovePersonalKey} className="bg-red-500 text-white px-6 py-3 rounded-lg font-bold hover:bg-red-600 transition-colors shadow-md shrink-0">삭제하기</button>
+                    <button onClick={handleRemovePersonalKey} className="bg-red-100 text-red-600 border border-red-200 px-6 py-3 rounded-lg font-bold hover:bg-red-200 transition-colors shrink-0">재설정</button>
                   )}
                 </div>
              </div>
 
-             {/* 2. 앱 목록 */}
-             <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-opacity duration-300 ${!hasPersonalKey ? 'opacity-50 pointer-events-none' : ''}`}>
+             {/* 2. 앱 목록 (키 없으면 잠금) */}
+             <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-all duration-500 ${!hasPersonalKey ? 'opacity-40 pointer-events-none grayscale' : ''}`}>
                {Object.entries(SERVICES).map(([key, svc]) => (
                  <div key={key} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md border border-slate-200 transition-all group cursor-pointer h-full relative" onClick={() => {
                      if(!hasPersonalKey) return;
                      if(svc.internal) setCurrentApp(key);
                      else window.open(svc.link, '_blank');
                    }}>
-                   {!hasPersonalKey && <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/50 backdrop-blur-[1px] rounded-xl"><Lock className="text-slate-400 w-8 h-8"/></div>}
+                   {!hasPersonalKey && <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/10"><Lock className="text-slate-500 w-8 h-8"/></div>}
                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${COLOR_VARIANTS[svc.color]} group-hover:scale-110 transition-transform`}>
                      <svc.icon size={24} color={svc.color === 'black' ? '#000' : undefined} /> 
                    </div>
@@ -1248,7 +1246,7 @@ export default function App() {
                  </div>
                ))}
              </div>
-             {!hasPersonalKey && <div className="text-center text-slate-500 text-sm mt-4">API 키를 등록하면 모든 도구를 사용할 수 있습니다.</div>}
+             {!hasPersonalKey && <div className="text-center text-slate-500 text-sm mt-4 animate-bounce">👆 먼저 위에서 API 키를 등록해주세요.</div>}
            </div>
         ) : (
           /* 관리자 전용 탭 */

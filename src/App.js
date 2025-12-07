@@ -30,7 +30,7 @@ import {
   MessageSquare, Sparkles, Award, Search, BookOpen, Quote, Download, TrendingUp, Calendar, Target, 
   Edit3, MonitorPlay, Zap, LayoutList, Split, Mic, BarChart3, Link as LinkIcon, 
   Globe, Trophy, Stethoscope, Key, AlertCircle, ExternalLink,
-  Info, ArrowRight, PenTool, Lightbulb, Users, ThumbsUp
+  Info, ArrowRight, PenTool, Lightbulb, Users, ThumbsUp, ShieldAlert, LogIn, Lock
 } from 'lucide-react';
 
 // =============================================================================
@@ -102,7 +102,7 @@ const renderText = (content) => {
   return content;
 };
 
-// [수정됨] PNG 저장 함수: 전체 높이 캡처 및 배경 잘림 방지 강화
+// PNG 저장 함수 (Wrapper 방식)
 const saveAsPng = async (elementRef, fileName, showToast) => {
   if (!elementRef.current) return;
   
@@ -119,23 +119,22 @@ const saveAsPng = async (elementRef, fileName, showToast) => {
 
     const originalElement = elementRef.current;
     const width = originalElement.offsetWidth;
-    // 여기서는 높이를 미리 확정하지 않고 복제 후 측정합니다.
 
-    // 1. 캡처용 컨테이너 생성
-    // 화면 밖(-9999px)이 아닌, 현재 뷰포트 뒤쪽(z-index: -9999)에 배치하여 렌더링 누락 방지
     const container = document.createElement('div');
     container.style.position = 'absolute';
-    container.style.top = `${window.scrollY}px`; // 현재 스크롤 위치에 맞춤
+    container.style.top = `${window.scrollY}px`;
     container.style.left = '0';
     container.style.width = `${width}px`;
-    container.style.zIndex = '-9999'; 
-    container.style.backgroundColor = '#ffffff'; // 배경 흰색 강제
+    container.style.zIndex = '-9999';
+    container.style.backgroundColor = '#ffffff'; 
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column';
     container.style.overflow = 'visible';
-    
-    // 2. 요소 복제
+
+    document.body.appendChild(container);
+
     const clone = originalElement.cloneNode(true);
     
-    // 복제본 스타일 강제 리셋 (전체 펼치기)
     clone.style.cssText = `
       height: auto !important;
       max-height: none !important;
@@ -146,39 +145,32 @@ const saveAsPng = async (elementRef, fileName, showToast) => {
       transform: none !important;
       box-shadow: none !important;
       border-radius: 0 !important;
-      background-color: white !important; /* 배경색 명시 */
+      background-color: transparent !important;
     `;
     
     container.appendChild(clone);
-    document.body.appendChild(container);
 
-    // 3. 렌더링 안정화 대기
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // 4. 실제 콘텐츠 높이 측정 (스크롤 포함 전체 높이)
     const fullHeight = container.scrollHeight;
-    
-    // 컨테이너 높이를 콘텐츠 전체 높이로 설정
     container.style.height = `${fullHeight}px`;
 
-    // 5. 캡처 실행
     const canvas = await window.html2canvas(container, {
-      scale: 2, // 고해상도
+      scale: 2, 
       useCORS: true,
       logging: false,
       allowTaint: true,
       backgroundColor: '#ffffff',
       width: width,
-      height: fullHeight + 50, // 여유분 추가
+      height: fullHeight,
       windowWidth: width,
-      windowHeight: fullHeight + 100, // 가상 창 높이를 충분히 확보
+      windowHeight: fullHeight + 100,
       x: 0,
-      y: window.scrollY, // 현재 스크롤 위치 기준 캡처
+      y: window.scrollY,
       scrollX: 0,
       scrollY: 0
     });
     
-    // 6. 정리
     document.body.removeChild(container);
     
     const link = document.createElement('a');
@@ -192,29 +184,17 @@ const saveAsPng = async (elementRef, fileName, showToast) => {
   }
 };
 
-// API 키 관리 로직: DB 우선 조회
+// [수정됨] AI 키 관리 로직: 공용 키 사용 금지 -> 개인 키 필수
 const fetchGemini = async (prompt) => {
-  // 1. 브라우저 저장소 확인 (개발자 오버라이드용)
+  // 브라우저 저장소에서 개인 키 확인
   let apiKey = localStorage.getItem("custom_gemini_key");
 
-  // 2. 없으면 Firestore에서 공용 키 조회
+  // [중요] 키가 없으면 에러 발생 (공용 키 로직 삭제됨)
   if (!apiKey) {
-    try {
-      const docRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'system_config');
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists() && docSnap.data().shared_api_key) {
-        apiKey = docSnap.data().shared_api_key;
-      }
-    } catch (dbError) {
-      console.error("DB Key Fetch Error:", dbError);
-    }
-  }
-
-  if (!apiKey) {
-    throw new Error("시스템에 AI 키가 설정되지 않았습니다. 관리자에게 문의하세요.");
+    throw new Error("🚨 API 키가 없습니다. [대시보드] 상단에서 본인의 Google API 키를 먼저 등록해주세요.");
   }
   
-  const models = ["gemini-2.5-flash-preview-09-2025", "gemini-2.5-pro"];
+  const models = ["gemini-2.5-flash-preview-09-2025", "gemini-2.5-pro", "gemini-1.5-flash"];
   let lastError = null;
 
   const jsonInstruction = `
@@ -240,7 +220,11 @@ const fetchGemini = async (prompt) => {
 
       if (!response.ok) {
         const errData = await response.json();
-        if (response.status === 404) continue; 
+        // 429: Quota Exceeded (사용량 초과) 시 다음 모델 시도
+        if (response.status === 404 || response.status === 429) {
+          console.warn(`Model ${model} failed (Status ${response.status}): moving to next model.`);
+          continue; 
+        }
         throw new Error(errData.error?.message || `HTTP Error ${response.status}`);
       }
 
@@ -250,7 +234,7 @@ const fetchGemini = async (prompt) => {
       const parsed = safeJsonParse(text);
       if (!parsed) {
         console.warn("JSON 파싱 실패, 텍스트 원본:", text);
-        throw new Error("AI 응답을 처리할 수 없습니다. (JSON 형식 오류)");
+        continue;
       }
       return parsed;
       
@@ -260,7 +244,7 @@ const fetchGemini = async (prompt) => {
       if (e.message.includes("API key")) throw e; 
     }
   }
-  throw lastError || new Error("AI 모델 연결에 실패했습니다.");
+  throw lastError || new Error("AI 모델 연결에 실패했습니다. (개인 키를 확인하거나 잠시 후 다시 시도하세요)");
 };
 
 const EditableContent = ({ value, onSave, className }) => {
@@ -302,7 +286,10 @@ const COLOR_VARIANTS = {
   orange: "bg-orange-100 text-orange-600",
 };
 
-// 기업분석 앱
+// ... (Sub Apps code is same as before, omitted for brevity but assumed included in full file) ...
+// (Since the prompt asks to update the file, I must include the full code to be safe, but I will focus on the App component changes and keeping sub-apps intact.)
+// For brevity, I will paste the sub-apps code again to ensure the file is complete and runnable.
+
 function CompanyAnalysisApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', url: '', job: '' });
   const [result, setResult] = useState(null);
@@ -1066,6 +1053,7 @@ export default function App() {
   const [newExpertName, setNewExpertName] = useState(''); 
   const [currentApp, setCurrentApp] = useState('none');
   const [customKey, setCustomKey] = useState(localStorage.getItem("custom_gemini_key") || "");
+  const [hasPersonalKey, setHasPersonalKey] = useState(!!localStorage.getItem("custom_gemini_key")); // New state to track saving
   const [toastMsg, setToastMsg] = useState(null);
 
   const showToast = (msg) => setToastMsg(msg);
@@ -1074,18 +1062,16 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (u) {
         setUser(u);
-        if (u.uid === OWNER_UID) setRole('owner');
-        else {
+        if (u.uid === OWNER_UID) {
+            setRole('owner');
+        } else {
           const q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts'), where('email', '==', u.email));
           const s = await getDocs(q);
           if (!s.empty) {
             setRole('expert');
-            // 전문가 인증 시 등록된 이름 가져와서 저장
             const expertDoc = s.docs[0];
             const expertData = expertDoc.data();
-            if (expertData.displayName) {
-              setExpertName(expertData.displayName);
-            }
+            if (expertData.displayName) setExpertName(expertData.displayName);
 
             s.docs.forEach(async (docSnapshot) => {
               if (docSnapshot.data().uid !== u.uid) {
@@ -1116,14 +1102,23 @@ export default function App() {
     return () => unsub();
   }, [role]);
 
-  const handleSaveKey = () => {
+  // 개인 키 저장 (LocalStorage)
+  const handleSavePersonalKey = () => {
     if (!customKey.startsWith("AIza")) {
-      showToast("올바른 Google API Key 형식이 아닙니다 (AIza로 시작해야 함).");
+      showToast("올바른 Google API Key 형식이 아닙니다.");
       return;
     }
     localStorage.setItem("custom_gemini_key", customKey);
-    showToast("API 키가 저장되었습니다. 이제 AI 기능을 다시 시도해보세요!");
+    setHasPersonalKey(true);
+    showToast("개인 API 키가 저장되었습니다. (내 브라우저에만 저장됨)");
   };
+
+  const handleRemovePersonalKey = () => {
+      localStorage.removeItem("custom_gemini_key");
+      setCustomKey("");
+      setHasPersonalKey(false);
+      showToast("개인 API 키가 삭제되었습니다. AI 기능을 사용하려면 키를 다시 등록해야 합니다.");
+  }
 
   const handleAddExpert = async (e) => {
     e.preventDefault();
@@ -1162,6 +1157,8 @@ export default function App() {
         <div className="p-6 border-b border-slate-700 font-bold text-xl flex items-center gap-2"><LayoutDashboard className="text-indigo-400"/> Career Vitamin</div>
         <nav className="flex-1 p-4 space-y-2">
           <button onClick={()=>setActiveTab('dashboard')} className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-colors ${activeTab==='dashboard'?'bg-indigo-600 text-white':'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><LayoutDashboard size={18}/> 대시보드</button>
+          {/* 관리자 탭 대신 대시보드 하단에 설정 기능 통합 (권한별 노출) */}
+          {role === 'owner' && <div className="px-4 py-2 text-xs text-slate-500 uppercase font-bold mt-4">Admin Only</div>}
           {role === 'owner' && <button onClick={()=>setActiveTab('admin')} className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-colors ${activeTab==='admin'?'bg-indigo-600 text-white':'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Settings size={18}/> 시스템 관리</button>}
         </nav>
         <div className="p-4 border-t border-slate-700">
@@ -1170,43 +1167,92 @@ export default function App() {
             ({role === 'owner' ? '관리자' : '전문가'})
           </div>
           <button onClick={()=>signOut(auth)} className="w-full border border-slate-600 text-slate-400 py-2 rounded hover:bg-slate-800 hover:text-white transition-colors flex items-center justify-center gap-2"><LogOut size={16}/> 로그아웃</button>
-          <div className="mt-4 text-xs text-center text-slate-600 opacity-50">v7.2 (Toast Updated)</div>
+          <div className="mt-4 text-xs text-center text-slate-600 opacity-50">v7.4 (BYOK Only)</div>
         </div>
       </aside>
       
       <main className="flex-1 p-8 overflow-y-auto">
         {activeTab === 'dashboard' ? (
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-             {Object.entries(SERVICES).map(([key, svc]) => (
-               <div key={key} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md border border-slate-200 transition-all group cursor-pointer" onClick={() => {
-                   if(svc.internal) setCurrentApp(key);
-                   else window.open(svc.link, '_blank');
-                 }}>
-                 <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${COLOR_VARIANTS[svc.color]} group-hover:scale-110 transition-transform`}>
-                   <svc.icon size={24} color={svc.color === 'black' ? '#000' : undefined} /> 
+           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
+             {/* 1. 개인 API 키 설정 (모든 사용자) */}
+             <div className="bg-white p-6 rounded-xl shadow-sm border border-indigo-100">
+                <div className="flex justify-between items-start mb-4">
+                    <div>
+                        <h2 className="text-lg font-bold flex items-center gap-2 text-indigo-900">
+                            <Key className="text-indigo-500" size={20}/> 
+                            AI 모델 설정 (API Key)
+                        </h2>
+                        <p className="text-sm text-slate-500 mt-1">
+                            AI 콘텐츠 생성을 위한 핵심 열쇠입니다.
+                        </p>
+                    </div>
+                    <div className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${hasPersonalKey ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {hasPersonalKey ? <Check size={12}/> : <Lock size={12}/>}
+                        {hasPersonalKey ? "API 키 등록 완료" : "API 키 필요"}
+                    </div>
+                </div>
+
+                <div className="bg-slate-50 p-5 rounded-lg mb-6 text-sm text-slate-700 leading-relaxed border border-slate-200">
+                    <h4 className="font-bold text-slate-900 mb-2 flex items-center gap-2">
+                        <Lightbulb size={16} className="text-yellow-500"/> 개인 키가 필요한 이유
+                    </h4>
+                    <ul className="list-disc list-inside space-y-1 ml-1 text-slate-600 mb-3">
+                        <li>서비스 안정성을 위해 <strong>1인 1키 정책</strong>을 운영하고 있습니다.</li>
+                        <li>Google Gemini API는 개인에게 넉넉한 <strong>무료 사용량</strong>을 제공합니다.</li>
+                        <li>키는 서버에 저장되지 않고, 오직 <strong>현재 브라우저에만 저장</strong>되어 안전합니다.</li>
+                    </ul>
+                    <a 
+                        href="https://aistudio.google.com/app/apikey" 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-lg text-indigo-600 font-bold hover:bg-indigo-50 transition-colors shadow-sm text-xs"
+                    >
+                        🔑 Google AI Studio에서 무료 키 발급받기 <ExternalLink size={12}/>
+                    </a>
+                </div>
+
+                <div className="flex gap-2">
+                  <input 
+                    type="password" 
+                    value={customKey} 
+                    onChange={e=>setCustomKey(e.target.value)} 
+                    className={`flex-1 p-3 border rounded-lg focus:ring-2 outline-none transition-all ${hasPersonalKey ? 'border-green-300 bg-green-50' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'}`}
+                    placeholder={hasPersonalKey ? "API 키가 등록되어 있습니다." : "AIza로 시작하는 키를 입력하세요"} 
+                    disabled={hasPersonalKey}
+                  />
+                  {!hasPersonalKey ? (
+                    <button onClick={handleSavePersonalKey} className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors shadow-md shrink-0">등록하기</button>
+                  ) : (
+                    <button onClick={handleRemovePersonalKey} className="bg-red-500 text-white px-6 py-3 rounded-lg font-bold hover:bg-red-600 transition-colors shadow-md shrink-0">삭제하기</button>
+                  )}
+                </div>
+             </div>
+
+             {/* 2. 앱 목록 */}
+             <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-opacity duration-300 ${!hasPersonalKey ? 'opacity-50 pointer-events-none' : ''}`}>
+               {Object.entries(SERVICES).map(([key, svc]) => (
+                 <div key={key} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md border border-slate-200 transition-all group cursor-pointer h-full relative" onClick={() => {
+                     if(!hasPersonalKey) return;
+                     if(svc.internal) setCurrentApp(key);
+                     else window.open(svc.link, '_blank');
+                   }}>
+                   {!hasPersonalKey && <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/50 backdrop-blur-[1px] rounded-xl"><Lock className="text-slate-400 w-8 h-8"/></div>}
+                   <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${COLOR_VARIANTS[svc.color]} group-hover:scale-110 transition-transform`}>
+                     <svc.icon size={24} color={svc.color === 'black' ? '#000' : undefined} /> 
+                   </div>
+                   <h3 className="font-bold text-lg mb-2 group-hover:text-indigo-600 transition-colors">{svc.name}</h3>
+                   <p className="text-sm text-slate-500 mb-4 h-10 line-clamp-2">{svc.desc}</p>
+                   <div className="text-xs font-bold text-indigo-500 flex items-center">
+                     {svc.internal ? '앱 실행하기' : '외부 도구 열기'} {svc.internal ? <ChevronLeft className="rotate-180 ml-1 w-4 h-4"/> : <ExternalLink className="ml-1 w-3 h-3"/>}
+                   </div>
                  </div>
-                 <h3 className="font-bold text-lg mb-2 group-hover:text-indigo-600 transition-colors">{svc.name}</h3>
-                 <p className="text-sm text-slate-500 mb-4 h-10 line-clamp-2">{svc.desc}</p>
-                 <div className="text-xs font-bold text-indigo-500 flex items-center">
-                   {svc.internal ? '앱 실행하기' : '외부 도구 열기'} {svc.internal ? <ChevronLeft className="rotate-180 ml-1 w-4 h-4"/> : <ExternalLink className="ml-1 w-3 h-3"/>}
-                 </div>
-               </div>
-             ))}
+               ))}
+             </div>
+             {!hasPersonalKey && <div className="text-center text-slate-500 text-sm mt-4">API 키를 등록하면 모든 도구를 사용할 수 있습니다.</div>}
            </div>
         ) : (
+          /* 관리자 전용 탭 */
           <div className="space-y-8 max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4">
-            <div className="bg-white p-8 rounded-xl shadow-sm border border-indigo-100">
-              <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-indigo-900"><Key className="text-indigo-500"/> AI API 키 설정</h2>
-              <div className="bg-indigo-50 p-4 rounded-lg mb-6 text-sm text-indigo-800 leading-relaxed">
-                AI 기능이 작동하지 않나요? <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="underline font-bold hover:text-indigo-600">Google AI Studio</a>에서 
-                무료 API 키를 발급받아 아래에 입력해주세요. (입력한 키는 브라우저에만 저장됩니다)
-              </div>
-              <div className="flex gap-3">
-                <input type="password" value={customKey} onChange={e=>setCustomKey(e.target.value)} className="flex-1 p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" placeholder="AIza로 시작하는 키를 입력하세요" />
-                <button onClick={handleSaveKey} className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors shadow-md">저장하기</button>
-              </div>
-            </div>
-
             <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
               <h2 className="text-xl font-bold mb-6 flex items-center gap-2"><User className="text-slate-500"/> 전문가 관리 ({experts.length}명)</h2>
               <form onSubmit={handleAddExpert} className="flex gap-3 mb-6 bg-slate-50 p-4 rounded-lg">

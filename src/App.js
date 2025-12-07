@@ -291,7 +291,7 @@ const COLOR_VARIANTS = {
   orange: "bg-orange-100 text-orange-600",
 };
 
-// ... (Sub Apps code remains the same, assuming it's part of the file.)
+// ... (Sub Apps code remains the same) ...
 
 function CompanyAnalysisApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', url: '', job: '' });
@@ -1163,7 +1163,7 @@ export default function App() {
           </div>
           <div>
             <h1 className="font-bold text-lg leading-none text-white tracking-tight">Career Vitamin</h1>
-            <p className="text-[11px] text-indigo-200 font-medium mt-1 tracking-wide opacity-80">커리어 AI 대시보드 (All-in-One)</p>
+            <p className="text-[11px] text-indigo-200 font-medium mt-1 tracking-wide opacity-80">커리어 AI 대시보드</p>
           </div>
         </div>
         <nav className="flex-1 p-4 space-y-2">
@@ -1178,7 +1178,7 @@ export default function App() {
             ({role === 'owner' ? '관리자' : '전문가'})
           </div>
           <button onClick={()=>signOut(auth)} className="w-full border border-slate-600 text-slate-400 py-2 rounded hover:bg-slate-800 hover:text-white transition-colors flex items-center justify-center gap-2"><LogOut size={16}/> 로그아웃</button>
-          <div className="mt-4 text-xs text-center text-slate-600 opacity-50">v9.3 (2.5 Stable)</div>
+          <div className="mt-4 text-xs text-center text-slate-600 opacity-50">v9.4 (Stable 2.5)</div>
         </div>
       </aside>
       

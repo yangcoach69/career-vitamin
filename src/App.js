@@ -5,9 +5,7 @@ import {
   signInWithPopup, 
   GoogleAuthProvider, 
   signOut, 
-  onAuthStateChanged,
-  signInWithCustomToken,
-  signInAnonymously
+  onAuthStateChanged
 } from "firebase/auth";
 import { 
   getFirestore, 
@@ -30,7 +28,7 @@ import {
   MessageSquare, Sparkles, Award, Search, BookOpen, Quote, Download, TrendingUp, Calendar, Target, 
   Edit3, MonitorPlay, Zap, LayoutList, Split, Mic, BarChart3, Link as LinkIcon, 
   Globe, Trophy, Stethoscope, Key, AlertCircle, ExternalLink,
-  Info, ArrowRight, PenTool, Lightbulb, Users, ThumbsUp, ShieldAlert, LogIn, Lock, FileText
+  Info, ArrowRight, PenTool, Lightbulb, Users, ThumbsUp, ShieldAlert, Lock, FileText
 } from 'lucide-react';
 
 // =============================================================================
@@ -106,7 +104,7 @@ const renderText = (content) => {
 const captureElement = async (elementRef) => {
   if (!elementRef.current) return null;
 
-  if (!window.html2canvas) {
+  if (!(window as any).html2canvas) {
     await new Promise((resolve, reject) => {
       const script = document.createElement('script');
       script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
@@ -132,7 +130,7 @@ const captureElement = async (elementRef) => {
 
   document.body.appendChild(container);
 
-  const clone = originalElement.cloneNode(true);
+  const clone = originalElement.cloneNode(true) as HTMLElement;
   
   clone.style.cssText = `
     height: auto !important;
@@ -154,7 +152,7 @@ const captureElement = async (elementRef) => {
   const fullHeight = container.scrollHeight;
   container.style.height = `${fullHeight}px`;
 
-  const canvas = await window.html2canvas(container, {
+  const canvas = await (window as any).html2canvas(container, {
     scale: 2, 
     useCORS: true,
     logging: false,
@@ -191,11 +189,11 @@ const saveAsPng = async (elementRef, fileName, showToast) => {
   }
 };
 
-// [추가됨] PDF 저장 함수 (jsPDF 사용)
+// PDF 저장 함수 (jsPDF 사용)
 const saveAsPdf = async (elementRef, fileName, showToast) => {
   try {
     // jsPDF 동적 로드
-    if (!window.jspdf) {
+    if (!(window as any).jspdf) {
       await new Promise((resolve, reject) => {
         const script = document.createElement('script');
         script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
@@ -209,7 +207,7 @@ const saveAsPdf = async (elementRef, fileName, showToast) => {
     if (!canvas) return;
 
     const imgData = canvas.toDataURL('image/png');
-    const { jsPDF } = window.jspdf;
+    const { jsPDF } = (window as any).jspdf;
     
     // 이미지 크기 기준 PDF 생성 (잘림 방지)
     const imgWidth = canvas.width;
@@ -313,7 +311,7 @@ const EditableContent = ({ value, onSave, className }) => {
   );
 };
 
-// ... (Constants) ...
+// ... (Constants & Sub Apps) ...
 const SERVICES = {
   gpt_guide: { name: "[GPT] 직업 탐색 가이드", desc: "관심 있는 직업/직무 입력 시 가이드 생성", link: "https://chatgpt.com/g/g-Uch9gJR4b-job-explorer-guide-report", internal: false, icon: Compass, color: "emerald" },
   card_bot: { name: "[노트북LM] 커리어스타일 챗봇", desc: "유료 프로그램 전용 챗봇", link: "https://notebooklm.google.com/notebook/595da4c0-fcc1-4064-82c8-9901e6dd8772", internal: false, icon: MessageSquare, color: "violet" },
@@ -433,6 +431,7 @@ function CompanyAnalysisApp({ onClose }) {
               </div>
               
               <div className="space-y-10">
+                {/* 1. 기업 개요 */}
                 <section>
                   <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center border-b-2 border-indigo-100 pb-2"><Building2 size={24} className="mr-2"/> 1. 기업 개요 및 현황</h3>
                   <div className="space-y-4">
@@ -461,6 +460,7 @@ function CompanyAnalysisApp({ onClose }) {
                   </div>
                 </section>
 
+                {/* 2. 주요 사업 및 SWOT */}
                 <section>
                   <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center border-b-2 border-indigo-100 pb-2"><BarChart3 size={24} className="mr-2"/> 2. 주요 사업 & SWOT</h3>
                   <div className="mb-6">
@@ -480,6 +480,7 @@ function CompanyAnalysisApp({ onClose }) {
                   </div>
                 </section>
 
+                {/* 3. 산업 동향 & 경쟁 우위 */}
                 <section>
                    <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center border-b-2 border-indigo-100 pb-2"><Globe size={24} className="mr-2"/> 3. 시장 및 경쟁 분석</h3>
                    <div className="space-y-4">
@@ -494,6 +495,7 @@ function CompanyAnalysisApp({ onClose }) {
                    </div>
                 </section>
 
+                {/* 4. 취업 전략 */}
                 <section>
                    <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center border-b-2 border-indigo-100 pb-2"><Target size={24} className="mr-2"/> 4. 지원자 취업 전략</h3>
                    <div className="bg-slate-800 p-6 rounded-xl shadow-lg text-white">
@@ -602,7 +604,12 @@ function CareerRoadmapApp({ onClose }) {
             </div>
           ) : <div className="flex flex-col items-center justify-center h-full text-slate-400"><TrendingUp size={64} className="mb-4 opacity-20"/><p>커리어 목표를 입력하세요.</p></div>}
         </main>
-        {roadmapData && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
+        {roadmapData && (
+            <div className="absolute bottom-8 right-8 flex gap-2 z-50">
+                <button onClick={handleDownloadPdf} className="bg-red-600 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform active:scale-95"><FileText className="mr-2" size={20}/> PDF 저장</button>
+                <button onClick={handleDownloadPng} className="bg-slate-900 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform active:scale-95"><Download className="mr-2" size={20}/> 이미지 저장</button>
+            </div>
+        )}
       </div>
     </div>
   );
@@ -823,7 +830,12 @@ function SituationInterviewApp({ onClose }) {
           <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-teal-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"답변 생성"}</button>
         </div></aside>
         <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{result ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] h-fit bg-white shadow-lg p-10 flex flex-col animate-in fade-in zoom-in-95 duration-500"><h2 className="text-3xl font-extrabold mb-6 text-slate-900 border-b-2 border-teal-500 pb-4">상황면접 가이드</h2><div className="space-y-6"> <div className="bg-slate-50 p-6 rounded-xl border mb-8"><h3 className="font-bold text-slate-500 text-xs mb-2 tracking-widest">QUESTION</h3><p className="font-bold text-xl text-slate-800">"{inputs.question}"</p></div><div className="grid grid-cols-1 gap-8"><div className="border-l-4 border-teal-500 pl-6 py-2"><EditableContent className="font-bold text-teal-800 text-xl mb-3" value={result.situation_a?.title} onSave={(v)=>handleEdit('situation_a', 'title', v)} /><EditableContent className="text-slate-600 leading-relaxed text-lg" value={result.situation_a?.content} onSave={(v)=>handleEdit('situation_a', 'content', v)} /></div><div className="border-l-4 border-slate-400 pl-6 py-2"><EditableContent className="font-bold text-slate-700 text-xl mb-3" value={result.situation_b?.title} onSave={(v)=>handleEdit('situation_b', 'title', v)} /><EditableContent className="text-slate-600 leading-relaxed text-lg" value={result.situation_b?.content} onSave={(v)=>handleEdit('situation_b', 'content', v)} /></div></div><div className="mt-8 bg-teal-50 p-6 rounded-xl border border-teal-100 text-teal-900 text-base font-medium">💡 Advice: <EditableContent className="mt-2" value={result.advice} onSave={(v)=>handleEdit('advice', null, v)} /></div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><Split className="w-4 h-4 mr-1 text-teal-500" /><span>Career Vitamin</span></div><span>AI-Powered Situation Guide</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Split size={64} className="mb-4 opacity-20"/><p>질문을 입력하면 답변이 생성됩니다.</p></div>}</main>
-        {result && <button onClick={handleDownloadPng} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
+        {result && (
+            <div className="absolute bottom-8 right-8 flex gap-2 z-50">
+                <button onClick={handleDownloadPdf} className="bg-red-600 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform active:scale-95"><FileText className="mr-2" size={20}/> PDF 저장</button>
+                <button onClick={handleDownloadPng} className="bg-slate-900 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform active:scale-95"><Download className="mr-2" size={20}/> 이미지 저장</button>
+            </div>
+        )}
       </div>
     </div>
   );

@@ -30,7 +30,7 @@ import {
   MessageSquare, Sparkles, Award, Search, BookOpen, Quote, Download, TrendingUp, Calendar, Target, 
   Edit3, MonitorPlay, Zap, LayoutList, Split, Mic, BarChart3, Link as LinkIcon, 
   Globe, Trophy, Stethoscope, Key, AlertCircle, ExternalLink,
-  Info, ArrowRight, PenTool, Lightbulb, Users, ThumbsUp, ShieldAlert, LogIn, Lock, ClipboardList
+  Info, ArrowRight, PenTool, Lightbulb, Users, ThumbsUp, ShieldAlert, LogIn, Lock, FileText
 } from 'lucide-react';
 
 // =============================================================================
@@ -102,77 +102,84 @@ const renderText = (content) => {
   return content;
 };
 
-// PNG 저장 함수 (Wrapper 방식)
-const saveAsPng = async (elementRef, fileName, showToast) => {
-  if (!elementRef.current) return;
-  
-  try {
-    if (!window.html2canvas) {
-      await new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-        script.onload = resolve;
-        script.onerror = reject;
-        document.head.appendChild(script);
-      });
-    }
+// 공통 캡처 함수 (html2canvas)
+const captureElement = async (elementRef) => {
+  if (!elementRef.current) return null;
 
-    const originalElement = elementRef.current;
-    const width = originalElement.offsetWidth;
-
-    const container = document.createElement('div');
-    container.style.position = 'absolute';
-    container.style.top = `${window.scrollY}px`;
-    container.style.left = '0';
-    container.style.width = `${width}px`;
-    container.style.zIndex = '-9999';
-    container.style.backgroundColor = '#ffffff'; 
-    container.style.display = 'flex';
-    container.style.flexDirection = 'column';
-    container.style.overflow = 'visible';
-
-    document.body.appendChild(container);
-
-    const clone = originalElement.cloneNode(true);
-    
-    clone.style.cssText = `
-      height: auto !important;
-      max-height: none !important;
-      min-height: auto !important;
-      overflow: visible !important;
-      width: 100% !important;
-      margin: 0 !important;
-      transform: none !important;
-      box-shadow: none !important;
-      border-radius: 0 !important;
-      background-color: transparent !important;
-    `;
-    
-    container.appendChild(clone);
-
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    const fullHeight = container.scrollHeight;
-    container.style.height = `${fullHeight}px`;
-
-    const canvas = await window.html2canvas(container, {
-      scale: 2, 
-      useCORS: true,
-      logging: false,
-      allowTaint: true,
-      backgroundColor: '#ffffff',
-      width: width,
-      height: fullHeight,
-      windowWidth: width,
-      windowHeight: fullHeight + 100,
-      x: 0,
-      y: window.scrollY,
-      scrollX: 0,
-      scrollY: 0
+  if (!window.html2canvas) {
+    await new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
     });
-    
-    document.body.removeChild(container);
-    
+  }
+
+  const originalElement = elementRef.current;
+  const width = originalElement.offsetWidth;
+
+  const container = document.createElement('div');
+  container.style.position = 'absolute';
+  container.style.top = `${window.scrollY}px`;
+  container.style.left = '0';
+  container.style.width = `${width}px`;
+  container.style.zIndex = '-9999';
+  container.style.backgroundColor = '#ffffff'; 
+  container.style.display = 'flex';
+  container.style.flexDirection = 'column';
+  container.style.overflow = 'visible';
+
+  document.body.appendChild(container);
+
+  const clone = originalElement.cloneNode(true);
+  
+  clone.style.cssText = `
+    height: auto !important;
+    max-height: none !important;
+    min-height: auto !important;
+    overflow: visible !important;
+    width: 100% !important;
+    margin: 0 !important;
+    transform: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    background-color: transparent !important;
+  `;
+  
+  container.appendChild(clone);
+
+  await new Promise(resolve => setTimeout(resolve, 500));
+
+  const fullHeight = container.scrollHeight;
+  container.style.height = `${fullHeight}px`;
+
+  const canvas = await window.html2canvas(container, {
+    scale: 2, 
+    useCORS: true,
+    logging: false,
+    allowTaint: true,
+    backgroundColor: '#ffffff',
+    width: width,
+    height: fullHeight,
+    windowWidth: width,
+    windowHeight: fullHeight + 100,
+    x: 0,
+    y: window.scrollY,
+    scrollX: 0,
+    scrollY: 0
+  });
+  
+  document.body.removeChild(container);
+  return canvas;
+};
+
+// PNG 저장 함수
+const saveAsPng = async (elementRef, fileName, showToast) => {
+  try {
+    const canvas = await captureElement(elementRef);
+    if (!canvas) return;
+
     const link = document.createElement('a');
     link.download = `${fileName}.png`;
     link.href = canvas.toDataURL('image/png');
@@ -184,7 +191,49 @@ const saveAsPng = async (elementRef, fileName, showToast) => {
   }
 };
 
-// AI 키 관리 로직 (Retry 기능 포함)
+// [추가됨] PDF 저장 함수 (jsPDF 사용)
+const saveAsPdf = async (elementRef, fileName, showToast) => {
+  try {
+    // jsPDF 동적 로드
+    if (!window.jspdf) {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+    }
+
+    const canvas = await captureElement(elementRef);
+    if (!canvas) return;
+
+    const imgData = canvas.toDataURL('image/png');
+    const { jsPDF } = window.jspdf;
+    
+    // 이미지 크기 기준 PDF 생성 (잘림 방지)
+    const imgWidth = canvas.width;
+    const imgHeight = canvas.height;
+    
+    // 픽셀 -> mm 변환 (A4 기준 비율 유지보단 내용 전체 저장 우선)
+    // 1px = 0.264583 mm (대략적)
+    const pdfWidth = imgWidth * 0.264583;
+    const pdfHeight = imgHeight * 0.264583;
+
+    // 커스텀 크기 PDF 생성 (orientation: p=portrait, unit: mm)
+    const pdf = new jsPDF('p', 'mm', [pdfWidth, pdfHeight]);
+    
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    pdf.save(`${fileName}.pdf`);
+    
+    if(showToast) showToast("PDF가 성공적으로 저장되었습니다.");
+  } catch (error) {
+    console.error("PDF 저장 실패:", error);
+    if(showToast) showToast("PDF 저장 중 오류가 발생했습니다.");
+  }
+};
+
+// AI 키 관리 로직
 const fetchGemini = async (prompt) => {
   let apiKey = localStorage.getItem("custom_gemini_key");
 
@@ -192,7 +241,6 @@ const fetchGemini = async (prompt) => {
     throw new Error("🚨 API 키가 없습니다. [대시보드] 상단에서 본인의 Google API 키를 먼저 등록해주세요.");
   }
   
-  // 1.5-flash 우선 (안정성)
   const models = ["gemini-1.5-flash", "gemini-2.0-flash-exp", "gemini-2.5-flash-preview-09-2025"];
   let lastError = null;
 
@@ -265,9 +313,8 @@ const EditableContent = ({ value, onSave, className }) => {
   );
 };
 
-// --- Constants ---
+// ... (Constants) ...
 const SERVICES = {
-  holland_test: { name: "[GPT] 홀랜드 검사 가이드 Report", desc: "홀랜드 흥미 유형 검사 및 분석 리포트 제공", link: "https://chatgpt.com/g/g-6871bb8ebc308191ba718e387bac5105-holland-interest-test-guide-report", internal: false, icon: ClipboardList, color: "pink" },
   gpt_guide: { name: "[GPT] 직업 탐색 가이드", desc: "관심 있는 직업/직무 입력 시 가이드 생성", link: "https://chatgpt.com/g/g-Uch9gJR4b-job-explorer-guide-report", internal: false, icon: Compass, color: "emerald" },
   card_bot: { name: "[노트북LM] 커리어스타일 챗봇", desc: "유료 프로그램 전용 챗봇", link: "https://notebooklm.google.com/notebook/595da4c0-fcc1-4064-82c8-9901e6dd8772", internal: false, icon: MessageSquare, color: "violet" },
   rubric_clinic: { name: "[Gem] 자소서 코칭 클리닉", desc: "유료 워크숍 전용", link: "https://gemini.google.com/gem/1jXo4wyUvzepwmP_diVl-FQzg05EkexIg?usp=sharing", internal: false, icon: Stethoscope, color: "cyan" },
@@ -290,10 +337,9 @@ const COLOR_VARIANTS = {
   teal: "bg-teal-100 text-teal-600",
   purple: "bg-purple-100 text-purple-600",
   orange: "bg-orange-100 text-orange-600",
-  pink: "bg-pink-100 text-pink-600",
 };
 
-// ... (Sub Apps code remains the same) ...
+// ... (Sub Apps with PDF Button) ...
 
 function CompanyAnalysisApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', url: '', job: '' });
@@ -357,7 +403,8 @@ function CompanyAnalysisApp({ onClose }) {
     });
   };
 
-  const handleDownload = () => saveAsPng(reportRef, `기업분석_${inputs.company}`, showToast);
+  const handleDownloadPng = () => saveAsPng(reportRef, `기업분석_${inputs.company}`, showToast);
+  const handleDownloadPdf = () => saveAsPdf(reportRef, `기업분석_${inputs.company}`, showToast);
   
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
@@ -386,7 +433,6 @@ function CompanyAnalysisApp({ onClose }) {
               </div>
               
               <div className="space-y-10">
-                {/* 1. 기업 개요 */}
                 <section>
                   <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center border-b-2 border-indigo-100 pb-2"><Building2 size={24} className="mr-2"/> 1. 기업 개요 및 현황</h3>
                   <div className="space-y-4">
@@ -415,7 +461,6 @@ function CompanyAnalysisApp({ onClose }) {
                   </div>
                 </section>
 
-                {/* 2. 주요 사업 및 SWOT */}
                 <section>
                   <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center border-b-2 border-indigo-100 pb-2"><BarChart3 size={24} className="mr-2"/> 2. 주요 사업 & SWOT</h3>
                   <div className="mb-6">
@@ -435,7 +480,6 @@ function CompanyAnalysisApp({ onClose }) {
                   </div>
                 </section>
 
-                {/* 3. 산업 동향 & 경쟁 우위 */}
                 <section>
                    <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center border-b-2 border-indigo-100 pb-2"><Globe size={24} className="mr-2"/> 3. 시장 및 경쟁 분석</h3>
                    <div className="space-y-4">
@@ -450,7 +494,6 @@ function CompanyAnalysisApp({ onClose }) {
                    </div>
                 </section>
 
-                {/* 4. 취업 전략 */}
                 <section>
                    <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center border-b-2 border-indigo-100 pb-2"><Target size={24} className="mr-2"/> 4. 지원자 취업 전략</h3>
                    <div className="bg-slate-800 p-6 rounded-xl shadow-lg text-white">
@@ -466,7 +509,12 @@ function CompanyAnalysisApp({ onClose }) {
             </div>
           ) : <div className="flex flex-col items-center justify-center h-full text-slate-400"><BarChart3 size={64} className="mb-4 opacity-20"/><p>정보를 입력하고 분석을 시작하세요.</p></div>}
         </main>
-        {result && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
+        {result && (
+            <div className="absolute bottom-8 right-8 flex gap-2 z-50">
+                <button onClick={handleDownloadPdf} className="bg-red-600 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform active:scale-95"><FileText className="mr-2" size={20}/> PDF 저장</button>
+                <button onClick={handleDownloadPng} className="bg-slate-900 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform active:scale-95"><Download className="mr-2" size={20}/> 이미지 저장</button>
+            </div>
+        )}
       </div>
     </div>
   );
@@ -500,7 +548,8 @@ function CareerRoadmapApp({ onClose }) {
     });
   };
 
-  const handleDownload = () => saveAsPng(reportRef, `커리어로드맵_${inputs.company}`, showToast);
+  const handleDownloadPng = () => saveAsPng(reportRef, `커리어로드맵_${inputs.company}`, showToast);
+  const handleDownloadPdf = () => saveAsPdf(reportRef, `커리어로드맵_${inputs.company}`, showToast);
   
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
@@ -622,7 +671,8 @@ function PtInterviewApp({ onClose }) {
   };
   
   const handleEditScript = (key, value) => setScript(prev => ({ ...prev, [key]: value }));
-  const handleDownload = () => saveAsPng(reportRef, `PT면접_${inputs.company}`, showToast);
+  const handleDownloadPng = () => saveAsPng(reportRef, `PT면접_${inputs.company}`, showToast);
+  const handleDownloadPdf = () => saveAsPdf(reportRef, `PT면접_${inputs.company}`, showToast);
 
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
@@ -718,7 +768,12 @@ function PtInterviewApp({ onClose }) {
              </div>
            )}
         </main>
-        {script && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
+        {script && (
+            <div className="absolute bottom-8 right-8 flex gap-2 z-50">
+                <button onClick={handleDownloadPdf} className="bg-red-600 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform active:scale-95"><FileText className="mr-2" size={20}/> PDF 저장</button>
+                <button onClick={handleDownloadPng} className="bg-slate-900 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform active:scale-95"><Download className="mr-2" size={20}/> 이미지 저장</button>
+            </div>
+        )}
       </div>
     </div>
   );
@@ -750,7 +805,8 @@ function SituationInterviewApp({ onClose }) {
     });
   };
 
-  const handleDownload = () => saveAsPng(reportRef, `상황면접`, showToast);
+  const handleDownloadPng = () => saveAsPng(reportRef, `상황면접`, showToast);
+  const handleDownloadPdf = () => saveAsPdf(reportRef, `상황면접`, showToast);
   
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
@@ -767,7 +823,7 @@ function SituationInterviewApp({ onClose }) {
           <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-teal-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"답변 생성"}</button>
         </div></aside>
         <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{result ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] h-fit bg-white shadow-lg p-10 flex flex-col animate-in fade-in zoom-in-95 duration-500"><h2 className="text-3xl font-extrabold mb-6 text-slate-900 border-b-2 border-teal-500 pb-4">상황면접 가이드</h2><div className="space-y-6"> <div className="bg-slate-50 p-6 rounded-xl border mb-8"><h3 className="font-bold text-slate-500 text-xs mb-2 tracking-widest">QUESTION</h3><p className="font-bold text-xl text-slate-800">"{inputs.question}"</p></div><div className="grid grid-cols-1 gap-8"><div className="border-l-4 border-teal-500 pl-6 py-2"><EditableContent className="font-bold text-teal-800 text-xl mb-3" value={result.situation_a?.title} onSave={(v)=>handleEdit('situation_a', 'title', v)} /><EditableContent className="text-slate-600 leading-relaxed text-lg" value={result.situation_a?.content} onSave={(v)=>handleEdit('situation_a', 'content', v)} /></div><div className="border-l-4 border-slate-400 pl-6 py-2"><EditableContent className="font-bold text-slate-700 text-xl mb-3" value={result.situation_b?.title} onSave={(v)=>handleEdit('situation_b', 'title', v)} /><EditableContent className="text-slate-600 leading-relaxed text-lg" value={result.situation_b?.content} onSave={(v)=>handleEdit('situation_b', 'content', v)} /></div></div><div className="mt-8 bg-teal-50 p-6 rounded-xl border border-teal-100 text-teal-900 text-base font-medium">💡 Advice: <EditableContent className="mt-2" value={result.advice} onSave={(v)=>handleEdit('advice', null, v)} /></div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><Split className="w-4 h-4 mr-1 text-teal-500" /><span>Career Vitamin</span></div><span>AI-Powered Situation Guide</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Split size={64} className="mb-4 opacity-20"/><p>질문을 입력하면 답변이 생성됩니다.</p></div>}</main>
-        {result && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
+        {result && <button onClick={handleDownloadPng} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
       </div>
     </div>
   );
@@ -793,7 +849,8 @@ function SelfIntroApp({ onClose }) {
   };
   
   const handleEdit = (key, value) => setScript(prev => ({ ...prev, [key]: value }));
-  const handleDownload = () => saveAsPng(reportRef, `자기소개_${inputs.company}`, showToast);
+  const handleDownloadPng = () => saveAsPng(reportRef, `자기소개_${inputs.company}`, showToast);
+  const handleDownloadPdf = () => saveAsPdf(reportRef, `자기소개_${inputs.company}`, showToast);
   
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
@@ -818,7 +875,12 @@ function SelfIntroApp({ onClose }) {
           <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-purple-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"스크립트 생성"}</button>
         </div></aside>
         <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{script ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] h-fit bg-white shadow-lg p-10 flex flex-col animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-purple-600 pb-6 text-center"><span className="text-purple-600 font-bold text-sm tracking-widest block mb-2">1-MINUTE SPEECH</span><EditableContent className="text-3xl font-extrabold text-slate-900 text-center" value={script.slogan} onSave={(v)=>handleEdit('slogan', v)} /></div><div className="space-y-8 mt-8"> <div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-4 uppercase">Opening</div><div className="flex-1 bg-purple-50 p-6 rounded-2xl text-xl font-bold text-slate-800 shadow-sm"><EditableContent value={script.opening} onSave={(v)=>handleEdit('opening', v)} /></div></div><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-1 uppercase">Body</div><div className="flex-1 text-slate-700 leading-loose pl-6 border-l-2 border-purple-200 text-lg"><EditableContent value={script.body} onSave={(v)=>handleEdit('body', v)} /></div></div><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-4 uppercase">Closing</div><div className="flex-1 bg-slate-50 p-6 rounded-2xl font-medium text-slate-800 text-lg"><EditableContent value={script.closing} onSave={(v)=>handleEdit('closing', v)} /></div></div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><Mic className="w-4 h-4 mr-1 text-purple-500" /><span>Career Vitamin</span></div><span>AI-Generated Speech Script</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Mic size={64} className="mb-4 opacity-20"/><p>정보를 입력하면 스크립트가 생성됩니다.</p></div>}</main>
-        {script && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
+        {script && (
+            <div className="absolute bottom-8 right-8 flex gap-2 z-50">
+                <button onClick={handleDownloadPdf} className="bg-red-600 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform active:scale-95"><FileText className="mr-2" size={20}/> PDF 저장</button>
+                <button onClick={handleDownloadPng} className="bg-slate-900 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform active:scale-95"><Download className="mr-2" size={20}/> 이미지 저장</button>
+            </div>
+        )}
       </div>
     </div>
   );
@@ -844,7 +906,8 @@ function ExperienceStructuringApp({ onClose }) {
   };
   
   const handleEdit = (key, value) => setStarData(prev => ({ ...prev, [key]: value }));
-  const handleDownload = () => saveAsPng(reportRef, `STAR_${inputs.keyword}`, showToast);
+  const handleDownloadPng = () => saveAsPng(reportRef, `STAR_${inputs.keyword}`, showToast);
+  const handleDownloadPdf = () => saveAsPdf(reportRef, `STAR_${inputs.keyword}`, showToast);
   
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
@@ -865,7 +928,12 @@ function ExperienceStructuringApp({ onClose }) {
           <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"구조화 실행"}</button>
         </div></aside>
         <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{starData.s ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] h-fit bg-white shadow-lg p-10 space-y-6 animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-indigo-600 pb-6 mb-6"><h1 className="text-4xl font-extrabold text-slate-900">STAR Analysis</h1><p className="text-slate-500 mt-2 text-lg">경험 구조화 워크시트</p></div><div className="space-y-6"> <div className="bg-slate-50 p-6 rounded-2xl border-l-8 border-slate-400"><h3 className="font-bold text-slate-500 mb-2 text-sm tracking-widest">SITUATION</h3><EditableContent className="text-slate-800 text-lg leading-relaxed" value={starData.s} onSave={(v)=>handleEdit('s', v)} /></div><div className="bg-slate-50 p-6 rounded-2xl border-l-8 border-slate-500"><h3 className="font-bold text-slate-500 mb-2 text-sm tracking-widest">TASK</h3><EditableContent className="text-slate-800 text-lg leading-relaxed" value={starData.t} onSave={(v)=>handleEdit('t', v)} /></div><div className="bg-white border-2 border-indigo-100 p-6 rounded-2xl shadow-sm"><h3 className="font-bold text-indigo-600 mb-2 text-sm tracking-widest">ACTION</h3><EditableContent className="text-slate-800 font-medium text-lg leading-relaxed" value={starData.a} onSave={(v)=>handleEdit('a', v)} /></div><div className="bg-indigo-50 p-6 rounded-2xl border-l-8 border-indigo-600"><h3 className="font-bold text-indigo-800 mb-2 text-sm tracking-widest">RESULT</h3><EditableContent className="text-slate-800 font-bold text-lg leading-relaxed" value={starData.r} onSave={(v)=>handleEdit('r', v)} /></div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><LayoutList className="w-4 h-4 mr-1 text-indigo-500" /><span>Career Vitamin</span></div><span>AI-Powered STAR Analysis</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><LayoutList size={64} className="mb-4 opacity-20"/><p>경험을 입력하면 STAR 기법으로 구조화합니다.</p></div>}</main>
-        {starData.s && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
+        {starData.s && (
+            <div className="absolute bottom-8 right-8 flex gap-2 z-50">
+                <button onClick={handleDownloadPdf} className="bg-red-600 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform active:scale-95"><FileText className="mr-2" size={20}/> PDF 저장</button>
+                <button onClick={handleDownloadPng} className="bg-slate-900 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform active:scale-95"><Download className="mr-2" size={20}/> 이미지 저장</button>
+            </div>
+        )}
       </div>
     </div>
   );
@@ -909,7 +977,8 @@ function RoleModelGuideApp({ onClose }) {
   };
 
   const handleEdit = (key, value) => setResult(prev => ({ ...prev, [key]: value }));
-  const handleDownload = () => saveAsPng(reportRef, `롤모델_${result?.name || inputs.name}`, showToast);
+  const handleDownloadPng = () => saveAsPng(reportRef, `롤모델_${result?.name || inputs.name}`, showToast);
+  const handleDownloadPdf = () => saveAsPdf(reportRef, `롤모델_${result?.name || inputs.name}`, showToast);
   
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
@@ -989,7 +1058,12 @@ function RoleModelGuideApp({ onClose }) {
             </div>
           )}
         </main>
-        {result && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
+        {result && (
+            <div className="absolute bottom-8 right-8 flex gap-2 z-50">
+                <button onClick={handleDownloadPdf} className="bg-red-600 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform active:scale-95"><FileText className="mr-2" size={20}/> PDF 저장</button>
+                <button onClick={handleDownloadPng} className="bg-slate-900 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform active:scale-95"><Download className="mr-2" size={20}/> 이미지 저장</button>
+            </div>
+        )}
       </div>
     </div>
   );
@@ -1006,7 +1080,8 @@ function SelfDiscoveryMapApp({ onClose }) {
   const showToast = (msg) => setToastMsg(msg);
   const addKeyword = (e) => { if (e.key === 'Enter' && currentKeyword.trim()) { setKeywords([...keywords, { id: Date.now(), text: currentKeyword.trim(), type: keywordType }]); setCurrentKeyword(''); } };
   const removeKeyword = (id) => setKeywords(keywords.filter(k => k.id !== id));
-  const handleDownload = () => saveAsPng(reportRef, `지도_${profile.name}`, showToast);
+  const handleDownloadPng = () => saveAsPng(reportRef, `지도_${profile.name}`, showToast);
+  const handleDownloadPdf = () => saveAsPdf(reportRef, `지도_${profile.name}`, showToast);
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
       {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
@@ -1040,7 +1115,10 @@ function SelfDiscoveryMapApp({ onClose }) {
              <div className="mt-auto pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400"><span>Powered by Career Vitamin</span><span>Confidential Report</span></div>
           </div>
         </main>
-        <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>
+        <div className="absolute bottom-8 right-8 flex gap-2 z-50">
+            <button onClick={handleDownloadPdf} className="bg-red-600 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform active:scale-95"><FileText className="mr-2" size={20}/> PDF 저장</button>
+            <button onClick={handleDownloadPng} className="bg-slate-900 text-white px-5 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform active:scale-95"><Download className="mr-2" size={20}/> 이미지 저장</button>
+        </div>
       </div>
     </div>
   );
@@ -1165,6 +1243,7 @@ export default function App() {
           </div>
           <div>
             <h1 className="font-bold text-lg leading-none text-white tracking-tight">Career Vitamin</h1>
+            {/* [수정됨] 서브 타이틀 변경 */}
             <p className="text-[11px] text-indigo-200 font-medium mt-1 tracking-wide opacity-80">커리어 AI 대시보드</p>
           </div>
         </div>
@@ -1180,7 +1259,7 @@ export default function App() {
             ({role === 'owner' ? '관리자' : '전문가'})
           </div>
           <button onClick={()=>signOut(auth)} className="w-full border border-slate-600 text-slate-400 py-2 rounded hover:bg-slate-800 hover:text-white transition-colors flex items-center justify-center gap-2"><LogOut size={16}/> 로그아웃</button>
-          <div className="mt-4 text-xs text-center text-slate-600 opacity-50">v9.5 (Stable 2.5)</div>
+          <div className="mt-4 text-xs text-center text-slate-600 opacity-50">v9.7 (Final Stable)</div>
         </div>
       </aside>
       

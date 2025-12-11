@@ -24,7 +24,7 @@ import {
   getDoc
 } from "firebase/firestore";
 import { 
-  LayoutDashboard, Map, Building2, LogOut, Plus, Trash2, 
+  LayoutDashboard, Building2, LogOut, Plus, Trash2, 
   Settings, Loader2, RefreshCw, Check, 
   User, Hash, Star, X, ChevronLeft, Compass, 
   MessageSquare, Sparkles, Award, Search, BookOpen, Quote, Download, TrendingUp, Calendar, Target, 
@@ -267,17 +267,20 @@ const EditableContent = ({ value, onSave, className }) => {
 
 // --- Constants ---
 const SERVICES = {
-  holland_test: { name: "[GPT] 홀랜드 검사 가이드 Report", desc: "홀랜드 흥미 유형 검사 및 분석 리포트 제공", link: "https://chatgpt.com/g/g-6871bb8ebc308191ba718e387bac5105-holland-interest-test-guide-report", internal: false, icon: ClipboardList, color: "pink" },
-  gpt_guide: { name: "[GPT] 직업 탐색 가이드", desc: "관심 있는 직업/직무 입력 시 가이드 생성", link: "https://chatgpt.com/g/g-Uch9gJR4b-job-explorer-guide-report", internal: false, icon: Compass, color: "emerald" },
-  card_bot: { name: "[노트북LM] 커리어스타일 챗봇", desc: "유료 프로그램 전용 챗봇", link: "https://notebooklm.google.com/notebook/595da4c0-fcc1-4064-82c8-9901e6dd8772", internal: false, icon: MessageSquare, color: "violet" },
-  rubric_clinic: { name: "[Gem] 자소서 코칭 클리닉", desc: "유료 워크숍 전용", link: "https://gemini.google.com/gem/1jXo4wyUvzepwmP_diVl-FQzg05EkexIg?usp=sharing", internal: false, icon: Stethoscope, color: "cyan" },
+  // [전용 앱]
   company_analysis: { name: "[AI] 기업분석 리포트", desc: "기업 핵심가치/이슈/SWOT 분석", link: null, internal: true, icon: BarChart3, color: "indigo" },
   career_roadmap: { name: "[AI] 커리어 로드맵", desc: "5년/10년 후 경력 목표 설계", link: null, internal: true, icon: TrendingUp, color: "blue" },
   pt_interview: { name: "[AI] PT 면접 가이드", desc: "주제 추출 및 발표 대본 생성", link: null, internal: true, icon: MonitorPlay, color: "rose" },
   sit_interview: { name: "[AI] 상황면접 가이드", desc: "상황별 구조화된 답변 생성", link: null, internal: true, icon: Split, color: "teal" },
   self_intro: { name: "[AI] 1분 자기소개", desc: "직무/인성 컨셉 맞춤 스크립트", link: null, internal: true, icon: Mic, color: "purple" },
   exp_structuring: { name: "[AI] 경험 구조화 (STAR)", desc: "경험 정리 및 핵심 역량 도출", link: null, internal: true, icon: LayoutList, color: "indigo" },
-  role_model: { name: "[AI] 롤모델 분석", desc: "인물 정보 및 면접 활용 팁", link: null, internal: true, icon: Award, color: "orange" }
+  role_model: { name: "[AI] 롤모델 분석", desc: "인물 정보 및 면접 활용 팁", link: null, internal: true, icon: Award, color: "orange" },
+  
+  // [외부 도구]
+  holland_test: { name: "[GPT] 홀랜드 검사 가이드 Report", desc: "홀랜드 흥미 유형 검사 및 분석 리포트 제공", link: "https://chatgpt.com/g/g-6871bb8ebc308191ba718e387bac5105-holland-interest-test-guide-report", internal: false, icon: ClipboardList, color: "pink" },
+  gpt_guide: { name: "[GPT] 직업 탐색 가이드", desc: "관심 있는 직업/직무 입력 시 가이드 생성", link: "https://chatgpt.com/g/g-Uch9gJR4b-job-explorer-guide-report", internal: false, icon: Compass, color: "emerald" },
+  card_bot: { name: "[노트북LM] 커리어스타일 챗봇", desc: "유료 프로그램 전용 챗봇", link: "https://notebooklm.google.com/notebook/595da4c0-fcc1-4064-82c8-9901e6dd8772", internal: false, icon: MessageSquare, color: "violet" },
+  rubric_clinic: { name: "[Gem] 자소서 코칭 클리닉", desc: "유료 워크숍 전용", link: "https://gemini.google.com/gem/1jXo4wyUvzepwmP_diVl-FQzg05EkexIg?usp=sharing", internal: false, icon: Stethoscope, color: "cyan" },
 };
 
 const COLOR_VARIANTS = {
@@ -439,14 +442,14 @@ function CompanyAnalysisApp({ onClose }) {
                 <section>
                    <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center border-b-2 border-indigo-100 pb-2"><Globe size={24} className="mr-2"/> 3. 시장 및 경쟁 분석</h3>
                    <div className="space-y-4">
-                     <div>
-                        <h4 className="font-bold text-sm text-slate-600 mb-2">국내외 산업 동향</h4>
-                        <EditableContent className="text-sm text-slate-700 leading-relaxed p-4 border rounded-xl bg-white" value={result.industry?.trend} onSave={(v)=>handleEdit('industry', 'trend', v)} />
-                     </div>
-                     <div>
-                        <h4 className="font-bold text-sm text-slate-600 mb-2 flex items-center"><ThumbsUp size={14} className="mr-1 text-indigo-500"/> 경쟁사 대비 긍정적 차별점</h4>
-                        <EditableContent className="text-sm text-slate-700 leading-relaxed p-4 border border-indigo-200 bg-indigo-50/50 rounded-xl" value={result.competitor?.diff} onSave={(v)=>handleEdit('competitor', 'diff', v)} />
-                     </div>
+                      <div>
+                         <h4 className="font-bold text-sm text-slate-600 mb-2">국내외 산업 동향</h4>
+                         <EditableContent className="text-sm text-slate-700 leading-relaxed p-4 border rounded-xl bg-white" value={result.industry?.trend} onSave={(v)=>handleEdit('industry', 'trend', v)} />
+                      </div>
+                      <div>
+                         <h4 className="font-bold text-sm text-slate-600 mb-2 flex items-center"><ThumbsUp size={14} className="mr-1 text-indigo-500"/> 경쟁사 대비 긍정적 차별점</h4>
+                         <EditableContent className="text-sm text-slate-700 leading-relaxed p-4 border border-indigo-200 bg-indigo-50/50 rounded-xl" value={result.competitor?.diff} onSave={(v)=>handleEdit('competitor', 'diff', v)} />
+                      </div>
                    </div>
                 </section>
 
@@ -454,7 +457,7 @@ function CompanyAnalysisApp({ onClose }) {
                 <section>
                    <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center border-b-2 border-indigo-100 pb-2"><Target size={24} className="mr-2"/> 4. 지원자 취업 전략</h3>
                    <div className="bg-slate-800 p-6 rounded-xl shadow-lg text-white">
-                     <EditableContent className="font-medium leading-loose text-sm" value={result.strategy?.guide} onSave={(v)=>handleEdit('strategy', 'guide', v)} />
+                      <EditableContent className="font-medium leading-loose text-sm" value={result.strategy?.guide} onSave={(v)=>handleEdit('strategy', 'guide', v)} />
                    </div>
                 </section>
               </div>
@@ -995,57 +998,6 @@ function RoleModelGuideApp({ onClose }) {
   );
 }
 
-function SelfDiscoveryMapApp({ onClose }) {
-  const [profile, setProfile] = useState({ name: '', targetJob: '', date: new Date().toISOString().split('T')[0] });
-  const [keywords, setKeywords] = useState([]);
-  const [currentKeyword, setCurrentKeyword] = useState('');
-  const [keywordType, setKeywordType] = useState('strength');
-  const [toastMsg, setToastMsg] = useState(null);
-  const reportRef = useRef(null);
-
-  const showToast = (msg) => setToastMsg(msg);
-  const addKeyword = (e) => { if (e.key === 'Enter' && currentKeyword.trim()) { setKeywords([...keywords, { id: Date.now(), text: currentKeyword.trim(), type: keywordType }]); setCurrentKeyword(''); } };
-  const removeKeyword = (id) => setKeywords(keywords.filter(k => k.id !== id));
-  const handleDownload = () => saveAsPng(reportRef, `지도_${profile.name}`, showToast);
-  return (
-    <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
-      {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
-      <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
-        <div className="flex items-center gap-3"><Map className="text-blue-400"/><h1 className="font-bold text-lg">나를 찾는 지도</h1></div>
-        <button onClick={onClose} className="flex items-center text-sm hover:text-blue-200 transition-colors"><ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기</button>
-      </header>
-      <div className="flex flex-1 overflow-hidden">
-        <aside className="w-80 bg-white border-r p-6 space-y-8 shrink-0 overflow-y-auto">
-          <section>
-            <h3 className="font-bold text-sm text-slate-500 mb-3 uppercase tracking-wider">기본 정보</h3>
-            <input name="name" value={profile.name} onChange={e => setProfile({...profile, name: e.target.value})} className="w-full p-3 border rounded-lg mb-3 text-sm" placeholder="이름" />
-            <input name="targetJob" value={profile.targetJob} onChange={e => setProfile({...profile, targetJob: e.target.value})} className="w-full p-3 border rounded-lg text-sm" placeholder="목표 직무" />
-          </section>
-          <section>
-            <h3 className="font-bold text-sm text-slate-500 mb-3 uppercase tracking-wider">키워드 입력</h3>
-            <input value={currentKeyword} onChange={e=>setCurrentKeyword(e.target.value)} onKeyDown={addKeyword} className="w-full p-3 border rounded-lg mb-3" placeholder="입력 후 Enter"/>
-            <div className="flex gap-2">
-              <button onClick={()=>setKeywordType('strength')} className={`flex-1 py-2 text-xs rounded-lg font-bold transition-colors ${keywordType==='strength'?'bg-blue-600 text-white':'bg-slate-100 text-slate-500'}`}>강점</button>
-              <button onClick={()=>setKeywordType('value')} className={`flex-1 py-2 text-xs rounded-lg font-bold transition-colors ${keywordType==='value'?'bg-emerald-600 text-white':'bg-slate-100 text-slate-500'}`}>가치</button>
-            </div>
-          </section>
-        </aside>
-        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
-          <div ref={reportRef} className="w-[210mm] bg-white shadow-lg p-10 h-min min-h-[297mm] relative flex flex-col">
-             <div className="border-b-2 border-slate-800 pb-4 mb-10 flex justify-between items-end"><div><h1 className="text-4xl font-extrabold text-slate-900">Self-Discovery Map</h1><p className="text-slate-500 mt-1">Career Vitamin Analysis</p></div><div className="text-right"><div className="text-2xl font-bold text-blue-600">{profile.name}</div><div className="text-sm text-slate-500">{profile.targetJob}</div><div className="text-xs text-slate-400 mt-1">{profile.date}</div></div></div>
-             <div className="mb-12 flex-1">
-               <h3 className="font-bold text-lg border-l-4 border-blue-600 pl-3 mb-6 text-slate-800">Core Keywords</h3>
-               <div className="flex flex-wrap gap-3 min-h-[100px] content-start">{keywords.length > 0 ? keywords.map(k=><span key={k.id} className={`px-4 py-2 rounded-xl font-bold text-sm border cursor-pointer hover:opacity-70 flex items-center shadow-sm ${k.type==='strength'?'bg-blue-50 border-blue-200 text-blue-700':'bg-emerald-50 border-emerald-200 text-emerald-700'}`} onClick={()=>removeKeyword(k.id)}>{k.text}<X size={14} className="ml-2 opacity-50"/></span>) : <span className="text-slate-400 italic">키워드를 입력해주세요.</span>}</div>
-             </div>
-             <div className="mt-auto pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400"><span>Powered by Career Vitamin</span><span>Confidential Report</span></div>
-          </div>
-        </main>
-        <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>
-      </div>
-    </div>
-  );
-}
-
 // --- Main App Component ---
 
 export default function App() {
@@ -1154,6 +1106,10 @@ export default function App() {
       </div>
     </div>
   );
+  
+  // 앱 분류 로직
+  const internalApps = Object.entries(SERVICES).filter(([_, svc]) => svc.internal);
+  const externalApps = Object.entries(SERVICES).filter(([_, svc]) => !svc.internal);
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans text-slate-800">
@@ -1241,26 +1197,59 @@ export default function App() {
                 </div>
              </div>
 
-             {/* 2. 앱 목록 (키 없으면 잠금) */}
-             <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-all duration-500 ${!hasPersonalKey ? 'opacity-40 pointer-events-none grayscale' : ''}`}>
-               {Object.entries(SERVICES).map(([key, svc]) => (
-                 <div key={key} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md border border-slate-200 transition-all group cursor-pointer h-full relative" onClick={() => {
-                     if(!hasPersonalKey) return;
-                     if(svc.internal) setCurrentApp(key);
-                     else window.open(svc.link, '_blank');
-                   }}>
-                   {!hasPersonalKey && <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/10"><Lock className="text-slate-500 w-8 h-8"/></div>}
-                   <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${COLOR_VARIANTS[svc.color]} group-hover:scale-110 transition-transform`}>
-                     <svc.icon size={24} color={svc.color === 'black' ? '#000' : undefined} /> 
+             {/* 2. 전용 앱 목록 (Internal Apps) */}
+             <div className={`transition-all duration-500 ${!hasPersonalKey ? 'opacity-40 pointer-events-none grayscale' : ''}`}>
+               <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                 <Sparkles className="text-indigo-600" size={20}/> 커리어 비타민 전용 AI 앱
+               </h3>
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                 {internalApps.map(([key, svc]) => (
+                   <div key={key} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md border border-slate-200 transition-all group cursor-pointer h-full relative" onClick={() => {
+                       if(!hasPersonalKey) return;
+                       setCurrentApp(key);
+                     }}>
+                     {!hasPersonalKey && <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/10"><Lock className="text-slate-500 w-8 h-8"/></div>}
+                     <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${COLOR_VARIANTS[svc.color]} group-hover:scale-110 transition-transform`}>
+                       <svc.icon size={24} color={svc.color === 'black' ? '#000' : undefined} /> 
+                     </div>
+                     <h3 className="font-bold text-lg mb-2 group-hover:text-indigo-600 transition-colors">{svc.name}</h3>
+                     <p className="text-sm text-slate-500 mb-4 h-10 line-clamp-2">{svc.desc}</p>
+                     <div className="text-xs font-bold text-indigo-500 flex items-center">
+                       앱 실행하기 <ChevronLeft className="rotate-180 ml-1 w-4 h-4"/>
+                     </div>
                    </div>
-                   <h3 className="font-bold text-lg mb-2 group-hover:text-indigo-600 transition-colors">{svc.name}</h3>
-                   <p className="text-sm text-slate-500 mb-4 h-10 line-clamp-2">{svc.desc}</p>
-                   <div className="text-xs font-bold text-indigo-500 flex items-center">
-                     {svc.internal ? '앱 실행하기' : '외부 도구 열기'} {svc.internal ? <ChevronLeft className="rotate-180 ml-1 w-4 h-4"/> : <ExternalLink className="ml-1 w-3 h-3"/>}
-                   </div>
-                 </div>
-               ))}
+                 ))}
+               </div>
              </div>
+
+             {/* 구분선 */}
+             {hasPersonalKey && <div className="border-t border-slate-200 my-2"></div>}
+
+             {/* 3. 외부 도구 목록 (External Tools) */}
+             <div className={`transition-all duration-500 ${!hasPersonalKey ? 'opacity-40 pointer-events-none grayscale' : ''}`}>
+               <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                 <ExternalLink className="text-slate-500" size={20}/> 외부 맞춤형 AI 도구
+               </h3>
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                 {externalApps.map(([key, svc]) => (
+                   <div key={key} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md border border-slate-200 transition-all group cursor-pointer h-full relative" onClick={() => {
+                       if(!hasPersonalKey) return;
+                       window.open(svc.link, '_blank');
+                     }}>
+                     {!hasPersonalKey && <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/10"><Lock className="text-slate-500 w-8 h-8"/></div>}
+                     <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${COLOR_VARIANTS[svc.color]} group-hover:scale-110 transition-transform`}>
+                       <svc.icon size={24} color={svc.color === 'black' ? '#000' : undefined} /> 
+                     </div>
+                     <h3 className="font-bold text-lg mb-2 group-hover:text-indigo-600 transition-colors">{svc.name}</h3>
+                     <p className="text-sm text-slate-500 mb-4 h-10 line-clamp-2">{svc.desc}</p>
+                     <div className="text-xs font-bold text-slate-400 flex items-center group-hover:text-slate-600">
+                       외부 도구 열기 <ExternalLink className="ml-1 w-3 h-3"/>
+                     </div>
+                   </div>
+                 ))}
+               </div>
+             </div>
+             
              {!hasPersonalKey && <div className="text-center text-slate-500 text-sm mt-4 animate-bounce">👆 먼저 위에서 API 키를 등록해주세요.</div>}
            </div>
         ) : (
@@ -1298,7 +1287,6 @@ export default function App() {
       {currentApp === 'self_intro' && <SelfIntroApp onClose={()=>setCurrentApp('none')} />}
       {currentApp === 'exp_structuring' && <ExperienceStructuringApp onClose={()=>setCurrentApp('none')} />}
       {currentApp === 'role_model' && <RoleModelGuideApp onClose={()=>setCurrentApp('none')} />}
-      {currentApp === 'map' && <SelfDiscoveryMapApp onClose={()=>setCurrentApp('none')} />}
     </div>
   );
 }

@@ -31,7 +31,7 @@ import {
   Edit3, MonitorPlay, Zap, LayoutList, Split, Mic, BarChart3, Link as LinkIcon, 
   Globe, Trophy, Stethoscope, Key, AlertCircle, ExternalLink,
   Info, ArrowRight, PenTool, Lightbulb, Users, ThumbsUp, ShieldAlert, LogIn, Lock, ClipboardList,
-  FileSpreadsheet
+  FileSpreadsheet, FileText // FileText 아이콘 추가
 } from 'lucide-react';
 
 // =============================================================================
@@ -103,7 +103,7 @@ const renderText = (content) => {
   return content;
 };
 
-// PNG 저장 함수 (Wrapper 방식)
+// [이미지 저장 함수]
 const saveAsPng = async (elementRef, fileName, showToast) => {
   if (!elementRef.current) return;
   
@@ -121,6 +121,7 @@ const saveAsPng = async (elementRef, fileName, showToast) => {
     const originalElement = elementRef.current;
     const width = originalElement.offsetWidth;
 
+    // 복제본을 위한 컨테이너 생성
     const container = document.createElement('div');
     container.style.position = 'absolute';
     container.style.top = `${window.scrollY}px`;
@@ -182,6 +183,84 @@ const saveAsPng = async (elementRef, fileName, showToast) => {
   } catch (error) {
     console.error("이미지 저장 실패:", error);
     if(showToast) showToast("저장 중 오류가 발생했습니다.");
+  }
+};
+
+// [PDF 저장 함수 - jspdf 동적 로딩]
+const saveAsPdf = async (elementRef, fileName, showToast) => {
+  if (!elementRef.current) return;
+
+  try {
+    // 1. html2canvas 로드 (이미지 캡처용)
+    if (!window.html2canvas) {
+        await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+    }
+
+    // 2. jsPDF 로드 (PDF 생성용)
+    if (!window.jspdf) {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+    }
+
+    if(showToast) showToast("PDF 변환 중입니다. 잠시만 기다려주세요...");
+
+    const element = elementRef.current;
+    
+    // 화면 캡처
+    const canvas = await window.html2canvas(element, {
+      scale: 2, 
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff'
+    });
+
+    const imgData = canvas.toDataURL('image/png');
+    const { jsPDF } = window.jspdf;
+    
+    // A4 크기 (mm)
+    const pdfWidth = 210;
+    const pdfHeight = 297;
+    
+    // 이미지 비율 계산
+    const imgProps = { width: canvas.width, height: canvas.height };
+    const imgWidth = pdfWidth;
+    const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    
+    // 내용이 A4 한 장보다 길 경우 페이지 나누기 처리
+    let heightLeft = imgHeight;
+    let position = 0;
+
+    // 첫 페이지
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pdfHeight;
+
+    // 추가 페이지
+    while (heightLeft >= 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pdfHeight;
+    }
+    
+    pdf.save(`${fileName}.pdf`);
+    if(showToast) showToast("PDF가 성공적으로 저장되었습니다.");
+
+  } catch (error) {
+    console.error("PDF 저장 실패:", error);
+    if(showToast) showToast("PDF 저장 중 오류가 발생했습니다. (브라우저 제한일 수 있습니다)");
   }
 };
 
@@ -362,6 +441,7 @@ function CompanyAnalysisApp({ onClose }) {
   };
 
   const handleDownload = () => saveAsPng(reportRef, `기업분석_${inputs.company}`, showToast);
+  const handlePdfDownload = () => saveAsPdf(reportRef, `기업분석_${inputs.company}`, showToast);
   
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
@@ -470,7 +550,12 @@ function CompanyAnalysisApp({ onClose }) {
             </div>
           ) : <div className="flex flex-col items-center justify-center h-full text-slate-400"><BarChart3 size={64} className="mb-4 opacity-20"/><p>정보를 입력하고 분석을 시작하세요.</p></div>}
         </main>
-        {result && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
+        {result && (
+          <div className="absolute bottom-8 right-8 flex gap-3 z-50">
+            <button onClick={handleDownload} className="bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><Download className="mr-2" size={20}/> 이미지 저장</button>
+            <button onClick={handlePdfDownload} className="bg-red-600 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><FileText className="mr-2" size={20}/> PDF 저장</button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -505,6 +590,7 @@ function CareerRoadmapApp({ onClose }) {
   };
 
   const handleDownload = () => saveAsPng(reportRef, `커리어로드맵_${inputs.company}`, showToast);
+  const handlePdfDownload = () => saveAsPdf(reportRef, `커리어로드맵_${inputs.company}`, showToast);
   
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
@@ -557,7 +643,12 @@ function CareerRoadmapApp({ onClose }) {
             </div>
           ) : <div className="flex flex-col items-center justify-center h-full text-slate-400"><TrendingUp size={64} className="mb-4 opacity-20"/><p>커리어 목표를 입력하세요.</p></div>}
         </main>
-        {roadmapData && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
+        {roadmapData && (
+          <div className="absolute bottom-8 right-8 flex gap-3 z-50">
+            <button onClick={handleDownload} className="bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><Download className="mr-2" size={20}/> 이미지 저장</button>
+            <button onClick={handlePdfDownload} className="bg-red-600 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><FileText className="mr-2" size={20}/> PDF 저장</button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -627,6 +718,7 @@ function PtInterviewApp({ onClose }) {
   
   const handleEditScript = (key, value) => setScript(prev => ({ ...prev, [key]: value }));
   const handleDownload = () => saveAsPng(reportRef, `PT면접_${inputs.company}`, showToast);
+  const handlePdfDownload = () => saveAsPdf(reportRef, `PT면접_${inputs.company}`, showToast);
 
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
@@ -722,7 +814,12 @@ function PtInterviewApp({ onClose }) {
              </div>
            )}
         </main>
-        {script && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
+        {script && (
+          <div className="absolute bottom-8 right-8 flex gap-3 z-50">
+            <button onClick={handleDownload} className="bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><Download className="mr-2" size={20}/> 이미지 저장</button>
+            <button onClick={handlePdfDownload} className="bg-red-600 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><FileText className="mr-2" size={20}/> PDF 저장</button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -755,6 +852,7 @@ function SituationInterviewApp({ onClose }) {
   };
 
   const handleDownload = () => saveAsPng(reportRef, `상황면접`, showToast);
+  const handlePdfDownload = () => saveAsPdf(reportRef, `상황면접`, showToast);
   
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
@@ -771,7 +869,12 @@ function SituationInterviewApp({ onClose }) {
           <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-teal-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"답변 생성"}</button>
         </div></aside>
         <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{result ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] h-fit bg-white shadow-lg p-10 flex flex-col animate-in fade-in zoom-in-95 duration-500"><h2 className="text-3xl font-extrabold mb-6 text-slate-900 border-b-2 border-teal-500 pb-4">상황면접 가이드</h2><div className="space-y-6"> <div className="bg-slate-50 p-6 rounded-xl border mb-8"><h3 className="font-bold text-slate-500 text-xs mb-2 tracking-widest">QUESTION</h3><p className="font-bold text-xl text-slate-800">"{inputs.question}"</p></div><div className="grid grid-cols-1 gap-8"><div className="border-l-4 border-teal-500 pl-6 py-2"><EditableContent className="font-bold text-teal-800 text-xl mb-3" value={result.situation_a?.title} onSave={(v)=>handleEdit('situation_a', 'title', v)} /><EditableContent className="text-slate-600 leading-relaxed text-lg" value={result.situation_a?.content} onSave={(v)=>handleEdit('situation_a', 'content', v)} /></div><div className="border-l-4 border-slate-400 pl-6 py-2"><EditableContent className="font-bold text-slate-700 text-xl mb-3" value={result.situation_b?.title} onSave={(v)=>handleEdit('situation_b', 'title', v)} /><EditableContent className="text-slate-600 leading-relaxed text-lg" value={result.situation_b?.content} onSave={(v)=>handleEdit('situation_b', 'content', v)} /></div></div><div className="mt-8 bg-teal-50 p-6 rounded-xl border border-teal-100 text-teal-900 text-base font-medium">💡 Advice: <EditableContent className="mt-2" value={result.advice} onSave={(v)=>handleEdit('advice', null, v)} /></div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><Split className="w-4 h-4 mr-1 text-teal-500" /><span>Career Vitamin</span></div><span>AI-Powered Situation Guide</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Split size={64} className="mb-4 opacity-20"/><p>질문을 입력하면 답변이 생성됩니다.</p></div>}</main>
-        {result && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
+        {result && (
+          <div className="absolute bottom-8 right-8 flex gap-3 z-50">
+            <button onClick={handleDownload} className="bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><Download className="mr-2" size={20}/> 이미지 저장</button>
+            <button onClick={handlePdfDownload} className="bg-red-600 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><FileText className="mr-2" size={20}/> PDF 저장</button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -798,6 +901,7 @@ function SelfIntroApp({ onClose }) {
   
   const handleEdit = (key, value) => setScript(prev => ({ ...prev, [key]: value }));
   const handleDownload = () => saveAsPng(reportRef, `자기소개_${inputs.company}`, showToast);
+  const handlePdfDownload = () => saveAsPdf(reportRef, `자기소개_${inputs.company}`, showToast);
   
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
@@ -822,7 +926,12 @@ function SelfIntroApp({ onClose }) {
           <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-purple-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"스크립트 생성"}</button>
         </div></aside>
         <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{script ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] h-fit bg-white shadow-lg p-10 flex flex-col animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-purple-600 pb-6 text-center"><span className="text-purple-600 font-bold text-sm tracking-widest block mb-2">1-MINUTE SPEECH</span><EditableContent className="text-3xl font-extrabold text-slate-900 text-center" value={script.slogan} onSave={(v)=>handleEdit('slogan', v)} /></div><div className="space-y-8 mt-8"> <div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-4 uppercase">Opening</div><div className="flex-1 bg-purple-50 p-6 rounded-2xl text-xl font-bold text-slate-800 shadow-sm"><EditableContent value={script.opening} onSave={(v)=>handleEdit('opening', v)} /></div></div><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-1 uppercase">Body</div><div className="flex-1 text-slate-700 leading-loose pl-6 border-l-2 border-purple-200 text-lg"><EditableContent value={script.body} onSave={(v)=>handleEdit('body', v)} /></div></div><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-4 uppercase">Closing</div><div className="flex-1 bg-slate-50 p-6 rounded-2xl font-medium text-slate-800 text-lg"><EditableContent value={script.closing} onSave={(v)=>handleEdit('closing', v)} /></div></div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><Mic className="w-4 h-4 mr-1 text-purple-500" /><span>Career Vitamin</span></div><span>AI-Generated Speech Script</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Mic size={64} className="mb-4 opacity-20"/><p>정보를 입력하면 스크립트가 생성됩니다.</p></div>}</main>
-        {script && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
+        {script && (
+          <div className="absolute bottom-8 right-8 flex gap-3 z-50">
+            <button onClick={handleDownload} className="bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><Download className="mr-2" size={20}/> 이미지 저장</button>
+            <button onClick={handlePdfDownload} className="bg-red-600 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><FileText className="mr-2" size={20}/> PDF 저장</button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -849,6 +958,7 @@ function ExperienceStructuringApp({ onClose }) {
   
   const handleEdit = (key, value) => setStarData(prev => ({ ...prev, [key]: value }));
   const handleDownload = () => saveAsPng(reportRef, `STAR_${inputs.keyword}`, showToast);
+  const handlePdfDownload = () => saveAsPdf(reportRef, `STAR_${inputs.keyword}`, showToast);
   
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
@@ -869,7 +979,12 @@ function ExperienceStructuringApp({ onClose }) {
           <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"구조화 실행"}</button>
         </div></aside>
         <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{starData.s ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] h-fit bg-white shadow-lg p-10 space-y-6 animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-indigo-600 pb-6 mb-6"><h1 className="text-4xl font-extrabold text-slate-900">STAR Analysis</h1><p className="text-slate-500 mt-2 text-lg">경험 구조화 워크시트</p></div><div className="space-y-6"> <div className="bg-slate-50 p-6 rounded-2xl border-l-8 border-slate-400"><h3 className="font-bold text-slate-500 mb-2 text-sm tracking-widest">SITUATION</h3><EditableContent className="text-slate-800 text-lg leading-relaxed" value={starData.s} onSave={(v)=>handleEdit('s', v)} /></div><div className="bg-slate-50 p-6 rounded-2xl border-l-8 border-slate-500"><h3 className="font-bold text-slate-500 mb-2 text-sm tracking-widest">TASK</h3><EditableContent className="text-slate-800 text-lg leading-relaxed" value={starData.t} onSave={(v)=>handleEdit('t', v)} /></div><div className="bg-white border-2 border-indigo-100 p-6 rounded-2xl shadow-sm"><h3 className="font-bold text-indigo-600 mb-2 text-sm tracking-widest">ACTION</h3><EditableContent className="text-slate-800 font-medium text-lg leading-relaxed" value={starData.a} onSave={(v)=>handleEdit('a', v)} /></div><div className="bg-indigo-50 p-6 rounded-2xl border-l-8 border-indigo-600"><h3 className="font-bold text-indigo-800 mb-2 text-sm tracking-widest">RESULT</h3><EditableContent className="text-slate-800 font-bold text-lg leading-relaxed" value={starData.r} onSave={(v)=>handleEdit('r', v)} /></div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><LayoutList className="w-4 h-4 mr-1 text-indigo-500" /><span>Career Vitamin</span></div><span>AI-Powered STAR Analysis</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><LayoutList size={64} className="mb-4 opacity-20"/><p>경험을 입력하면 STAR 기법으로 구조화합니다.</p></div>}</main>
-        {starData.s && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
+        {starData.s && (
+          <div className="absolute bottom-8 right-8 flex gap-3 z-50">
+            <button onClick={handleDownload} className="bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><Download className="mr-2" size={20}/> 이미지 저장</button>
+            <button onClick={handlePdfDownload} className="bg-red-600 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><FileText className="mr-2" size={20}/> PDF 저장</button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -914,6 +1029,7 @@ function RoleModelGuideApp({ onClose }) {
 
   const handleEdit = (key, value) => setResult(prev => ({ ...prev, [key]: value }));
   const handleDownload = () => saveAsPng(reportRef, `롤모델_${result?.name || inputs.name}`, showToast);
+  const handlePdfDownload = () => saveAsPdf(reportRef, `롤모델_${result?.name || inputs.name}`, showToast);
   
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
@@ -993,7 +1109,12 @@ function RoleModelGuideApp({ onClose }) {
             </div>
           )}
         </main>
-        {result && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
+        {result && (
+          <div className="absolute bottom-8 right-8 flex gap-3 z-50">
+            <button onClick={handleDownload} className="bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><Download className="mr-2" size={20}/> 이미지 저장</button>
+            <button onClick={handlePdfDownload} className="bg-red-600 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><FileText className="mr-2" size={20}/> PDF 저장</button>
+          </div>
+        )}
       </div>
     </div>
   );

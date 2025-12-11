@@ -186,12 +186,12 @@ const saveAsPng = async (elementRef, fileName, showToast) => {
   }
 };
 
-// [PDF 저장 함수 - jspdf 동적 로딩]
+// [PDF 저장 함수 - 통으로 저장]
 const saveAsPdf = async (elementRef, fileName, showToast) => {
   if (!elementRef.current) return;
 
   try {
-    // 1. html2canvas 로드 (이미지 캡처용)
+    // 1. html2canvas 로드
     if (!window.html2canvas) {
         await new Promise((resolve, reject) => {
             const script = document.createElement('script');
@@ -202,7 +202,7 @@ const saveAsPdf = async (elementRef, fileName, showToast) => {
         });
     }
 
-    // 2. jsPDF 로드 (PDF 생성용)
+    // 2. jsPDF 로드
     if (!window.jspdf) {
       await new Promise((resolve, reject) => {
         const script = document.createElement('script');
@@ -228,32 +228,18 @@ const saveAsPdf = async (elementRef, fileName, showToast) => {
     const imgData = canvas.toDataURL('image/png');
     const { jsPDF } = window.jspdf;
     
-    // A4 크기 (mm)
+    // PDF 너비를 A4 너비(210mm)로 고정
     const pdfWidth = 210;
-    const pdfHeight = 297;
     
-    // 이미지 비율 계산
+    // 이미지 비율에 맞춰 PDF 높이 계산 (긴 페이지 생성)
     const imgProps = { width: canvas.width, height: canvas.height };
-    const imgWidth = pdfWidth;
-    const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
-    const pdf = new jsPDF('p', 'mm', 'a4');
+    // 사용자 정의 크기(긴 페이지)로 PDF 생성
+    const pdf = new jsPDF('p', 'mm', [pdfWidth, pdfHeight]);
     
-    // 내용이 A4 한 장보다 길 경우 페이지 나누기 처리
-    let heightLeft = imgHeight;
-    let position = 0;
-
-    // 첫 페이지
-    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-    heightLeft -= pdfHeight;
-
-    // 추가 페이지
-    while (heightLeft >= 0) {
-      position = heightLeft - imgHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pdfHeight;
-    }
+    // 이미지를 (0,0) 좌표에 전체 크기로 삽입
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
     
     pdf.save(`${fileName}.pdf`);
     if(showToast) showToast("PDF가 성공적으로 저장되었습니다.");

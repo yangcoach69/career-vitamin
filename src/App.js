@@ -30,7 +30,8 @@ import {
   MessageSquare, Sparkles, Award, Search, BookOpen, Quote, Download, TrendingUp, Calendar, Target, 
   Edit3, MonitorPlay, Zap, LayoutList, Split, Mic, BarChart3, Link as LinkIcon, 
   Globe, Trophy, Stethoscope, Key, AlertCircle, ExternalLink,
-  Info, ArrowRight, PenTool, Lightbulb, Users, ThumbsUp, ShieldAlert, LogIn, Lock, ClipboardList
+  Info, ArrowRight, PenTool, Lightbulb, Users, ThumbsUp, ShieldAlert, LogIn, Lock, ClipboardList,
+  FileSpreadsheet
 } from 'lucide-react';
 
 // =============================================================================
@@ -1004,13 +1005,16 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [role, setRole] = useState('guest'); 
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [expertName, setExpertName] = useState(''); // 전문가 실명 상태 추가
+  const [expertName, setExpertName] = useState(''); 
   const [experts, setExperts] = useState([]);
+  // 전문가 등록 필드 (이름, 이메일, 기관명)
   const [newExpertEmail, setNewExpertEmail] = useState('');
   const [newExpertName, setNewExpertName] = useState(''); 
+  const [newExpertOrg, setNewExpertOrg] = useState(''); // NEW: 기관명 상태 추가
+
   const [currentApp, setCurrentApp] = useState('none');
   const [customKey, setCustomKey] = useState(localStorage.getItem("custom_gemini_key") || "");
-  const [hasPersonalKey, setHasPersonalKey] = useState(!!localStorage.getItem("custom_gemini_key")); // New state to track saving
+  const [hasPersonalKey, setHasPersonalKey] = useState(!!localStorage.getItem("custom_gemini_key")); 
   const [toastMsg, setToastMsg] = useState(null);
 
   const showToast = (msg) => setToastMsg(msg);
@@ -1059,7 +1063,7 @@ export default function App() {
     return () => unsub();
   }, [role]);
 
-  // 개인 키 저장 (LocalStorage)
+  // 개인 키 저장
   const handleSavePersonalKey = () => {
     if (!customKey.startsWith("AIza")) {
       showToast("올바른 Google API Key 형식이 아닙니다.");
@@ -1067,23 +1071,29 @@ export default function App() {
     }
     localStorage.setItem("custom_gemini_key", customKey);
     setHasPersonalKey(true);
-    showToast("개인 API 키가 저장되었습니다. (내 브라우저에만 저장됨)");
+    showToast("개인 API 키가 저장되었습니다.");
   };
 
   const handleRemovePersonalKey = () => {
       localStorage.removeItem("custom_gemini_key");
       setCustomKey("");
       setHasPersonalKey(false);
-      showToast("개인 API 키가 삭제되었습니다. AI 기능을 사용하려면 키를 다시 등록해야 합니다.");
+      showToast("개인 API 키가 삭제되었습니다.");
   }
 
+  // 전문가 추가 (기관명 포함)
   const handleAddExpert = async (e) => {
     e.preventDefault();
     if(!newExpertEmail || !newExpertName) return;
     await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts'), {
-      email: newExpertEmail, displayName: newExpertName, addedAt: new Date().toISOString()
+      email: newExpertEmail, 
+      displayName: newExpertName, 
+      organization: newExpertOrg, // 기관명 저장
+      addedAt: new Date().toISOString()
     });
-    setNewExpertEmail(''); setNewExpertName('');
+    setNewExpertEmail(''); 
+    setNewExpertName('');
+    setNewExpertOrg(''); // 초기화
     showToast("전문가가 추가되었습니다.");
   };
 
@@ -1092,6 +1102,33 @@ export default function App() {
       await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts', id));
       showToast("삭제되었습니다.");
     }
+  };
+
+  // CSV 다운로드 (구글 시트 호환)
+  const handleExportCSV = () => {
+    if(experts.length === 0) return showToast("내보낼 데이터가 없습니다.");
+
+    // BOM for Excel/Sheet UTF-8 compatibility
+    const BOM = "\uFEFF"; 
+    const headers = ['이름,이메일,소속기관,등록일,최근접속'];
+    const rows = experts.map(ex => [
+      `"${ex.displayName || ''}"`,
+      `"${ex.email || ''}"`,
+      `"${ex.organization || '-'}"`,
+      `"${ex.addedAt ? ex.addedAt.split('T')[0] : '-'}"`,
+      `"${ex.lastLogin ? ex.lastLogin.split('T')[0] : '-'}"`
+    ].join(','));
+
+    const csvContent = BOM + headers.concat(rows).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `전문가목록_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast("파일이 다운로드되었습니다. 구글 드라이브에 업로드하여 여세요.");
   };
 
   if (!user || role === 'guest') return (
@@ -1107,7 +1144,6 @@ export default function App() {
     </div>
   );
   
-  // 앱 분류 로직
   const internalApps = Object.entries(SERVICES).filter(([_, svc]) => svc.internal);
   const externalApps = Object.entries(SERVICES).filter(([_, svc]) => !svc.internal);
 
@@ -1126,7 +1162,6 @@ export default function App() {
         </div>
         <nav className="flex-1 p-4 space-y-2">
           <button onClick={()=>setActiveTab('dashboard')} className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-colors ${activeTab==='dashboard'?'bg-indigo-600 text-white':'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><LayoutDashboard size={18}/> 대시보드</button>
-          {/* 관리자 탭 대신 대시보드 하단에 설정 기능 통합 (권한별 노출) */}
           {role === 'owner' && <div className="px-4 py-2 text-xs text-slate-500 uppercase font-bold mt-4">Admin Only</div>}
           {role === 'owner' && <button onClick={()=>setActiveTab('admin')} className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-colors ${activeTab==='admin'?'bg-indigo-600 text-white':'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Settings size={18}/> 시스템 관리</button>}
         </nav>
@@ -1143,7 +1178,6 @@ export default function App() {
       <main className="flex-1 p-8 overflow-y-auto">
         {activeTab === 'dashboard' ? (
            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
-             {/* 1. 개인 API 키 설정 (필수) */}
              <div className={`bg-white p-6 rounded-xl shadow-sm border-2 transition-all ${!hasPersonalKey ? 'border-red-400 ring-4 ring-red-50' : 'border-indigo-100'}`}>
                 <div className="flex justify-between items-start mb-4">
                     <div>
@@ -1197,7 +1231,6 @@ export default function App() {
                 </div>
              </div>
 
-             {/* 2. 전용 앱 목록 (Internal Apps) */}
              <div className={`transition-all duration-500 ${!hasPersonalKey ? 'opacity-40 pointer-events-none grayscale' : ''}`}>
                <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
                  <Sparkles className="text-indigo-600" size={20}/> 커리어 비타민 전용 AI 앱
@@ -1222,10 +1255,8 @@ export default function App() {
                </div>
              </div>
 
-             {/* 구분선 */}
              {hasPersonalKey && <div className="border-t border-slate-200 my-2"></div>}
 
-             {/* 3. 외부 도구 목록 (External Tools) */}
              <div className={`transition-all duration-500 ${!hasPersonalKey ? 'opacity-40 pointer-events-none grayscale' : ''}`}>
                <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
                  <ExternalLink className="text-slate-500" size={20}/> 외부 맞춤형 AI 도구
@@ -1254,27 +1285,55 @@ export default function App() {
            </div>
         ) : (
           /* 관리자 전용 탭 */
-          <div className="space-y-8 max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4">
+          <div className="space-y-8 max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4">
             <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
-              <h2 className="text-xl font-bold mb-6 flex items-center gap-2"><User className="text-slate-500"/> 전문가 관리 ({experts.length}명)</h2>
-              <form onSubmit={handleAddExpert} className="flex gap-3 mb-6 bg-slate-50 p-4 rounded-lg">
-                <input value={newExpertName} onChange={e=>setNewExpertName(e.target.value)} className="border p-2.5 rounded-lg w-1/3 focus:outline-none focus:border-indigo-500" placeholder="이름 (예: 홍길동)" required/>
-                <input value={newExpertEmail} onChange={e=>setNewExpertEmail(e.target.value)} className="border p-2.5 rounded-lg flex-1 focus:outline-none focus:border-indigo-500" placeholder="구글 이메일 (gmail.com)" required/>
-                <button className="bg-slate-800 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-slate-900 transition-colors">추가</button>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold flex items-center gap-2"><User className="text-slate-500"/> 전문가 관리 ({experts.length}명)</h2>
+                <button onClick={handleExportCSV} className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 transition-colors shadow-sm">
+                  <FileSpreadsheet size={16}/> 엑셀/시트 다운로드 (CSV)
+                </button>
+              </div>
+              
+              <form onSubmit={handleAddExpert} className="flex flex-wrap md:flex-nowrap gap-3 mb-6 bg-slate-50 p-4 rounded-lg">
+                <input value={newExpertName} onChange={e=>setNewExpertName(e.target.value)} className="border p-2.5 rounded-lg w-full md:w-1/4 focus:outline-none focus:border-indigo-500" placeholder="이름 (예: 홍길동)" required/>
+                <input value={newExpertEmail} onChange={e=>setNewExpertEmail(e.target.value)} className="border p-2.5 rounded-lg w-full md:w-1/3 focus:outline-none focus:border-indigo-500" placeholder="구글 이메일 (gmail.com)" required/>
+                <input value={newExpertOrg} onChange={e=>setNewExpertOrg(e.target.value)} className="border p-2.5 rounded-lg w-full md:w-1/3 focus:outline-none focus:border-indigo-500" placeholder="소속 기관 (예: XX대학교)" />
+                <button className="bg-slate-800 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-slate-900 transition-colors w-full md:w-auto">추가</button>
               </form>
-              <div className="divide-y divide-slate-100">
-                {experts.map(ex => (
-                  <div key={ex.id} className="py-4 flex justify-between items-center group hover:bg-slate-50 px-2 rounded-lg transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold">{ex.displayName?.[0]}</div>
-                      <div>
-                        <div className="font-bold text-slate-800">{ex.displayName}</div>
-                        <div className="text-xs text-slate-500">{ex.email}</div>
-                      </div>
-                    </div>
-                    <button onClick={()=>handleDeleteExpert(ex.id)} className="text-slate-300 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition-all"><Trash2 size={18}/></button>
-                  </div>
-                ))}
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-slate-50 text-slate-500 uppercase text-xs">
+                    <tr>
+                      <th className="px-4 py-3">이름</th>
+                      <th className="px-4 py-3">이메일</th>
+                      <th className="px-4 py-3">소속 기관</th>
+                      <th className="px-4 py-3">등록일</th>
+                      <th className="px-4 py-3 text-right">관리</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {experts.map(ex => (
+                      <tr key={ex.id} className="hover:bg-slate-50 group transition-colors">
+                        <td className="px-4 py-4 font-bold text-slate-800 flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs shrink-0">{ex.displayName?.[0]}</div>
+                          {ex.displayName}
+                        </td>
+                        <td className="px-4 py-4 text-slate-500">{ex.email}</td>
+                        <td className="px-4 py-4">
+                          {ex.organization ? (
+                            <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-medium">{ex.organization}</span>
+                          ) : <span className="text-slate-300">-</span>}
+                        </td>
+                        <td className="px-4 py-4 text-slate-400 text-xs">{ex.addedAt ? ex.addedAt.split('T')[0] : '-'}</td>
+                        <td className="px-4 py-4 text-right">
+                          <button onClick={()=>handleDeleteExpert(ex.id)} className="text-slate-300 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition-all"><Trash2 size={16}/></button>
+                        </td>
+                      </tr>
+                    ))}
+                    {experts.length === 0 && <tr><td colSpan="5" className="text-center py-8 text-slate-400">등록된 전문가가 없습니다.</td></tr>}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>

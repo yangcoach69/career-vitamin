@@ -27,7 +27,7 @@ import {
   MonitorPlay, LayoutList, Split, Mic, BarChart3, 
   Globe, ThumbsUp, AlertCircle, ExternalLink,
   Info, PenTool, Lightbulb, Users, Lock, ClipboardList,
-  FileSpreadsheet, FileText, Briefcase, GraduationCap, BrainCircuit, Key, Stethoscope
+  FileSpreadsheet, FileText, Briefcase, GraduationCap, BrainCircuit, Key, Stethoscope, ArrowRight
 } from 'lucide-react';
 
 // =============================================================================

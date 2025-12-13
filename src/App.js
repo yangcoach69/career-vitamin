@@ -414,7 +414,6 @@ function JobFitScannerApp({ onClose }) {
       반드시 다음 JSON 형식을 따를 것:
       {
         "score": 85,
-        "score_comment": "점수에 대한 한 줄 평 (예: 서류 통과 가능성이 높습니다 / 보완이 시급합니다)",
         "fit_analysis": {
           "strong": "지원자가 완벽하게 충족하는 강점 요소 (구체적으로)",
           "missing": "공고에는 있으나 지원자 서류에서 부족하거나 누락된 부분"
@@ -515,7 +514,6 @@ function JobFitScannerApp({ onClose }) {
                 </div>
                 <div className="text-right">
                     <div className="text-5xl font-black text-rose-600">{result.score}<span className="text-2xl text-slate-400">/100</span></div>
-                    <EditableContent className="text-sm text-slate-500 font-medium" value={result.score_comment} onSave={(v)=>handleEdit('score_comment', null, v)} />
                 </div>
               </div>
 
@@ -816,8 +814,7 @@ function HollandTestApp({ onClose }) {
   );
 }
 
-// ... (Other apps: CompanyAnalysisApp, CareerRoadmapApp, PtInterviewApp, SituationInterviewApp, SelfIntroApp, ExperienceStructuringApp, RoleModelGuideApp, JobExplorerApp should be included here as in previous versions) ...
-// (All previous components are preserved in the full file generation below)
+// ... (Other Sub Apps: CompanyAnalysisApp, CareerRoadmapApp, etc. should be included here) ...
 
 function CompanyAnalysisApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', url: '', job: '' });
@@ -1805,8 +1802,6 @@ function JobExplorerApp({ onClose }) {
     </div>
   );
 }
-
-// ... (Existing Apps) ...
 
 // --- Main App Component ---
 

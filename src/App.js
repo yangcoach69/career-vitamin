@@ -27,7 +27,7 @@ import {
   MonitorPlay, LayoutList, Split, Mic, BarChart3, 
   Globe, ThumbsUp, AlertCircle, ExternalLink,
   Info, PenTool, Lightbulb, Users, Lock, ClipboardList,
-  FileSpreadsheet, FileText, Briefcase, GraduationCap, BrainCircuit, Key, Stethoscope, ArrowRight
+  FileSpreadsheet, FileText, Briefcase, GraduationCap, BrainCircuit, Key, Smile, Meh, Frown, Stethoscope
 } from 'lucide-react';
 
 // =============================================================================
@@ -318,6 +318,7 @@ const EditableContent = ({ value, onSave, className }) => {
 
 // --- Constants ---
 const SERVICES = {
+  // [전용 앱]
   company_analysis: { name: "[AI] 기업분석 리포트", desc: "기업 핵심가치/이슈/SWOT 분석", link: null, internal: true, icon: BarChart3, color: "indigo" },
   career_roadmap: { name: "[AI] 커리어 로드맵", desc: "5년/10년 후 경력 목표 설계", link: null, internal: true, icon: TrendingUp, color: "blue" },
   pt_interview: { name: "[AI] PT 면접 가이드", desc: "주제 추출 및 발표 대본 생성", link: null, internal: true, icon: MonitorPlay, color: "rose" },
@@ -326,8 +327,9 @@ const SERVICES = {
   exp_structuring: { name: "[AI] 경험 구조화 (STAR)", desc: "경험 정리 및 핵심 역량 도출", link: null, internal: true, icon: LayoutList, color: "indigo" },
   role_model: { name: "[AI] 롤모델 분석", desc: "인물 정보 및 면접 활용 팁", link: null, internal: true, icon: Award, color: "orange" },
   gpt_guide: { name: "[AI] 직업 탐색 가이드", desc: "관심 있는 직업/직무 분석 및 가이드", link: null, internal: true, icon: Compass, color: "emerald" },
+  holland_test: { name: "[AI] 홀랜드 검사 리포트", desc: "RIASEC 검사 결과 분석 및 직업 추천", link: null, internal: true, icon: ClipboardList, color: "pink" },
   
-  holland_test: { name: "[GPT] 홀랜드 검사 가이드 Report", desc: "홀랜드 흥미 유형 검사 및 분석 리포트 제공", link: "https://chatgpt.com/g/g-6871bb8ebc308191ba718e387bac5105-holland-interest-test-guide-report", internal: false, icon: ClipboardList, color: "pink" },
+  // [외부 도구]
   card_bot: { name: "[노트북LM] 커리어스타일 챗봇", desc: "유료 프로그램 전용 챗봇", link: "https://notebooklm.google.com/notebook/595da4c0-fcc1-4064-82c8-9901e6dd8772", internal: false, icon: MessageSquare, color: "violet" },
   rubric_clinic: { name: "[Gem] 자소서 코칭 클리닉", desc: "유료 워크숍 전용", link: "https://gemini.google.com/gem/1jXo4wyUvzepwmP_diVl-FQzg05EkexIg?usp=sharing", internal: false, icon: Stethoscope, color: "cyan" },
 };
@@ -346,6 +348,230 @@ const COLOR_VARIANTS = {
 };
 
 // [ALL SUB APPS DEFINED BELOW]
+
+// [NEW] 홀랜드 검사 가이드 리포트 앱
+function HollandTestApp({ onClose }) {
+  const [scores, setScores] = useState({ R: '', I: '', A: '', S: '', E: '', C: '' });
+  const [jobs, setJobs] = useState({ job1: '', job2: '' });
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [toastMsg, setToastMsg] = useState(null);
+  const reportRef = useRef(null);
+
+  const showToast = (msg) => setToastMsg(msg);
+
+  const getTypeFullName = (code) => {
+    const map = { R: '현실형 (Realistic)', I: '탐구형 (Investigative)', A: '예술형 (Artistic)', S: '사회형 (Social)', E: '진취형 (Enterprising)', C: '관습형 (Conventional)' };
+    return map[code] || code;
+  };
+
+  const handleAIAnalysis = async () => {
+    // 점수 입력 확인
+    if (Object.values(scores).some(v => v === '')) return showToast("모든 유형의 표준점수를 입력해주세요.");
+    
+    setLoading(true);
+    try {
+      // 점수 정렬하여 순위 매기기
+      const sortedScores = Object.entries(scores)
+        .map(([code, score]) => ({ code, score: Number(score) }))
+        .sort((a, b) => b.score - a.score);
+
+      const top3 = sortedScores.slice(0, 3).map(s => s.code).join('');
+      const scoreText = sortedScores.map(s => `${s.code}=${s.score}`).join(', ');
+
+      const prompt = `당신은 진로 상담 전문가입니다. 내담자의 홀랜드(RIASEC) 검사 결과와 관심 직업을 바탕으로 상세 분석 리포트를 작성해주세요.
+
+      [검사 결과]
+      - 표준점수: ${scoreText}
+      - 1순위 유형: ${getTypeFullName(sortedScores[0].code)} (${sortedScores[0].code})
+      - 2순위 유형: ${getTypeFullName(sortedScores[1].code)} (${sortedScores[1].code})
+      - 3순위 유형: ${getTypeFullName(sortedScores[2].code)} (${sortedScores[2].code})
+
+      [관심 직업]
+      - 1지망: ${jobs.job1 || '없음'}
+      - 2지망: ${jobs.job2 || '없음'}
+      
+      다음 JSON 형식을 반드시 따를 것:
+      {
+        "overview": "홀랜드 흥미 검사의 개요 및 의의 (2-3문장)",
+        "rank_table": [
+          {"rank": 1, "type": "${getTypeFullName(sortedScores[0].code)}", "score": ${sortedScores[0].score}, "desc": "해당 유형의 특징 및 의미"},
+          {"rank": 2, "type": "${getTypeFullName(sortedScores[1].code)}", "score": ${sortedScores[1].score}, "desc": "해당 유형의 특징 및 의미"},
+          {"rank": 3, "type": "${getTypeFullName(sortedScores[2].code)}", "score": ${sortedScores[2].score}, "desc": "해당 유형의 특징 및 의미"},
+          {"rank": 4, "type": "${getTypeFullName(sortedScores[3].code)}", "score": ${sortedScores[3].score}, "desc": "해당 유형의 특징 및 의미"},
+          {"rank": 5, "type": "${getTypeFullName(sortedScores[4].code)}", "score": ${sortedScores[4].score}, "desc": "해당 유형의 특징 및 의미"},
+          {"rank": 6, "type": "${getTypeFullName(sortedScores[5].code)}", "score": ${sortedScores[5].score}, "desc": "해당 유형의 특징 및 의미"}
+        ],
+        "analysis": {
+          "strength": "나의 강점 (1,2순위 유형 기반으로 상세히)",
+          "weakness": "나의 약점 (하위 유형 및 점수 불균형 등 고려)",
+          "complement": "보완할 점 및 조언"
+        },
+        "job_match": {
+          "job1_match": "관심직업1(${jobs.job1 || '미입력'})과 내 유형(${top3})의 매칭도 분석 및 설명",
+          "job2_match": "관심직업2(${jobs.job2 || '미입력'})와 내 유형(${top3})의 매칭도 분석 및 설명"
+        }
+      }`;
+
+      const parsed = await fetchGemini(prompt);
+      setResult(parsed);
+    } catch (e) { showToast(e.message); } finally { setLoading(false); }
+  };
+
+  const handleEdit = (section, key, value, index = null) => {
+    setResult(prev => {
+      const newData = { ...prev };
+      if (Array.isArray(newData[section])) {
+        newData[section][index][key] = value;
+      } else if (newData[section] && typeof newData[section] === 'object') {
+        newData[section][key] = value;
+      } else {
+        newData[section] = value;
+      }
+      return newData;
+    });
+  };
+
+  const handleDownload = () => saveAsPng(reportRef, `홀랜드리포트`, showToast);
+  const handlePdfDownload = () => saveAsPdf(reportRef, `홀랜드리포트`, showToast);
+
+  return (
+    <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
+      {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
+      <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
+        <div className="flex items-center gap-3"><ClipboardList className="text-pink-400"/><h1 className="font-bold text-lg">홀랜드 검사 리포트</h1></div>
+        <button onClick={onClose} className="flex items-center text-sm hover:text-pink-200 transition-colors"><ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기</button>
+      </header>
+      <div className="flex flex-1 overflow-hidden">
+        <aside className="w-80 bg-white border-r p-6 shrink-0 overflow-y-auto">
+          <div className="space-y-6">
+            <h3 className="font-bold text-sm text-pink-700 flex items-center uppercase tracking-wider"><Settings size={16} className="mr-2"/> 점수 입력</h3>
+            
+            <div className="grid grid-cols-2 gap-3">
+              {['R', 'I', 'A', 'S', 'E', 'C'].map(code => (
+                <div key={code}>
+                  <label className="block text-xs font-bold text-slate-500 mb-1">{
+                    code === 'R' ? '현실형 (R)' : 
+                    code === 'I' ? '탐구형 (I)' : 
+                    code === 'A' ? '예술형 (A)' : 
+                    code === 'S' ? '사회형 (S)' : 
+                    code === 'E' ? '진취형 (E)' : '관습형 (C)'
+                  }</label>
+                  <input 
+                    type="number" 
+                    value={scores[code]} 
+                    onChange={e=>setScores({...scores, [code]: e.target.value})} 
+                    className="w-full p-2 border rounded-lg text-center font-bold text-slate-700 focus:border-pink-500 outline-none" 
+                    placeholder="0"
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-4 border-t border-slate-100">
+               <h4 className="font-bold text-xs text-slate-500 mb-2">관심 직업</h4>
+               <input value={jobs.job1} onChange={e=>setJobs({...jobs, job1: e.target.value})} className="w-full p-2 border rounded-lg text-sm mb-2" placeholder="1순위 희망 직업" />
+               <input value={jobs.job2} onChange={e=>setJobs({...jobs, job2: e.target.value})} className="w-full p-2 border rounded-lg text-sm" placeholder="2순위 희망 직업" />
+            </div>
+
+            <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-pink-600 text-white py-3.5 rounded-xl font-bold mt-2 shadow-lg disabled:bg-slate-400">{loading ? <Loader2 className="animate-spin mx-auto"/> : "리포트 생성"}</button>
+          </div>
+        </aside>
+        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
+          {result ? (
+            <div ref={reportRef} className="w-[210mm] min-h-[297mm] h-fit bg-white shadow-2xl p-12 flex flex-col animate-in fade-in zoom-in-95 duration-500">
+              <div className="border-b-4 border-pink-500 pb-6 mb-8">
+                <span className="bg-pink-100 text-pink-800 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">HOLLAND REPORT</span>
+                <h1 className="text-4xl font-extrabold text-slate-900">홀랜드 흥미 검사 분석</h1>
+                <EditableContent className="text-lg text-slate-500 mt-2" value={result.overview} onSave={(v)=>handleEdit('overview', null, v)} />
+              </div>
+
+              <div className="space-y-8">
+                {/* 1. 순위표 */}
+                <section>
+                   <h3 className="text-xl font-bold text-slate-800 mb-4 pb-2 border-b border-slate-200 flex items-center"><BarChart3 size={20} className="mr-2 text-pink-600"/> 유형별 점수 및 순위</h3>
+                   <div className="overflow-hidden rounded-xl border border-slate-200">
+                     <table className="w-full text-sm text-left">
+                       <thead className="bg-slate-100 text-slate-600 font-bold">
+                         <tr>
+                           <th className="px-4 py-3 w-16 text-center">순위</th>
+                           <th className="px-4 py-3 w-32">유형</th>
+                           <th className="px-4 py-3 w-20 text-center">점수</th>
+                           <th className="px-4 py-3">의미 및 특징</th>
+                         </tr>
+                       </thead>
+                       <tbody className="divide-y divide-slate-100">
+                         {result.rank_table?.map((row, i) => (
+                           <tr key={i} className={i < 2 ? "bg-pink-50/50" : "bg-white"}>
+                             <td className="px-4 py-3 text-center font-bold text-slate-500">{row.rank}</td>
+                             <td className={`px-4 py-3 font-bold ${i < 2 ? 'text-pink-700' : 'text-slate-700'}`}>{row.type}</td>
+                             <td className="px-4 py-3 text-center font-bold">{row.score}</td>
+                             <td className="px-4 py-3 text-slate-600"><EditableContent value={row.desc} onSave={(v)=>handleEdit('rank_table', 'desc', v, i)} /></td>
+                           </tr>
+                         ))}
+                       </tbody>
+                     </table>
+                   </div>
+                </section>
+
+                {/* 2. 강점/약점 */}
+                <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                   <div className="bg-blue-50 p-5 rounded-xl">
+                      <h4 className="font-bold text-blue-800 mb-3 flex items-center"><Smile className="mr-2" size={18}/> 나의 강점</h4>
+                      <EditableContent className="text-sm text-slate-700 leading-relaxed" value={result.analysis?.strength} onSave={(v)=>handleEdit('analysis', 'strength', v)} />
+                   </div>
+                   <div className="bg-orange-50 p-5 rounded-xl">
+                      <h4 className="font-bold text-orange-800 mb-3 flex items-center"><Meh className="mr-2" size={18}/> 나의 약점</h4>
+                      <EditableContent className="text-sm text-slate-700 leading-relaxed" value={result.analysis?.weakness} onSave={(v)=>handleEdit('analysis', 'weakness', v)} />
+                   </div>
+                   <div className="bg-emerald-50 p-5 rounded-xl">
+                      <h4 className="font-bold text-emerald-800 mb-3 flex items-center"><Target className="mr-2" size={18}/> 보완할 점</h4>
+                      <EditableContent className="text-sm text-slate-700 leading-relaxed" value={result.analysis?.complement} onSave={(v)=>handleEdit('analysis', 'complement', v)} />
+                   </div>
+                </section>
+
+                {/* 3. 직무 매칭 */}
+                <section>
+                   <h3 className="text-xl font-bold text-slate-800 mb-4 pb-2 border-b border-slate-200 flex items-center"><Briefcase size={20} className="mr-2 text-pink-600"/> 관심 직무 매칭 분석</h3>
+                   <div className="space-y-4">
+                      <div className="bg-white p-5 rounded-xl border border-pink-100 shadow-sm">
+                         <h4 className="font-bold text-slate-800 mb-2 text-lg">1. {jobs.job1 || '관심직업1'}</h4>
+                         <EditableContent className="text-slate-600 leading-relaxed" value={result.job_match?.job1_match} onSave={(v)=>handleEdit('job_match', 'job1_match', v)} />
+                      </div>
+                      {jobs.job2 && (
+                        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                           <h4 className="font-bold text-slate-800 mb-2 text-lg">2. {jobs.job2}</h4>
+                           <EditableContent className="text-slate-600 leading-relaxed" value={result.job_match?.job2_match} onSave={(v)=>handleEdit('job_match', 'job2_match', v)} />
+                        </div>
+                      )}
+                   </div>
+                </section>
+              </div>
+
+              <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto">
+                <div className="flex items-center"><ClipboardList className="w-4 h-4 mr-1 text-pink-500" /><span>Career Vitamin</span></div>
+                <span>AI-Powered Holland Assessment Report</span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-slate-400">
+              <ClipboardList size={64} className="mb-4 opacity-20"/>
+              <p>좌측 메뉴에서 점수를 입력하고 리포트를 생성하세요.</p>
+            </div>
+          )}
+        </main>
+        {result && (
+          <div className="absolute bottom-8 right-8 flex gap-3 z-50">
+            <button onClick={handleDownload} className="bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><Download className="mr-2" size={20}/> 이미지 저장</button>
+            <button onClick={handlePdfDownload} className="bg-red-600 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><FileText className="mr-2" size={20}/> PDF 저장</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ... (Other Sub Apps: CompanyAnalysisApp, CareerRoadmapApp, etc. should be included here) ...
 
 function CompanyAnalysisApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', url: '', job: '' });
@@ -439,6 +665,7 @@ function CompanyAnalysisApp({ onClose }) {
               </div>
               
               <div className="space-y-10">
+                {/* 1. 기업 개요 */}
                 <section>
                   <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center border-b-2 border-indigo-100 pb-2"><Building2 size={24} className="mr-2"/> 1. 기업 개요 및 현황</h3>
                   <div className="space-y-4">
@@ -467,6 +694,7 @@ function CompanyAnalysisApp({ onClose }) {
                   </div>
                 </section>
 
+                {/* 2. 주요 사업 및 SWOT */}
                 <section>
                   <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center border-b-2 border-indigo-100 pb-2"><BarChart3 size={24} className="mr-2"/> 2. 주요 사업 & SWOT</h3>
                   <div className="mb-6">
@@ -486,6 +714,7 @@ function CompanyAnalysisApp({ onClose }) {
                   </div>
                 </section>
 
+                {/* 3. 산업 동향 & 경쟁 우위 */}
                 <section>
                    <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center border-b-2 border-indigo-100 pb-2"><Globe size={24} className="mr-2"/> 3. 시장 및 경쟁 분석</h3>
                    <div className="space-y-4">
@@ -500,6 +729,7 @@ function CompanyAnalysisApp({ onClose }) {
                    </div>
                 </section>
 
+                {/* 4. 취업 전략 */}
                 <section>
                    <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center border-b-2 border-indigo-100 pb-2"><Target size={24} className="mr-2"/> 4. 지원자 취업 전략</h3>
                    <div className="bg-slate-800 p-6 rounded-xl shadow-lg text-white">
@@ -834,7 +1064,12 @@ function SituationInterviewApp({ onClose }) {
           <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-teal-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"답변 생성"}</button>
         </div></aside>
         <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{result ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] h-fit bg-white shadow-lg p-10 flex flex-col animate-in fade-in zoom-in-95 duration-500"><h2 className="text-3xl font-extrabold mb-6 text-slate-900 border-b-2 border-teal-500 pb-4">상황면접 가이드</h2><div className="space-y-6"> <div className="bg-slate-50 p-6 rounded-xl border mb-8"><h3 className="font-bold text-slate-500 text-xs mb-2 tracking-widest">QUESTION</h3><p className="font-bold text-xl text-slate-800">"{inputs.question}"</p></div><div className="grid grid-cols-1 gap-8"><div className="border-l-4 border-teal-500 pl-6 py-2"><EditableContent className="font-bold text-teal-800 text-xl mb-3" value={result.situation_a?.title} onSave={(v)=>handleEdit('situation_a', 'title', v)} /><EditableContent className="text-slate-600 leading-relaxed text-lg" value={result.situation_a?.content} onSave={(v)=>handleEdit('situation_a', 'content', v)} /></div><div className="border-l-4 border-slate-400 pl-6 py-2"><EditableContent className="font-bold text-slate-700 text-xl mb-3" value={result.situation_b?.title} onSave={(v)=>handleEdit('situation_b', 'title', v)} /><EditableContent className="text-slate-600 leading-relaxed text-lg" value={result.situation_b?.content} onSave={(v)=>handleEdit('situation_b', 'content', v)} /></div></div><div className="mt-8 bg-teal-50 p-6 rounded-xl border border-teal-100 text-teal-900 text-base font-medium">💡 Advice: <EditableContent className="mt-2" value={result.advice} onSave={(v)=>handleEdit('advice', null, v)} /></div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><Split className="w-4 h-4 mr-1 text-teal-500" /><span>Career Vitamin</span></div><span>AI-Powered Situation Guide</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Split size={64} className="mb-4 opacity-20"/><p>질문을 입력하면 답변이 생성됩니다.</p></div>}</main>
-        {result && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
+        {result && (
+          <div className="absolute bottom-8 right-8 flex gap-3 z-50">
+            <button onClick={handleDownload} className="bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><Download className="mr-2" size={20}/> 이미지 저장</button>
+            <button onClick={handlePdfDownload} className="bg-red-600 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><FileText className="mr-2" size={20}/> PDF 저장</button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -886,7 +1121,12 @@ function SelfIntroApp({ onClose }) {
           <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-purple-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"스크립트 생성"}</button>
         </div></aside>
         <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{script ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] h-fit bg-white shadow-lg p-10 flex flex-col animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-purple-600 pb-6 text-center"><span className="text-purple-600 font-bold text-sm tracking-widest block mb-2">1-MINUTE SPEECH</span><EditableContent className="text-3xl font-extrabold text-slate-900 text-center" value={script.slogan} onSave={(v)=>handleEdit('slogan', v)} /></div><div className="space-y-8 mt-8"> <div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-4 uppercase">Opening</div><div className="flex-1 bg-purple-50 p-6 rounded-2xl text-xl font-bold text-slate-800 shadow-sm"><EditableContent value={script.opening} onSave={(v)=>handleEdit('opening', v)} /></div></div><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-1 uppercase">Body</div><div className="flex-1 text-slate-700 leading-loose pl-6 border-l-2 border-purple-200 text-lg"><EditableContent value={script.body} onSave={(v)=>handleEdit('body', v)} /></div></div><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-4 uppercase">Closing</div><div className="flex-1 bg-slate-50 p-6 rounded-2xl font-medium text-slate-800 text-lg"><EditableContent value={script.closing} onSave={(v)=>handleEdit('closing', v)} /></div></div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><Mic className="w-4 h-4 mr-1 text-purple-500" /><span>Career Vitamin</span></div><span>AI-Generated Speech Script</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Mic size={64} className="mb-4 opacity-20"/><p>정보를 입력하면 스크립트가 생성됩니다.</p></div>}</main>
-        {script && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
+        {script && (
+          <div className="absolute bottom-8 right-8 flex gap-3 z-50">
+            <button onClick={handleDownload} className="bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><Download className="mr-2" size={20}/> 이미지 저장</button>
+            <button onClick={handlePdfDownload} className="bg-red-600 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><FileText className="mr-2" size={20}/> PDF 저장</button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -934,7 +1174,12 @@ function ExperienceStructuringApp({ onClose }) {
           <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"구조화 실행"}</button>
         </div></aside>
         <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{starData.s ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] h-fit bg-white shadow-lg p-10 space-y-6 animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-indigo-600 pb-6 mb-6"><h1 className="text-4xl font-extrabold text-slate-900">STAR Analysis</h1><p className="text-slate-500 mt-2 text-lg">경험 구조화 워크시트</p></div><div className="space-y-6"> <div className="bg-slate-50 p-6 rounded-2xl border-l-8 border-slate-400"><h3 className="font-bold text-slate-500 mb-2 text-sm tracking-widest">SITUATION</h3><EditableContent className="text-slate-800 text-lg leading-relaxed" value={starData.s} onSave={(v)=>handleEdit('s', v)} /></div><div className="bg-slate-50 p-6 rounded-2xl border-l-8 border-slate-500"><h3 className="font-bold text-slate-500 mb-2 text-sm tracking-widest">TASK</h3><EditableContent className="text-slate-800 text-lg leading-relaxed" value={starData.t} onSave={(v)=>handleEdit('t', v)} /></div><div className="bg-white border-2 border-indigo-100 p-6 rounded-2xl shadow-sm"><h3 className="font-bold text-indigo-600 mb-2 text-sm tracking-widest">ACTION</h3><EditableContent className="text-slate-800 font-medium text-lg leading-relaxed" value={starData.a} onSave={(v)=>handleEdit('a', v)} /></div><div className="bg-indigo-50 p-6 rounded-2xl border-l-8 border-indigo-600"><h3 className="font-bold text-indigo-800 mb-2 text-sm tracking-widest">RESULT</h3><EditableContent className="text-slate-800 font-bold text-lg leading-relaxed" value={starData.r} onSave={(v)=>handleEdit('r', v)} /></div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><LayoutList className="w-4 h-4 mr-1 text-indigo-500" /><span>Career Vitamin</span></div><span>AI-Powered STAR Analysis</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><LayoutList size={64} className="mb-4 opacity-20"/><p>경험을 입력하면 STAR 기법으로 구조화합니다.</p></div>}</main>
-        {starData.s && <button onClick={handleDownload} className="absolute bottom-8 right-8 bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center z-50"><Download className="mr-2" size={20}/> 이미지 저장</button>}
+        {starData.s && (
+          <div className="absolute bottom-8 right-8 flex gap-3 z-50">
+            <button onClick={handleDownload} className="bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><Download className="mr-2" size={20}/> 이미지 저장</button>
+            <button onClick={handlePdfDownload} className="bg-red-600 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><FileText className="mr-2" size={20}/> PDF 저장</button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1682,6 +1927,7 @@ export default function App() {
       {currentApp === 'exp_structuring' && <ExperienceStructuringApp onClose={()=>setCurrentApp('none')} />}
       {currentApp === 'role_model' && <RoleModelGuideApp onClose={()=>setCurrentApp('none')} />}
       {currentApp === 'gpt_guide' && <JobExplorerApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'holland_test' && <HollandTestApp onClose={()=>setCurrentApp('none')} />}
     </div>
   );
 }

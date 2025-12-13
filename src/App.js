@@ -270,6 +270,15 @@ const fetchGemini = async (prompt, attachments = []) => {
     });
   }
 
+  const payload = {
+    contents: [{ parts: parts }]
+  };
+
+  // 파일 첨부가 없을 때만 Google Search 도구 활성화 (멀티모달 충돌 방지 및 일반 검색 기능 복구)
+  if (!attachments || attachments.length === 0) {
+    payload.tools = [{ google_search: {} }];
+  }
+
   for (const model of models) {
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
@@ -277,10 +286,7 @@ const fetchGemini = async (prompt, attachments = []) => {
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: parts }],
-            // tools: [{ google_search: {} }], // Search not typically needed for file analysis, enabling generally
-          })
+          body: JSON.stringify(payload)
         });
 
         if (!response.ok) {
@@ -335,7 +341,7 @@ const SERVICES = {
   // [전용 앱]
   company_analysis: { name: "[AI] 기업분석 리포트", desc: "기업 핵심가치/이슈/SWOT 분석", link: null, internal: true, icon: BarChart3, color: "indigo" },
   career_roadmap: { name: "[AI] 커리어 로드맵", desc: "5년/10년 후 경력 목표 설계", link: null, internal: true, icon: TrendingUp, color: "blue" },
-  job_fit: { name: "[AI] 직무 적합도 진단", desc: "채용공고(JD)와 내 서류 매칭 분석", link: null, internal: true, icon: Percent, color: "rose" }, // NEW
+  job_fit: { name: "[AI] 직무 적합도 진단", desc: "채용공고(JD)와 내 서류 매칭 분석", link: null, internal: true, icon: Percent, color: "rose" },
   pt_interview: { name: "[AI] PT 면접 가이드", desc: "주제 추출 및 발표 대본 생성", link: null, internal: true, icon: MonitorPlay, color: "rose" },
   sit_interview: { name: "[AI] 상황면접 가이드", desc: "상황별 구조화된 답변 생성", link: null, internal: true, icon: Split, color: "teal" },
   self_intro: { name: "[AI] 1분 자기소개", desc: "직무/인성 컨셉 맞춤 스크립트", link: null, internal: true, icon: Mic, color: "purple" },
@@ -362,7 +368,7 @@ const COLOR_VARIANTS = {
   pink: "bg-pink-100 text-pink-600",
 };
 
-// ... (Existing Sub Apps: HollandTestApp, CompanyAnalysisApp, etc. should be here) ...
+// [ALL SUB APPS DEFINED BELOW]
 
 // [NEW] 직무 적합도 진단 앱 (Job Fit Report)
 function JobFitScannerApp({ onClose }) {
@@ -437,14 +443,14 @@ function JobFitScannerApp({ onClose }) {
   const handleEdit = (section, key, value, index) => {
     setResult(prev => {
         const newData = { ...prev };
-        if (section === 'fit_analysis' || section === 'interview_prep') { // Handle specific nested/array structures
+        if (section === 'fit_analysis' || section === 'interview_prep') { 
             if(Array.isArray(newData[section])) {
                  newData[section][index] = value;
             } else {
                  newData[section][key] = value;
             }
         } else {
-            newData[section] = value; // Simple top-level keys
+            newData[section] = value;
         }
         return newData;
     });
@@ -581,8 +587,7 @@ function JobFitScannerApp({ onClose }) {
   );
 }
 
-// ... (HollandTestApp and other apps should be below) ...
-
+// [NEW] 홀랜드 검사 가이드 리포트 앱
 function HollandTestApp({ onClose }) {
   const [scores, setScores] = useState({ R: '', I: '', A: '', S: '', E: '', C: '' });
   const [jobs, setJobs] = useState({ job1: '', job2: '' });

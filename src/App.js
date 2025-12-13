@@ -386,6 +386,11 @@ function HollandTestApp({ onClose }) {
       - 1순위 유형: ${getTypeFullName(sortedScores[0].code)} (${sortedScores[0].code})
       - 2순위 유형: ${getTypeFullName(sortedScores[1].code)} (${sortedScores[1].code})
       - 3순위 유형: ${getTypeFullName(sortedScores[2].code)} (${sortedScores[2].code})
+      
+      [점수 해석 기준 (표준점수)]
+      - 40점 이하: 낮음 (-)
+      - 41~59점: 중간 (=)
+      - 60점 이상: 높음 (+)
 
       [관심 직업]
       - 1지망: ${jobs.job1 || '없음'}
@@ -445,7 +450,14 @@ function HollandTestApp({ onClose }) {
       <div className="flex flex-1 overflow-hidden">
         <aside className="w-80 bg-white border-r p-6 shrink-0 overflow-y-auto">
           <div className="space-y-6">
-            <h3 className="font-bold text-sm text-pink-700 flex items-center uppercase tracking-wider"><Settings size={16} className="mr-2"/> 점수 입력</h3>
+            <div>
+              <h3 className="font-bold text-sm text-pink-700 flex items-center uppercase tracking-wider mb-2"><Settings size={16} className="mr-2"/> 점수 입력 (표준점수)</h3>
+              <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs text-slate-600 mb-4">
+                 <div className="flex justify-between mb-1"><span>📉 낮음 (-)</span> <span className="font-bold">40 이하</span></div>
+                 <div className="flex justify-between mb-1"><span>➖ 중간 (=)</span> <span className="font-bold">41 ~ 59</span></div>
+                 <div className="flex justify-between"><span>📈 높음 (+)</span> <span className="font-bold">60 이상</span></div>
+              </div>
+            </div>
             
             <div className="grid grid-cols-2 gap-3">
               {['R', 'I', 'A', 'S', 'E', 'C'].map(code => (

@@ -28,7 +28,7 @@ import {
   Globe, ThumbsUp, AlertCircle, ExternalLink,
   Info, PenTool, Lightbulb, Users, Lock, ClipboardList,
   FileSpreadsheet, FileText, Briefcase, GraduationCap, BrainCircuit, Key, Smile, Meh, Frown, Stethoscope, ArrowRight,
-  UploadCloud, FileCheck, Percent, ThumbsDown
+  UploadCloud, FileCheck, Percent
 } from 'lucide-react';
 
 // =============================================================================
@@ -335,9 +335,7 @@ const SERVICES = {
   // [전용 앱]
   company_analysis: { name: "[AI] 기업분석 리포트", desc: "기업 핵심가치/이슈/SWOT 분석", link: null, internal: true, icon: BarChart3, color: "indigo" },
   career_roadmap: { name: "[AI] 커리어 로드맵", desc: "5년/10년 후 경력 목표 설계", link: null, internal: true, icon: TrendingUp, color: "blue" },
-  job_fit: { name: "[AI] 직무 적합도 진단", desc: "채용공고(JD)와 내 서류 매칭 분석", link: null, internal: true, icon: Percent, color: "rose" },
-  // [NEW] 자소서 코칭 클리닉 (내부 앱으로 전환)
-  rubric_clinic: { name: "[AI] 자소서 코칭 클리닉", desc: "루브릭 기준 항목별 강점/약점 첨삭", link: null, internal: true, icon: Stethoscope, color: "cyan" },
+  job_fit: { name: "[AI] 직무 적합도 진단", desc: "채용공고(JD)와 내 서류 매칭 분석", link: null, internal: true, icon: Percent, color: "rose" }, // NEW
   pt_interview: { name: "[AI] PT 면접 가이드", desc: "주제 추출 및 발표 대본 생성", link: null, internal: true, icon: MonitorPlay, color: "rose" },
   sit_interview: { name: "[AI] 상황면접 가이드", desc: "상황별 구조화된 답변 생성", link: null, internal: true, icon: Split, color: "teal" },
   self_intro: { name: "[AI] 1분 자기소개", desc: "직무/인성 컨셉 맞춤 스크립트", link: null, internal: true, icon: Mic, color: "purple" },
@@ -348,6 +346,7 @@ const SERVICES = {
   
   // [외부 도구]
   card_bot: { name: "[노트북LM] 커리어스타일 챗봇", desc: "유료 프로그램 전용 챗봇", link: "https://notebooklm.google.com/notebook/595da4c0-fcc1-4064-82c8-9901e6dd8772", internal: false, icon: MessageSquare, color: "violet" },
+  rubric_clinic: { name: "[Gem] 자소서 코칭 클리닉", desc: "유료 워크숍 전용", link: "https://gemini.google.com/gem/1jXo4wyUvzepwmP_diVl-FQzg05EkexIg?usp=sharing", internal: false, icon: Stethoscope, color: "cyan" },
 };
 
 const COLOR_VARIANTS = {
@@ -363,258 +362,7 @@ const COLOR_VARIANTS = {
   pink: "bg-pink-100 text-pink-600",
 };
 
-// [NEW] 자소서 코칭 클리닉 앱
-function RubricClinicApp({ onClose }) {
-  const [inputs, setInputs] = useState({ company: '', url: '', job: '' });
-  const [resumeFile, setResumeFile] = useState(null);
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [toastMsg, setToastMsg] = useState(null);
-  const reportRef = useRef(null);
-
-  const showToast = (msg) => setToastMsg(msg);
-
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.type !== 'application/pdf') {
-        showToast("PDF 파일만 지원합니다.");
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64Data = reader.result.split(',')[1];
-        setResumeFile({
-          mimeType: file.type,
-          data: base64Data,
-          name: file.name
-        });
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleAIAnalysis = async () => {
-    if (!inputs.company || !inputs.job) return showToast("기업명과 직무를 입력해주세요.");
-    if (!resumeFile) return showToast("자기소개서(PDF) 파일을 업로드해주세요.");
-    
-    setLoading(true);
-    try {
-      const prompt = `
-      당신은 20년 경력의 채용 전문 평가관입니다. 지원자의 자기소개서를 아래 [루브릭 평가기준]에 의거하여 정밀 분석하고 피드백해주세요.
-
-      [분석 대상]
-      1. 기업명: ${inputs.company} (홈페이지: ${inputs.url || '없음'})
-      2. 지원 직무: ${inputs.job}
-      3. 자기소개서: 첨부된 PDF 파일 내용
-
-      [루브릭 평가기준]
-      - 성장과정: 가치관/인성 형성 배경과 직무 가치 연결성 (우수: 서사적 기술+직무연계, 미흡: 단순 가족소개/나열)
-      - 성격의 장단점: 자기이해(Self-awareness) 및 직무/조직 적합성 (우수: 분석적 인식+직무수행 연결+명확한 보완의지)
-      - 지원동기: 기업/산업에 대한 깊은 이해와 진정성 (우수: 긍정적 차별점 분석+구체적 동기, 미흡: 복붙형/일반적 칭찬)
-      - 입사 후 포부: 구체적 비전과 기여 방안 (우수: 직무 기여도+단계적 계획, 미흡: 막연한 열심히/배우겠다)
-      - 직무 역량: KSA(지식/기술/태도) 기반 경험 증명 (우수: 구체적 성과/수치+기여가능성)
-
-      [출력 요구사항 (JSON)]
-      {
-        "summary_table": [
-          { "item": "항목명(예: 성장과정)", "rating": "우수/보통/미흡 중 택1", "comment": "핵심 평가 코멘트 (1문장)" }
-          // 모든 항목에 대해 반복
-        ],
-        "details": [
-          {
-            "item": "항목명",
-            "original_content_summary": "지원자가 작성한 내용 핵심 요약 (1-2문장)",
-            "strength": "잘 쓴 점 (강점 포인트)",
-            "correction": "부족한 점 및 구체적인 첨삭 제안 (보완 포인트)",
-            "tail_questions": ["면접 대비 꼬리질문1", "면접 대비 꼬리질문2"]
-          }
-          // 모든 항목에 대해 반복
-        ],
-        "overall_review": "전체 총평 및 합격 가능성을 높이기 위한 최종 조언"
-      }
-
-      * 강점은 파란색, 보완점은 빨간색으로 표시될 예정이므로 내용은 명확하고 직관적으로 작성할 것.
-      * 자소서의 각 항목(성장과정, 지원동기 등)을 자동으로 식별하여 분석할 것.
-      `;
-
-      const parsed = await fetchGemini(prompt, [resumeFile]);
-      setResult(parsed);
-    } catch (e) { showToast(e.message); } finally { setLoading(false); }
-  };
-
-  const handleEdit = (section, key, value, index = null) => {
-    setResult(prev => {
-      const newData = { ...prev };
-      if (Array.isArray(newData[section])) {
-        newData[section][index][key] = value;
-      } else {
-        newData[section] = value;
-      }
-      return newData;
-    });
-  };
-
-  const handleDownload = () => saveAsPng(reportRef, `자소서코칭_${inputs.company}`, showToast);
-  const handlePdfDownload = () => saveAsPdf(reportRef, `자소서코칭_${inputs.company}`, showToast);
-
-  return (
-    <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
-      {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
-      <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
-        <div className="flex items-center gap-3"><Stethoscope className="text-cyan-400"/><h1 className="font-bold text-lg">자소서 코칭 클리닉</h1></div>
-        <button onClick={onClose} className="flex items-center text-sm hover:text-cyan-200 transition-colors"><ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기</button>
-      </header>
-      <div className="flex flex-1 overflow-hidden">
-        <aside className="w-80 bg-white border-r p-6 shrink-0 overflow-y-auto">
-          <div className="space-y-6">
-            <h3 className="font-bold text-sm text-cyan-700 flex items-center uppercase tracking-wider"><Settings size={16} className="mr-2"/> 기본 설정</h3>
-            
-            <div className="space-y-3">
-               <input value={inputs.company} onChange={e=>setInputs({...inputs, company:e.target.value})} className="w-full p-3 border rounded-lg text-sm" placeholder="지원 기업명" />
-               <input value={inputs.url} onChange={e=>setInputs({...inputs, url:e.target.value})} className="w-full p-3 border rounded-lg text-sm" placeholder="홈페이지 URL (선택)" />
-               <input value={inputs.job} onChange={e=>setInputs({...inputs, job:e.target.value})} className="w-full p-3 border rounded-lg text-sm font-bold" placeholder="지원 직무명" />
-            </div>
-
-            <div className="pt-4 border-t border-slate-100">
-               <label className="block text-xs font-bold text-slate-500 mb-2">자기소개서 파일 (PDF)</label>
-               <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors">
-                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                       {resumeFile ? (
-                           <><FileCheck className="w-8 h-8 text-green-500 mb-2"/><p className="text-xs text-slate-500 truncate w-4/5 text-center px-2">{resumeFile.name}</p></>
-                       ) : (
-                           <><UploadCloud className="w-8 h-8 text-slate-400 mb-2"/><p className="text-xs text-slate-500">PDF 파일 업로드</p></>
-                       )}
-                   </div>
-                   <input type="file" className="hidden" accept="application/pdf" onChange={handleFileChange} />
-               </label>
-            </div>
-
-            <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-cyan-600 text-white py-3.5 rounded-xl font-bold mt-2 shadow-lg disabled:bg-slate-400 hover:bg-cyan-700 transition-colors">{loading ? <Loader2 className="animate-spin mx-auto"/> : "코칭 리포트 생성"}</button>
-          </div>
-        </aside>
-        
-        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
-          {result ? (
-            <div ref={reportRef} className="w-[210mm] min-h-[297mm] h-fit bg-white shadow-2xl p-12 flex flex-col animate-in fade-in zoom-in-95 duration-500">
-              <div className="border-b-4 border-cyan-500 pb-6 mb-8 flex justify-between items-end">
-                <div>
-                    <span className="bg-cyan-100 text-cyan-800 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">RESUME CLINIC</span>
-                    <h1 className="text-3xl font-extrabold text-slate-900">{inputs.company}</h1>
-                    <p className="text-lg text-slate-500 mt-2">{inputs.job} 직무 자기소개서 진단</p>
-                </div>
-                <div className="text-right">
-                    <div className="text-sm font-bold text-slate-400 mb-1">Clinic Date</div>
-                    <div className="text-lg font-medium text-slate-700">{new Date().toLocaleDateString()}</div>
-                </div>
-              </div>
-
-              <div className="space-y-10">
-                {/* 1. 요약 평가표 */}
-                <section>
-                    <h3 className="text-xl font-bold text-slate-800 mb-4 pb-2 border-b border-slate-200 flex items-center"><ClipboardList size={20} className="mr-2 text-cyan-600"/> 항목별 평가 요약</h3>
-                    <div className="overflow-hidden rounded-xl border border-slate-200">
-                      <table className="w-full text-sm text-left">
-                        <thead className="bg-slate-100 text-slate-600 font-bold">
-                          <tr>
-                            <th className="px-4 py-3 w-32">항목</th>
-                            <th className="px-4 py-3 w-20 text-center">평가</th>
-                            <th className="px-4 py-3">핵심 코멘트</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {result.summary_table?.map((row, i) => (
-                            <tr key={i} className="bg-white hover:bg-slate-50">
-                               <td className="px-4 py-3 font-bold text-slate-700">{row.item}</td>
-                               <td className="px-4 py-3 text-center">
-                                 <span className={`px-2 py-1 rounded text-xs font-bold ${
-                                   row.rating === '우수' ? 'bg-blue-100 text-blue-700' : 
-                                   row.rating === '보통' ? 'bg-slate-100 text-slate-600' : 'bg-red-100 text-red-600'
-                                 }`}>{row.rating}</span>
-                               </td>
-                               <td className="px-4 py-3 text-slate-600"><EditableContent value={row.comment} onSave={(v)=>handleEdit('summary_table', 'comment', v, i)} /></td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                </section>
-
-                {/* 2. 상세 분석 및 첨삭 */}
-                <section>
-                    <h3 className="text-xl font-bold text-slate-800 mb-6 pb-2 border-b border-slate-200 flex items-center"><Search size={20} className="mr-2 text-cyan-600"/> 항목별 상세 코칭</h3>
-                    <div className="space-y-8">
-                      {result.details?.map((detail, i) => (
-                        <div key={i} className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-                           <h4 className="font-bold text-lg text-slate-800 mb-3 flex items-center">
-                             <span className="w-8 h-8 rounded-full bg-cyan-100 text-cyan-700 flex items-center justify-center mr-3 text-sm">{i+1}</span>
-                             {detail.item}
-                           </h4>
-                           
-                           <div className="mb-4 bg-slate-50 p-4 rounded-lg text-sm text-slate-600 italic">
-                             <span className="font-bold not-italic text-slate-400 mr-2">[요약]</span>
-                             {detail.original_content_summary}
-                           </div>
-
-                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                             <div className="border border-blue-100 bg-blue-50/30 rounded-lg p-4">
-                               <div className="flex items-center gap-2 font-bold text-blue-700 mb-2 text-sm"><ThumbsUp size={16}/> 강점 포인트</div>
-                               <EditableContent className="text-sm text-blue-900 leading-relaxed" value={detail.strength} onSave={(v)=>handleEdit('details', 'strength', v, i)} />
-                             </div>
-                             <div className="border border-red-100 bg-red-50/30 rounded-lg p-4">
-                               <div className="flex items-center gap-2 font-bold text-red-600 mb-2 text-sm"><PenTool size={16}/> 보완 및 첨삭 제안</div>
-                               <EditableContent className="text-sm text-red-800 leading-relaxed" value={detail.correction} onSave={(v)=>handleEdit('details', 'correction', v, i)} />
-                             </div>
-                           </div>
-
-                           <div className="bg-slate-800 text-white p-4 rounded-lg">
-                             <div className="font-bold text-cyan-400 text-xs mb-2 flex items-center"><MessageSquare size={14} className="mr-1"/> 면접 대비 꼬리질문</div>
-                             <ul className="list-disc list-inside text-sm space-y-1 text-slate-200">
-                               {detail.tail_questions?.map((q, idx) => (
-                                 <li key={idx}><EditableContent className="inline" value={q} onSave={(v)=>{
-                                   const newQs = [...detail.tail_questions];
-                                   newQs[idx] = v;
-                                   handleEdit('details', 'tail_questions', newQs, i);
-                                 }}/></li>
-                               ))}
-                             </ul>
-                           </div>
-                        </div>
-                      ))}
-                    </div>
-                </section>
-
-                {/* 3. 총평 */}
-                <section className="bg-cyan-50 p-6 rounded-xl border border-cyan-100">
-                    <h3 className="font-bold text-cyan-800 mb-2 flex items-center"><BrainCircuit size={18} className="mr-2"/> Overall Review</h3>
-                    <EditableContent className="text-slate-700 leading-loose text-sm" value={result.overall_review} onSave={(v)=>handleEdit('overall_review', null, v)} />
-                </section>
-              </div>
-
-              <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto">
-                <div className="flex items-center"><Stethoscope className="w-4 h-4 mr-1 text-cyan-500" /><span>Career Vitamin</span></div>
-                <span>AI-Powered Resume Clinic</span>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-slate-400">
-              <Stethoscope size={64} className="mb-4 opacity-20"/>
-              <p>PDF 자소서를 업로드하여 코칭을 시작하세요.</p>
-            </div>
-          )}
-        </main>
-        {result && (
-          <div className="absolute bottom-8 right-8 flex gap-3 z-50">
-            <button onClick={handleDownload} className="bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><Download className="mr-2" size={20}/> 이미지 저장</button>
-            <button onClick={handlePdfDownload} className="bg-red-600 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><FileText className="mr-2" size={20}/> PDF 저장</button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ... (HollandTestApp, JobFitScannerApp, etc. remain unchanged) ...
+// ... (Existing Sub Apps: HollandTestApp, CompanyAnalysisApp, etc. should be here) ...
 
 // [NEW] 직무 적합도 진단 앱 (Job Fit Report)
 function JobFitScannerApp({ onClose }) {
@@ -1935,8 +1683,8 @@ function JobExplorerApp({ onClose }) {
                        <div className="space-y-2">
                          {result.holland?.map((h, i) => (
                            <div key={i} className="bg-white p-2 rounded border border-emerald-100 text-sm">
-                              <div className="font-bold text-emerald-600"><EditableContent value={h.code} onSave={(v)=>handleEdit('holland', 'code', v, i)} /></div>
-                              <div className="text-xs text-slate-600"><EditableContent value={h.reason} onSave={(v)=>handleEdit('holland', 'reason', v, i)} /></div>
+                             <div className="font-bold text-emerald-600"><EditableContent value={h.code} onSave={(v)=>handleEdit('holland', 'code', v, i)} /></div>
+                             <div className="text-xs text-slate-600"><EditableContent value={h.reason} onSave={(v)=>handleEdit('holland', 'reason', v, i)} /></div>
                            </div>
                          ))}
                        </div>
@@ -1947,9 +1695,9 @@ function JobExplorerApp({ onClose }) {
                        <div className="space-y-2 text-xs">
                          {result.big5?.map((b, i) => (
                            <div key={i} className="flex justify-between items-start border-b border-blue-100 last:border-0 pb-1">
-                              <span className="font-bold text-slate-700 w-20">{b.trait}</span>
-                              <span className="font-bold text-blue-600 w-10">{b.level}</span>
-                              <span className="flex-1 text-slate-500 text-[10px]"><EditableContent value={b.reason} onSave={(v)=>handleEdit('big5', 'reason', v, i)} /></span>
+                             <span className="font-bold text-slate-700 w-20">{b.trait}</span>
+                             <span className="font-bold text-blue-600 w-10">{b.level}</span>
+                             <span className="flex-1 text-slate-500 text-[10px]"><EditableContent value={b.reason} onSave={(v)=>handleEdit('big5', 'reason', v, i)} /></span>
                            </div>
                          ))}
                        </div>
@@ -1960,8 +1708,8 @@ function JobExplorerApp({ onClose }) {
                        <ul className="space-y-2">
                          {result.values?.map((val, i) => (
                            <li key={i} className="text-sm bg-white p-2 rounded border border-orange-100">
-                              <span className="font-bold text-orange-600 block"><EditableContent value={val.value} onSave={(v)=>handleEdit('values', 'value', v, i)} /></span>
-                              <span className="text-xs text-slate-600"><EditableContent value={val.reason} onSave={(v)=>handleEdit('values', 'reason', v, i)} /></span>
+                             <span className="font-bold text-orange-600 block"><EditableContent value={val.value} onSave={(v)=>handleEdit('values', 'value', v, i)} /></span>
+                             <span className="text-xs text-slate-600"><EditableContent value={val.reason} onSave={(v)=>handleEdit('values', 'reason', v, i)} /></span>
                            </li>
                          ))}
                        </ul>
@@ -2195,7 +1943,7 @@ export default function App() {
         <p className="text-slate-500 mb-6">전문가 전용 AI 솔루션</p>
         {user && <div className="bg-red-50 text-red-600 p-3 rounded mb-4 text-sm flex items-center gap-2 justify-center"><AlertCircle size={16}/>접근 권한이 없습니다. 관리자에게 문의하세요.</div>}
         {!user ? <button onClick={()=>signInWithPopup(auth, new GoogleAuthProvider())} className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors">Google 로그인</button> 
-              : <button onClick={()=>signOut(auth)} className="w-full bg-slate-200 py-3 rounded-xl font-bold hover:bg-slate-300 transition-colors">로그아웃</button>}
+               : <button onClick={()=>signOut(auth)} className="w-full bg-slate-200 py-3 rounded-xl font-bold hover:bg-slate-300 transition-colors">로그아웃</button>}
       </div>
     </div>
   );
@@ -2296,3 +2044,116 @@ export default function App() {
                    <div key={key} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md border border-slate-200 transition-all group cursor-pointer h-full relative" onClick={() => {
                        if(!hasPersonalKey) return;
                        setCurrentApp(key);
+                     }}>
+                     {!hasPersonalKey && <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/10"><Lock className="text-slate-500 w-8 h-8"/></div>}
+                     <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${COLOR_VARIANTS[svc.color]} group-hover:scale-110 transition-transform`}>
+                       <svc.icon size={24} color={svc.color === 'black' ? '#000' : undefined} /> 
+                     </div>
+                     <h3 className="font-bold text-lg mb-2 group-hover:text-indigo-600 transition-colors">{svc.name}</h3>
+                     <p className="text-sm text-slate-500 mb-4 h-10 line-clamp-2">{svc.desc}</p>
+                     <div className="text-xs font-bold text-indigo-500 flex items-center">
+                       앱 실행하기 <ChevronLeft className="rotate-180 ml-1 w-4 h-4"/>
+                     </div>
+                   </div>
+                 ))}
+               </div>
+             </div>
+
+             {hasPersonalKey && <div className="border-t border-slate-200 my-2"></div>}
+
+             <div className={`transition-all duration-500 ${!hasPersonalKey ? 'opacity-40 pointer-events-none grayscale' : ''}`}>
+               <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                 <ExternalLink className="text-slate-500" size={20}/> 외부 맞춤형 AI 도구
+               </h3>
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                 {externalApps.map(([key, svc]) => (
+                   <div key={key} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md border border-slate-200 transition-all group cursor-pointer h-full relative" onClick={() => {
+                       if(!hasPersonalKey) return;
+                       window.open(svc.link, '_blank');
+                     }}>
+                     {!hasPersonalKey && <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/10"><Lock className="text-slate-500 w-8 h-8"/></div>}
+                     <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${COLOR_VARIANTS[svc.color]} group-hover:scale-110 transition-transform`}>
+                       <svc.icon size={24} color={svc.color === 'black' ? '#000' : undefined} /> 
+                     </div>
+                     <h3 className="font-bold text-lg mb-2 group-hover:text-indigo-600 transition-colors">{svc.name}</h3>
+                     <p className="text-sm text-slate-500 mb-4 h-10 line-clamp-2">{svc.desc}</p>
+                     <div className="text-xs font-bold text-slate-400 flex items-center group-hover:text-slate-600">
+                       외부 도구 열기 <ExternalLink className="ml-1 w-3 h-3"/>
+                     </div>
+                   </div>
+                 ))}
+               </div>
+             </div>
+             
+             {!hasPersonalKey && <div className="text-center text-slate-500 text-sm mt-4 animate-bounce">👆 먼저 위에서 API 키를 등록해주세요.</div>}
+           </div>
+        ) : (
+          /* 관리자 전용 탭 */
+          <div className="space-y-8 max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4">
+            <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold flex items-center gap-2"><User className="text-slate-500"/> 전문가 관리 ({experts.length}명)</h2>
+                <button onClick={handleExportCSV} className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 transition-colors shadow-sm">
+                  <FileSpreadsheet size={16}/> 엑셀/시트 다운로드 (CSV)
+                </button>
+              </div>
+              
+              <form onSubmit={handleAddExpert} className="flex flex-wrap md:flex-nowrap gap-3 mb-6 bg-slate-50 p-4 rounded-lg">
+                <input value={newExpertName} onChange={e=>setNewExpertName(e.target.value)} className="border p-2.5 rounded-lg w-full md:w-1/4 focus:outline-none focus:border-indigo-500" placeholder="이름 (예: 홍길동)" required/>
+                <input value={newExpertEmail} onChange={e=>setNewExpertEmail(e.target.value)} className="border p-2.5 rounded-lg w-full md:w-1/3 focus:outline-none focus:border-indigo-500" placeholder="구글 이메일 (gmail.com)" required/>
+                <input value={newExpertOrg} onChange={e=>setNewExpertOrg(e.target.value)} className="border p-2.5 rounded-lg w-full md:w-1/3 focus:outline-none focus:border-indigo-500" placeholder="소속 기관 (예: XX대학교)" />
+                <button className="bg-slate-800 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-slate-900 transition-colors w-full md:w-auto">추가</button>
+              </form>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-slate-50 text-slate-500 uppercase text-xs">
+                    <tr>
+                      <th className="px-4 py-3">이름</th>
+                      <th className="px-4 py-3">이메일</th>
+                      <th className="px-4 py-3">소속 기관</th>
+                      <th className="px-4 py-3">등록일</th>
+                      <th className="px-4 py-3 text-right">관리</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {experts.map(ex => (
+                      <tr key={ex.id} className="hover:bg-slate-50 group transition-colors">
+                        <td className="px-4 py-4 font-bold text-slate-800 flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs shrink-0">{ex.displayName?.[0]}</div>
+                          {ex.displayName}
+                        </td>
+                        <td className="px-4 py-4 text-slate-500">{ex.email}</td>
+                        <td className="px-4 py-4">
+                          {ex.organization ? (
+                            <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-medium">{ex.organization}</span>
+                          ) : <span className="text-slate-300">-</span>}
+                        </td>
+                        <td className="px-4 py-4 text-slate-400 text-xs">{ex.addedAt ? ex.addedAt.split('T')[0] : '-'}</td>
+                        <td className="px-4 py-4 text-right">
+                          <button onClick={()=>handleDeleteExpert(ex.id)} className="text-slate-300 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition-all"><Trash2 size={16}/></button>
+                        </td>
+                      </tr>
+                    ))}
+                    {experts.length === 0 && <tr><td colSpan="5" className="text-center py-8 text-slate-400">등록된 전문가가 없습니다.</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+      {currentApp === 'company_analysis' && <CompanyAnalysisApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'career_roadmap' && <CareerRoadmapApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'job_fit' && <JobFitScannerApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'pt_interview' && <PtInterviewApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'sit_interview' && <SituationInterviewApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'self_intro' && <SelfIntroApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'exp_structuring' && <ExperienceStructuringApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'role_model' && <RoleModelGuideApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'gpt_guide' && <JobExplorerApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'holland_test' && <HollandTestApp onClose={()=>setCurrentApp('none')} />}
+    </div>
+  );
+}
+

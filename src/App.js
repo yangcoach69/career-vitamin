@@ -175,7 +175,10 @@ const fetchGemini = async (prompt, attachments = []) => {
     });
   }
 
-  const payload = { contents: [{ parts: parts }] };
+  const payload = { 
+    contents: [{ parts: parts }],
+    generationConfig: { responseMimeType: "application/json" } // JSON 응답 강제 설정
+  };
   
   if (!attachments || attachments.length === 0) {
     payload.tools = [{ google_search: {} }];
@@ -195,7 +198,8 @@ const fetchGemini = async (prompt, attachments = []) => {
             continue; 
         }
         if (response.status === 404) break;
-        throw new Error(`HTTP Error ${response.status}`);
+        const errText = await response.text();
+        throw new Error(`HTTP Error ${response.status}: ${errText}`);
       }
 
       const data = await response.json();
@@ -217,17 +221,17 @@ const EditableContent = ({ value, onSave, className }) => (
 // --- Constants (11 Internal Apps + 1 External Tool) ---
 const SERVICES = {
   // [전용 앱: 11개]
-  company_analysis: { name: "[AI] 기업분석 리포트", desc: "기업 핵심가치/이슈/SWOT 분석", internal: true, icon: BarChart3, color: "indigo" },
-  career_roadmap: { name: "[AI] 커리어 로드맵", desc: "5년/10년 후 경력 목표 설계", internal: true, icon: TrendingUp, color: "blue" },
-  job_fit: { name: "[AI] 직무 적합도 진단", desc: "채용공고(JD)와 내 서류 매칭 분석", internal: true, icon: Percent, color: "rose" },
-  rubric_clinic: { name: "[AI] 자소서 코칭 클리닉", desc: "루브릭 기준 자소서 진단 및 첨삭", internal: true, icon: Stethoscope, color: "cyan" },
-  pt_interview: { name: "[AI] PT 면접 가이드", desc: "주제 추출 및 발표 대본 생성", internal: true, icon: MonitorPlay, color: "rose" },
-  sit_interview: { name: "[AI] 상황면접 가이드", desc: "상황별 구조화된 답변 생성", internal: true, icon: Split, color: "teal" },
-  self_intro: { name: "[AI] 1분 자기소개", desc: "직무/인성 컨셉 맞춤 스크립트", internal: true, icon: Mic, color: "purple" },
-  exp_structuring: { name: "[AI] 경험 구조화 (STAR)", desc: "경험 정리 및 핵심 역량 도출", internal: true, icon: LayoutList, color: "indigo" },
-  role_model: { name: "[AI] 롤모델 분석", desc: "인물 정보 및 면접 활용 팁", internal: true, icon: Award, color: "orange" },
-  gpt_guide: { name: "[AI] 직업 탐색 가이드", desc: "관심 있는 직업/직무 분석 및 가이드", internal: true, icon: Compass, color: "emerald" },
-  holland_test: { name: "[AI] 홀랜드 검사 리포트", desc: "RIASEC 검사 결과 분석 및 직업 추천", internal: true, icon: ClipboardList, color: "pink" },
+  company_analysis: { name: "[AI] 기업분석 리포트", desc: "기업 핵심가치/이슈/SWOT 분석", link: null, internal: true, icon: BarChart3, color: "indigo" },
+  career_roadmap: { name: "[AI] 커리어 로드맵", desc: "5년/10년 후 경력 목표 설계", link: null, internal: true, icon: TrendingUp, color: "blue" },
+  job_fit: { name: "[AI] 직무 적합도 진단", desc: "채용공고(JD)와 내 서류 매칭 분석", link: null, internal: true, icon: Percent, color: "rose" },
+  rubric_clinic: { name: "[AI] 자소서 코칭 클리닉", desc: "루브릭 기준 자소서 진단 및 첨삭", link: null, internal: true, icon: Stethoscope, color: "cyan" },
+  pt_interview: { name: "[AI] PT 면접 가이드", desc: "주제 추출 및 발표 대본 생성", link: null, internal: true, icon: MonitorPlay, color: "rose" },
+  sit_interview: { name: "[AI] 상황면접 가이드", desc: "상황별 구조화된 답변 생성", link: null, internal: true, icon: Split, color: "teal" },
+  self_intro: { name: "[AI] 1분 자기소개", desc: "직무/인성 컨셉 맞춤 스크립트", link: null, internal: true, icon: Mic, color: "purple" },
+  exp_structuring: { name: "[AI] 경험 구조화 (STAR)", desc: "경험 정리 및 핵심 역량 도출", link: null, internal: true, icon: LayoutList, color: "indigo" },
+  role_model: { name: "[AI] 롤모델 분석", desc: "인물 정보 및 면접 활용 팁", link: null, internal: true, icon: Award, color: "orange" },
+  gpt_guide: { name: "[AI] 직업 탐색 가이드", desc: "관심 있는 직업/직무 분석 및 가이드", link: null, internal: true, icon: Compass, color: "emerald" },
+  holland_test: { name: "[AI] 홀랜드 검사 리포트", desc: "RIASEC 검사 결과 분석 및 직업 추천", link: null, internal: true, icon: ClipboardList, color: "pink" },
   
   // [외부 도구: 1개]
   card_bot: { name: "[노트북LM] 커리어스타일 챗봇", desc: "유료 프로그램 전용 챗봇", link: "https://notebooklm.google.com/notebook/595da4c0-fcc1-4064-82c8-9901e6dd8772", internal: false, icon: MessageSquare, color: "violet" },

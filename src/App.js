@@ -1,11 +1,36 @@
 import React, { useState, useEffect, useRef } from 'react';
-// 1. 우리가 만든 파일들 불러오기
-import { auth, db, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, collection, addDoc, deleteDoc, doc, onSnapshot, query, where, getDocs, updateDoc } from './firebase';
+
+// [수정 포인트 1] 설정 파일(firebase.js)에서는 초기화된 'auth'와 'db' 객체만 가져옵니다.
+import { auth, db } from './firebase';
+
+// [수정 포인트 2] 인증 함수들은 'firebase/auth' 라이브러리에서 직접 가져옵니다. (에러 해결 핵심!)
+import { 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  signOut, 
+  onAuthStateChanged 
+} from "firebase/auth";
+
+// [수정 포인트 3] DB 함수들도 'firebase/firestore' 라이브러리에서 직접 가져옵니다.
+import { 
+  getFirestore,
+  collection, 
+  addDoc, 
+  deleteDoc, 
+  doc, 
+  onSnapshot, 
+  query, 
+  where,
+  getDocs,
+  updateDoc 
+} from "firebase/firestore";
+
+// [수정 포인트 4] 우리가 분리해서 만든 파일들 불러오기
 import { fetchGemini, saveAsPng, saveAsPdf, renderText } from './api';
 import { Toast, EditableContent } from './components/SharedUI';
-import JobFitScannerApp from './components/JobFitScanner'; // 이사 완료된 앱 불러오기
+import JobFitScannerApp from './components/JobFitScanner'; 
 
-// 2. 아이콘 불러오기 (기존과 동일)
+// 아이콘 불러오기 (기존 코드 그대로 유지)
 import { 
   LayoutDashboard, Building2, LogOut, Trash2, 
   Settings, Loader2, Check, 
@@ -18,9 +43,9 @@ import {
   UploadCloud, FileCheck, Percent
 } from 'lucide-react';
 
-// [설정 구역]
+// [설정 구역] -> 이 아래부터는 기존 코드가 이어지면 됩니다.
 const OWNER_UID = "TN8orW7kwuTzAnFWNM8jCiixt3r2"; 
-const APP_ID = 'career-vitamin'; 
+const APP_ID = 'career-vitamin';
 
 // =============================================================================
 // 여기 바로 아래에 const SERVICES = { ... 가 시작되면 됩니다.

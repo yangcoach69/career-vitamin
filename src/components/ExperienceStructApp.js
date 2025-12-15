@@ -7,7 +7,7 @@ import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
 import { Toast, EditableContent } from './SharedUI';
 
 export default function ExperienceStructApp({ onClose }) {
-  // 상태 관리: 키워드 추가, STAR 내용 필수
+  // [수정] 키워드 직접 입력 받기
   const [keyword, setKeyword] = useState('');
   const [star, setStar] = useState({
     s: '', // Situation
@@ -24,33 +24,34 @@ export default function ExperienceStructApp({ onClose }) {
   const showToast = (msg) => setToastMsg(msg);
 
   const handleGenerate = async () => {
-    // [유효성 검사] 키워드와 STAR 내용 모두 필수 입력
+    // [검증] 키워드와 내용 필수 입력 체크
     if (!keyword.trim()) {
-      return showToast("경험 키워드를 입력해주세요 (예: 갈등관리).");
+      return showToast("경험 키워드를 직접 입력해주세요 (예: 문제해결).");
     }
     if (!star.s.trim() || !star.t.trim() || !star.a.trim() || !star.r.trim()) {
-      return showToast("S, T, A, R 모든 항목에 간단한 내용이라도 입력해야 합니다.");
+      return showToast("S, T, A, R 모든 항목을 입력해야 분석이 가능합니다.");
     }
     
     setLoading(true);
     try {
       const prompt = `
       당신은 자기소개서 및 면접 컨설팅 전문가입니다.
-      사용자가 입력한 '핵심 키워드'와 'STAR 경험'을 바탕으로, 해당 역량이 돋보이는 [경험 정리 카드]를 작성해주세요.
+      사용자가 자신의 강점으로 내세우고 싶은 '키워드'와 실제 '경험(STAR)'을 입력했습니다.
+      이 내용을 바탕으로 해당 역량이 돋보이는 [경험 정리 카드]를 작성해주세요.
 
       [사용자 입력 정보]
-      1. 강조하고 싶은 경험 키워드: ${keyword}
+      1. 핵심 역량 키워드: ${keyword} (이 키워드가 글의 핵심 주제가 되어야 함)
       2. Situation (상황): ${star.s}
       3. Task (과제/목표): ${star.t}
       4. Action (행동/노력): ${star.a}
       5. Result (결과/배운점): ${star.r}
 
-      [요청 사항]
-      1. 사용자가 입력한 키워드('${keyword}')가 잘 드러나도록 내용을 구성할 것.
+      [작성 요청 사항]
+      1. 사용자가 입력한 키워드('${keyword}')를 중심으로 경험을 해석하고 강조할 것.
       2. 경험의 제목(Title)은 호기심을 자극하는 매력적인 문장으로 뽑을 것.
       3. **자기소개서 문단**은 두괄식으로 작성하며, 500자 내외로 다듬어 줄 것.
       4. **면접 1분 스피치**는 실제 말하듯이 자연스러운 구어체로 작성할 것.
-      5. 예상 꼬리질문 2가지를 날카롭게 뽑아줄 것.
+      5. 면접관이 물어볼 만한 날카로운 **꼬리질문** 2가지를 뽑아줄 것.
 
       [JSON 출력 형식]
       {
@@ -107,18 +108,19 @@ export default function ExperienceStructApp({ onClose }) {
               <LayoutList size={16} className="mr-2"/> 경험 분해하기
             </h3>
             
-            {/* 1. 경험 키워드 (신규 추가) */}
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">경험 키워드 <span className="text-red-500">*</span></label>
+            {/* [핵심] 경험 키워드 직접 입력창 */}
+            <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200">
+              <label className="block text-xs font-bold text-slate-600 mb-1">경험 키워드 <span className="text-red-500">*</span></label>
               <div className="relative">
                 <input 
                   value={keyword}
                   onChange={(e) => setKeyword(e.target.value)}
-                  className="w-full p-2.5 pl-9 border rounded-lg text-sm font-bold focus:ring-2 focus:ring-yellow-500 outline-none bg-yellow-50/50" 
-                  placeholder="예: 갈등관리, 목표달성 등" 
+                  className="w-full p-2.5 pl-9 border rounded-lg text-sm font-bold focus:ring-2 focus:ring-yellow-500 outline-none bg-white" 
+                  placeholder="예: 갈등관리, 목표달성, 문제해결 등" 
                 />
                 <Tag className="absolute left-3 top-2.5 text-yellow-500 w-4 h-4"/>
               </div>
+              <p className="text-[10px] text-slate-500 mt-1 pl-1">※ 이 경험으로 어필하고 싶은 핵심 역량을 적어주세요.</p>
             </div>
 
             {/* S */}

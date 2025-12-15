@@ -1,13 +1,14 @@
 import React, { useState, useRef } from 'react';
 import { 
   PenTool, ChevronLeft, Loader2, 
-  LayoutList, CheckCircle, Sparkles, Download, FileText, Star, Tag 
+  LayoutList, CheckCircle, Sparkles, Download, FileText, Star, Tag,
+  ArrowRight
 } from 'lucide-react';
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
 import { Toast, EditableContent } from './SharedUI';
 
 export default function ExperienceStructApp({ onClose }) {
-  // [수정] 키워드 직접 입력 받기
+  // 입력 상태 관리
   const [keyword, setKeyword] = useState('');
   const [star, setStar] = useState({
     s: '', // Situation
@@ -24,41 +25,39 @@ export default function ExperienceStructApp({ onClose }) {
   const showToast = (msg) => setToastMsg(msg);
 
   const handleGenerate = async () => {
-    // [검증] 키워드와 내용 필수 입력 체크
-    if (!keyword.trim()) {
-      return showToast("경험 키워드를 직접 입력해주세요 (예: 문제해결).");
-    }
+    // 필수값 체크
+    if (!keyword.trim()) return showToast("경험 키워드를 입력해주세요.");
     if (!star.s.trim() || !star.t.trim() || !star.a.trim() || !star.r.trim()) {
-      return showToast("S, T, A, R 모든 항목을 입력해야 분석이 가능합니다.");
+      return showToast("STAR 내용을 모두 간단히라도 입력해주세요.");
     }
     
     setLoading(true);
     try {
       const prompt = `
-      당신은 자기소개서 및 면접 컨설팅 전문가입니다.
-      사용자가 자신의 강점으로 내세우고 싶은 '키워드'와 실제 '경험(STAR)'을 입력했습니다.
-      이 내용을 바탕으로 해당 역량이 돋보이는 [경험 정리 카드]를 작성해주세요.
+      당신은 취업 면접 전문 코치입니다.
+      사용자가 입력한 '키워드'와 'STAR 메모(간단한 내용)'를 바탕으로, 면접관에게 어필할 수 있는 정교한 답변을 만들어주세요.
 
-      [사용자 입력 정보]
-      1. 핵심 역량 키워드: ${keyword} (이 키워드가 글의 핵심 주제가 되어야 함)
-      2. Situation (상황): ${star.s}
-      3. Task (과제/목표): ${star.t}
-      4. Action (행동/노력): ${star.a}
-      5. Result (결과/배운점): ${star.r}
+      [사용자 입력]
+      - 키워드: ${keyword}
+      - S(상황): ${star.s}
+      - T(문제/과제): ${star.t}
+      - A(행동): ${star.a}
+      - R(결과): ${star.r}
 
-      [작성 요청 사항]
-      1. 사용자가 입력한 키워드('${keyword}')를 중심으로 경험을 해석하고 강조할 것.
-      2. 경험의 제목(Title)은 호기심을 자극하는 매력적인 문장으로 뽑을 것.
-      3. **자기소개서 문단**은 두괄식으로 작성하며, 500자 내외로 다듬어 줄 것.
-      4. **면접 1분 스피치**는 실제 말하듯이 자연스러운 구어체로 작성할 것.
-      5. 면접관이 물어볼 만한 날카로운 **꼬리질문** 2가지를 뽑아줄 것.
+      [작성 요청사항]
+      1. **STAR 정교화(Refine):** 사용자가 대충 적은 내용을, 면접관이 듣기 좋은 구체적이고 전문적인 문장으로 각각 다듬어주세요. (특히 Action과 Result를 강조)
+      2. **최종 답변(Summary):** 위 내용을 종합하여, "이 경험에 대해 말해보세요"라는 질문을 받았을 때 바로 대답할 수 있는 400~500자 분량의 완성된 스크립트를 작성해주세요.
 
-      [JSON 출력 형식]
+      [JSON 포맷 준수]
       {
-        "title": "경험을 한 줄로 요약하는 매력적인 소제목",
-        "essay_version": "자기소개서용 줄글 (두괄식 구성, ${keyword} 역량 강조)",
-        "speech_version": "면접용 1분 답변 스크립트 (구어체)",
-        "questions": ["예상 꼬리질문1", "예상 꼬리질문2"]
+        "title": "이 경험의 매력적인 소제목 (한 줄 카피)",
+        "refined_star": {
+          "s": "정교하게 다듬어진 Situation 문장",
+          "t": "정교하게 다듬어진 Task 문장",
+          "a": "정교하게 다듬어진 Action 문장 (구체적 행동 위주)",
+          "r": "정교하게 다듬어진 Result 문장 (수치/성과/깨달음 강조)"
+        },
+        "summary_answer": "STAR가 자연스럽게 연결된 최종 면접 답변 스크립트 (구어체, 두괄식)"
       }`;
 
       const parsed = await fetchGemini(prompt);
@@ -70,13 +69,13 @@ export default function ExperienceStructApp({ onClose }) {
     }
   };
 
-  const handleEdit = (key, value, index = null) => {
+  const handleEdit = (section, key, value) => {
     setResult(prev => {
       const newData = { ...prev };
-      if (index !== null && Array.isArray(newData[key])) {
-        newData[key][index] = value;
+      if (section === 'refined_star') {
+        newData.refined_star[key] = value;
       } else {
-        newData[key] = value;
+        newData[section] = value;
       }
       return newData;
     });
@@ -93,7 +92,7 @@ export default function ExperienceStructApp({ onClose }) {
       <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
         <div className="flex items-center gap-3">
           <Star className="text-yellow-400" fill="currentColor"/>
-          <h1 className="font-bold text-lg">경험 구조화 (STAR)</h1>
+          <h1 className="font-bold text-lg">경험 구조화 (STAR Refiner)</h1>
         </div>
         <button onClick={onClose} className="flex items-center text-sm hover:text-yellow-200 transition-colors">
           <ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기
@@ -101,75 +100,73 @@ export default function ExperienceStructApp({ onClose }) {
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* 사이드바: 입력란 */}
+        {/* 사이드바: 입력창 */}
         <aside className="w-96 bg-white border-r p-6 shrink-0 overflow-y-auto">
           <div className="space-y-5">
             <h3 className="font-bold text-sm text-slate-800 flex items-center border-b pb-2">
-              <LayoutList size={16} className="mr-2"/> 경험 분해하기
+              <PenTool size={16} className="mr-2"/> 내 경험 메모하기
             </h3>
             
-            {/* [핵심] 경험 키워드 직접 입력창 */}
+            {/* 키워드 */}
             <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200">
-              <label className="block text-xs font-bold text-slate-600 mb-1">경험 키워드 <span className="text-red-500">*</span></label>
+              <label className="block text-xs font-bold text-slate-600 mb-1">핵심 역량 키워드 <span className="text-red-500">*</span></label>
               <div className="relative">
                 <input 
                   value={keyword}
                   onChange={(e) => setKeyword(e.target.value)}
                   className="w-full p-2.5 pl-9 border rounded-lg text-sm font-bold focus:ring-2 focus:ring-yellow-500 outline-none bg-white" 
-                  placeholder="예: 갈등관리, 목표달성, 문제해결 등" 
+                  placeholder="예: 갈등관리, 문제해결" 
                 />
                 <Tag className="absolute left-3 top-2.5 text-yellow-500 w-4 h-4"/>
               </div>
-              <p className="text-[10px] text-slate-500 mt-1 pl-1">※ 이 경험으로 어필하고 싶은 핵심 역량을 적어주세요.</p>
             </div>
 
-            {/* S */}
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">Situation (상황/배경) <span className="text-red-500">*</span></label>
-              <textarea 
-                value={star.s}
-                onChange={(e) => setStar({...star, s: e.target.value})}
-                className="w-full p-3 border rounded-lg text-sm focus:ring-2 focus:ring-yellow-500 outline-none h-20 resize-none" 
-                placeholder="어떤 조직/프로젝트였나요? 어떤 문제가 있었나요?" 
-              />
-            </div>
-            {/* T */}
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">Task (과제/목표) <span className="text-red-500">*</span></label>
-              <textarea 
-                value={star.t}
-                onChange={(e) => setStar({...star, t: e.target.value})}
-                className="w-full p-3 border rounded-lg text-sm focus:ring-2 focus:ring-yellow-500 outline-none h-20 resize-none" 
-                placeholder="당신에게 주어진 역할이나 목표는 무엇이었나요?" 
-              />
-            </div>
-            {/* A */}
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">Action (행동/노력) <span className="text-red-500">*</span></label>
-              <textarea 
-                value={star.a}
-                onChange={(e) => setStar({...star, a: e.target.value})}
-                className="w-full p-3 border rounded-lg text-sm focus:ring-2 focus:ring-yellow-500 outline-none h-24 resize-none" 
-                placeholder="구체적으로 어떤 행동을 했나요? 나의 기여도는?" 
-              />
-            </div>
-            {/* R */}
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">Result (결과/배운점) <span className="text-red-500">*</span></label>
-              <textarea 
-                value={star.r}
-                onChange={(e) => setStar({...star, r: e.target.value})}
-                className="w-full p-3 border rounded-lg text-sm focus:ring-2 focus:ring-yellow-500 outline-none h-20 resize-none" 
-                placeholder="정량적 성과(수치)나 깨달은 점은 무엇인가요?" 
-              />
+            {/* STAR 입력 (Placeholder로 가이드) */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">Situation (상황)</label>
+                <textarea 
+                  value={star.s}
+                  onChange={(e) => setStar({...star, s: e.target.value})}
+                  className="w-full p-3 border rounded-lg text-sm focus:ring-2 focus:ring-yellow-500 outline-none h-16 resize-none" 
+                  placeholder="언제, 어디서, 어떤 상황이었나요?" 
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">Task (문제/목표)</label>
+                <textarea 
+                  value={star.t}
+                  onChange={(e) => setStar({...star, t: e.target.value})}
+                  className="w-full p-3 border rounded-lg text-sm focus:ring-2 focus:ring-yellow-500 outline-none h-16 resize-none" 
+                  placeholder="어떤 어려움이나 목표가 있었나요?" 
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">Action (행동)</label>
+                <textarea 
+                  value={star.a}
+                  onChange={(e) => setStar({...star, a: e.target.value})}
+                  className="w-full p-3 border rounded-lg text-sm focus:ring-2 focus:ring-yellow-500 outline-none h-20 resize-none" 
+                  placeholder="내가 구체적으로 무엇을 했나요?" 
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">Result (결과)</label>
+                <textarea 
+                  value={star.r}
+                  onChange={(e) => setStar({...star, r: e.target.value})}
+                  className="w-full p-3 border rounded-lg text-sm focus:ring-2 focus:ring-yellow-500 outline-none h-16 resize-none" 
+                  placeholder="성과나 배운 점은 무엇인가요?" 
+                />
+              </div>
             </div>
 
             <button 
               onClick={handleGenerate} 
               disabled={loading} 
-              className="w-full bg-yellow-500 text-white py-3.5 rounded-xl font-bold mt-2 shadow-lg hover:bg-yellow-600 transition-all disabled:bg-slate-400"
+              className="w-full bg-slate-900 text-white py-3.5 rounded-xl font-bold mt-2 shadow-lg hover:bg-slate-700 transition-all disabled:bg-slate-400"
             >
-              {loading ? <Loader2 className="animate-spin mx-auto"/> : "경험 정리 완료"}
+              {loading ? <Loader2 className="animate-spin mx-auto"/> : "AI로 정교하게 다듬기"}
             </button>
           </div>
         </aside>
@@ -179,64 +176,90 @@ export default function ExperienceStructApp({ onClose }) {
           {result ? (
             <div ref={reportRef} className="w-[210mm] min-h-[297mm] h-fit bg-white shadow-2xl p-12 flex flex-col animate-in fade-in zoom-in-95 duration-500">
               
-              <div className="border-b-4 border-yellow-500 pb-6 mb-8">
-                <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">EXPERIENCE CARD</span>
-                <EditableContent className="text-3xl font-extrabold text-slate-900 mb-2" value={result.title} onSave={(v)=>handleEdit('title', v)} />
+              {/* 타이틀 */}
+              <div className="border-b-4 border-slate-900 pb-6 mb-8">
+                <span className="bg-yellow-400 text-slate-900 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">EXPERIENCE REFINED</span>
+                <EditableContent className="text-3xl font-extrabold text-slate-900 mb-2" value={result.title} onSave={(v)=>handleEdit('title', null, v)} />
                 <div className="flex gap-2 mt-3">
-                    <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-lg font-bold flex items-center shadow-sm border border-yellow-200">
-                        <Tag size={14} className="mr-1"/> #{keyword}
+                    <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-lg font-bold flex items-center text-sm">
+                        <Tag size={14} className="mr-2"/> #{keyword}
                     </span>
                 </div>
               </div>
 
-              <div className="space-y-8">
-                {/* 1. 자소서 버전 */}
-                <section>
-                   <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center"><PenTool className="mr-2 text-yellow-600"/> 자기소개서 버전 (Written)</h3>
-                   <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 leading-relaxed text-slate-700">
-                     <EditableContent value={result.essay_version} onSave={(v)=>handleEdit('essay_version', v)} />
+              {/* 1. STAR 정교화 섹션 */}
+              <section className="mb-10">
+                 <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center"><LayoutList className="mr-2 text-slate-500"/> STAR 상세 분석 및 정교화</h3>
+                 <div className="grid grid-cols-1 gap-4">
+                    {/* S */}
+                    <div className="flex gap-4">
+                        <div className="w-16 shrink-0 font-black text-slate-300 text-xl text-right pt-1">S</div>
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex-1">
+                            <h4 className="text-xs font-bold text-slate-500 mb-1">Situation (상황)</h4>
+                            <EditableContent className="text-slate-700" value={result.refined_star.s} onSave={(v)=>handleEdit('refined_star', 's', v)} />
+                        </div>
+                    </div>
+                    {/* T */}
+                    <div className="flex gap-4">
+                        <div className="w-16 shrink-0 font-black text-slate-300 text-xl text-right pt-1">T</div>
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex-1">
+                            <h4 className="text-xs font-bold text-slate-500 mb-1">Task (과제)</h4>
+                            <EditableContent className="text-slate-700" value={result.refined_star.t} onSave={(v)=>handleEdit('refined_star', 't', v)} />
+                        </div>
+                    </div>
+                    {/* A */}
+                    <div className="flex gap-4">
+                        <div className="w-16 shrink-0 font-black text-yellow-500 text-xl text-right pt-1">A</div>
+                        <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200 flex-1 shadow-sm">
+                            <h4 className="text-xs font-bold text-yellow-700 mb-1">Action (행동) - 핵심 포인트</h4>
+                            <EditableContent className="text-slate-800 font-medium" value={result.refined_star.a} onSave={(v)=>handleEdit('refined_star', 'a', v)} />
+                        </div>
+                    </div>
+                    {/* R */}
+                    <div className="flex gap-4">
+                        <div className="w-16 shrink-0 font-black text-blue-500 text-xl text-right pt-1">R</div>
+                        <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 flex-1 shadow-sm">
+                            <h4 className="text-xs font-bold text-blue-700 mb-1">Result (결과) - 성과 강조</h4>
+                            <EditableContent className="text-slate-800 font-medium" value={result.refined_star.r} onSave={(v)=>handleEdit('refined_star', 'r', v)} />
+                        </div>
+                    </div>
+                 </div>
+              </section>
+
+              {/* 2. 최종 답변 (요약) */}
+              <section className="bg-slate-900 text-white p-8 rounded-2xl relative overflow-hidden">
+                   <div className="absolute top-0 right-0 p-8 opacity-10">
+                       <Sparkles size={100} />
                    </div>
-                </section>
-
-                {/* 2. 면접 버전 */}
-                <section>
-                   <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center"><Sparkles className="mr-2 text-yellow-600"/> 면접 1분 답변 (Spoken)</h3>
-                   <div className="bg-yellow-50/50 p-6 rounded-xl border border-yellow-200 leading-relaxed text-slate-800 font-medium">
-                     <EditableContent value={result.speech_version} onSave={(v)=>handleEdit('speech_version', v)} />
+                   <h3 className="text-xl font-bold text-yellow-400 mb-4 flex items-center">
+                       <ArrowRight className="mr-2"/> 경험 질문 답변 가이드
+                   </h3>
+                   <div className="text-slate-300 text-sm mb-4 border-b border-slate-700 pb-4">
+                       "이 경험에 대해 구체적으로 말씀해 주시겠습니까?" 라는 질문에 대한 모범 답변입니다.
                    </div>
-                </section>
+                   <div className="leading-relaxed text-lg text-white font-medium">
+                     <EditableContent value={result.summary_answer} onSave={(v)=>handleEdit('summary_answer', null, v)} />
+                   </div>
+              </section>
 
-                {/* 3. 예상 질문 */}
-                <section className="bg-slate-800 text-white p-6 rounded-xl mt-8">
-                   <h3 className="font-bold text-yellow-400 mb-4 flex items-center"><CheckCircle className="mr-2"/> 예상 꼬리질문</h3>
-                   <ul className="space-y-3">
-                      {result.questions?.map((q, i) => (
-                        <li key={i} className="flex items-start">
-                          <span className="text-yellow-500 mr-2 font-bold">Q{i+1}.</span>
-                          <EditableContent className="text-sm text-slate-300" value={q} onSave={(v)=>handleEdit('questions', v, i)} />
-                        </li>
-                      ))}
-                   </ul>
-                </section>
-              </div>
-
+              {/* 푸터 */}
               <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto">
-                 <div className="flex items-center"><Star className="w-4 h-4 mr-1 text-yellow-500" /><span>Career Vitamin</span></div>
+                 <div className="flex items-center"><Star className="w-4 h-4 mr-1 text-yellow-500" /><span>Career Vitamin AI</span></div>
                 <span>STAR Method Experience Organizer</span>
               </div>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-slate-400">
               <Star size={64} className="mb-4 opacity-20"/>
-              <p className="text-center">왼쪽에서 키워드와 STAR 내용을 입력하고<br/><strong>[경험 정리 완료]</strong>를 눌러보세요.</p>
+              <p className="text-center mt-4">좌측에서 간단한 경험 메모를 작성하면<br/><strong>AI가 면접용으로 완벽하게 다듬어 드립니다.</strong></p>
             </div>
           )}
         </main>
 
         {result && (
           <div className="absolute bottom-8 right-8 flex gap-3 z-50">
-            <button onClick={handleDownload} className="bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><Download className="mr-2" size={20}/> 이미지 저장</button>
-            <button onClick={handlePdfDownload} className="bg-red-600 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><FileText className="mr-2" size={20}/> PDF 저장</button>
+            <button onClick={handleDownload} className="bg-white text-slate-900 border border-slate-200 px-6 py-3 rounded-full font-bold shadow-xl hover:-translate-y-1 flex items-center transition-transform"><Download className="mr-2" size={20}/> 이미지 저장</button>
+            <button onClick={handlePdfDownload} className="bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-xl hover:-translate-y-1 flex items-center transition-transform"><FileText className="mr-2" size={20}/> PDF 저장</button>
           </div>
         )}
       </div>

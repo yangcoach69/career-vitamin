@@ -31,6 +31,7 @@ import { Toast, EditableContent } from './components/SharedUI';
 import JobFitScannerApp from './components/JobFitScanner';
 import HollandTestApp from './components/HollandTest';
 import CompanyAnalysisApp from './components/CompanyAnalysis';
+import InterviewPrepApp from './components/InterviewPrep';
 
 // 아이콘 불러오기 (기존 코드 그대로 유지)
 import { 
@@ -340,61 +341,6 @@ function PtInterviewApp({ onClose }) {
            )}
         </main>
         {script && (
-          <div className="absolute bottom-8 right-8 flex gap-3 z-50">
-            <button onClick={handleDownload} className="bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><Download className="mr-2" size={20}/> 이미지 저장</button>
-            <button onClick={handlePdfDownload} className="bg-red-600 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><FileText className="mr-2" size={20}/> PDF 저장</button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function SituationInterviewApp({ onClose }) {
-  const [inputs, setInputs] = useState({ question: '', criteria: '' });
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [toastMsg, setToastMsg] = useState(null);
-  const reportRef = useRef(null);
-  
-  const showToast = (msg) => setToastMsg(msg);
-
-  const handleAIAnalysis = async () => {
-    if (!inputs.question) return showToast("질문을 입력해주세요.");
-    setLoading(true);
-    try {
-      const prompt = `상황면접 질문: ${inputs.question}, 판단기준: ${inputs.criteria}. 답변 2가지 버전(A/B)과 조언. JSON: { "situation_a": {"title": "...", "content": "..."}, "situation_b": {"title": "...", "content": "..."}, "advice": "..." }`;
-      const parsed = await fetchGemini(prompt);
-      setResult(parsed);
-    } catch (e) { showToast(e.message); } finally { setLoading(false); }
-  };
-  
-  const handleEdit = (key, subKey, value) => {
-    setResult(prev => {
-        if (subKey) return { ...prev, [key]: { ...prev[key], [subKey]: value } };
-        return { ...prev, [key]: value };
-    });
-  };
-
-  const handleDownload = () => saveAsPng(reportRef, `상황면접`, showToast);
-  const handlePdfDownload = () => saveAsPdf(reportRef, `상황면접`, showToast);
-  
-  return (
-    <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
-      {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
-      <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
-        <div className="flex items-center gap-3"><Split className="text-teal-400"/><h1 className="font-bold text-lg">상황면접 가이드</h1></div>
-        <button onClick={onClose} className="flex items-center text-sm hover:text-teal-200 transition-colors"><ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기</button>
-      </header>
-      <div className="flex flex-1 overflow-hidden">
-        <aside className="w-80 bg-white border-r p-6 overflow-y-auto shrink-0"><div className="space-y-5">
-          <h3 className="font-bold text-sm text-teal-700 flex items-center uppercase tracking-wider"><Settings size={16} className="mr-2"/> 질문 설정</h3>
-          <textarea value={inputs.question} onChange={e=>setInputs({...inputs, question:e.target.value})} className="w-full p-3 border rounded-xl h-32 resize-none" placeholder="면접 질문"/>
-          <input value={inputs.criteria} onChange={e=>setInputs({...inputs, criteria:e.target.value})} className="w-full p-3 border rounded-xl" placeholder="분리 기준 (옵션)"/>
-          <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-teal-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"답변 생성"}</button>
-        </div></aside>
-        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{result ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] h-fit bg-white shadow-lg p-10 flex flex-col animate-in fade-in zoom-in-95 duration-500"><h2 className="text-3xl font-extrabold mb-6 text-slate-900 border-b-2 border-teal-500 pb-4">상황면접 가이드</h2><div className="space-y-6"> <div className="bg-slate-50 p-6 rounded-xl border mb-8"><h3 className="font-bold text-slate-500 text-xs mb-2 tracking-widest">QUESTION</h3><p className="font-bold text-xl text-slate-800">"{inputs.question}"</p></div><div className="grid grid-cols-1 gap-8"><div className="border-l-4 border-teal-500 pl-6 py-2"><EditableContent className="font-bold text-teal-800 text-xl mb-3" value={result.situation_a?.title} onSave={(v)=>handleEdit('situation_a', 'title', v)} /><EditableContent className="text-slate-600 leading-relaxed text-lg" value={result.situation_a?.content} onSave={(v)=>handleEdit('situation_a', 'content', v)} /></div><div className="border-l-4 border-slate-400 pl-6 py-2"><EditableContent className="font-bold text-slate-700 text-xl mb-3" value={result.situation_b?.title} onSave={(v)=>handleEdit('situation_b', 'title', v)} /><EditableContent className="text-slate-600 leading-relaxed text-lg" value={result.situation_b?.content} onSave={(v)=>handleEdit('situation_b', 'content', v)} /></div></div><div className="mt-8 bg-teal-50 p-6 rounded-xl border border-teal-100 text-teal-900 text-base font-medium">💡 Advice: <EditableContent className="mt-2" value={result.advice} onSave={(v)=>handleEdit('advice', null, v)} /></div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><Split className="w-4 h-4 mr-1 text-teal-500" /><span>Career Vitamin</span></div><span>AI-Powered Situation Guide</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Split size={64} className="mb-4 opacity-20"/><p>질문을 입력하면 답변이 생성됩니다.</p></div>}</main>
-        {result && (
           <div className="absolute bottom-8 right-8 flex gap-3 z-50">
             <button onClick={handleDownload} className="bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><Download className="mr-2" size={20}/> 이미지 저장</button>
             <button onClick={handlePdfDownload} className="bg-red-600 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><FileText className="mr-2" size={20}/> PDF 저장</button>

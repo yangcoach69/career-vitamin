@@ -32,7 +32,7 @@ import JobFitScannerApp from './components/JobFitScanner';
 import HollandTestApp from './components/HollandTest';
 import CompanyAnalysisApp from './components/CompanyAnalysis';
 import InterviewPrepApp from './components/InterviewPrep';
-import ExperienceStructApp from './components/ExperienceStruct';
+import ExperienceStructApp from './components/ExperienceStructApp';
 
 // 아이콘 불러오기 (기존 코드 그대로 유지)
 import { 

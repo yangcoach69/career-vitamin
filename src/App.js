@@ -28,7 +28,8 @@ import {
 // [수정 포인트 4] 우리가 분리해서 만든 파일들 불러오기
 import { fetchGemini, saveAsPng, saveAsPdf, renderText } from './api';
 import { Toast, EditableContent } from './components/SharedUI';
-import JobFitScannerApp from './components/JobFitScanner'; 
+import JobFitScannerApp from './components/JobFitScanner';
+import HollandTestApp from './components/HollandTest';
 
 // 아이콘 불러오기 (기존 코드 그대로 유지)
 import { 
@@ -40,7 +41,6 @@ import {
   Globe, ThumbsUp, AlertCircle, ExternalLink,
   Info, PenTool, Lightbulb, Users, Lock, ClipboardList,
   FileSpreadsheet, FileText, Briefcase, GraduationCap, BrainCircuit, Key, Smile, Meh, Frown, Stethoscope, ArrowRight,
-import HollandTestApp from './components/HollandTest';
   UploadCloud, FileCheck, Percent
 } from 'lucide-react';
 

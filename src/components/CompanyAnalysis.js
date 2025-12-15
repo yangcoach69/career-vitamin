@@ -1,15 +1,21 @@
-// src/components/CompanyAnalysis.js
 import React, { useState, useRef } from 'react';
 import { 
   Building2, ChevronLeft, Search, Loader2, 
   Target, TrendingUp, Users, Lightbulb, Download, FileText,
-  Globe, Shield, Sword 
+  Globe, Shield, Sword, Briefcase, MessageSquare, History, Flag, CheckCircle
 } from 'lucide-react';
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
 import { Toast, EditableContent } from './SharedUI';
 
 export default function CompanyAnalysisApp({ onClose }) {
-  const [companyName, setCompanyName] = useState('');
+  // 1. 입력값 관리 (기업명, URL, 직무, 요청사항)
+  const [inputs, setInputs] = useState({
+    company: '',
+    url: '',
+    job: '',
+    request: ''
+  });
+  
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [toastMsg, setToastMsg] = useState(null);
@@ -17,38 +23,57 @@ export default function CompanyAnalysisApp({ onClose }) {
 
   const showToast = (msg) => setToastMsg(msg);
 
+  // 2. AI 분석 요청
   const handleAnalysis = async () => {
-    if (!companyName.trim()) return showToast("분석할 기업명을 입력해주세요.");
+    if (!inputs.company.trim()) return showToast("분석할 기업명을 입력해주세요.");
     
     setLoading(true);
     try {
       const prompt = `
-      당신은 기업 분석 전문가입니다. '${companyName}' 기업에 대해 취업 준비생을 위한 심층 분석 리포트를 작성해주세요.
+      당신은 20년 경력의 기업 분석 전문가이자 커리어 컨설턴트입니다.
+      아래 정보를 바탕으로 지원자를 위한 [프리미엄 기업 분석 리포트]를 작성해주세요.
       
-      [분석 항목]
-      1. 기업 개요 (한줄 요약 및 비전)
-      2. SWOT 분석 (강점, 약점, 기회, 위협)
-      3. 3C 분석 (자사, 경쟁사, 고객)
-      4. 인재상 및 핵심 가치
-      5. 최근 이슈 및 채용 트렌드
-      
-      반드시 다음 JSON 형식을 따를 것:
+      [분석 대상 정보]
+      1. 기업명: ${inputs.company}
+      2. 홈페이지/참고 URL: ${inputs.url || '알아서 검색'}
+      3. 지원 희망 직무: ${inputs.job || '전사 관점(직무 무관)'}
+      4. 사용자 특별 요청사항: ${inputs.request || '최신 채용 트렌드 및 합격 전략 위주로 분석'}
+
+      [작성 가이드]
+      - 쿠팡, 삼성전자 등 대기업 분석 리포트 수준으로 상세하게 작성할 것.
+      - '지원 희망 직무'와 '요청사항'을 분석 전반에 깊이 있게 반영할 것.
+      - 뜬구름 잡는 소리 대신, 자소서와 면접에 바로 쓸 수 있는 구체적인 Fact와 Insight를 제공할 것.
+
+      [반드시 다음 JSON 형식을 엄수할 것]
       {
-        "overview": "기업 한줄 소개 및 핵심 가치 요약",
-        "swot": {
-          "strength": ["강점1", "강점2"],
-          "weakness": ["약점1", "약점2"],
-          "opportunity": ["기회1", "기회2"],
-          "threat": ["위협1", "위협2"]
+        "section1": {
+          "summary": "기업 개요 (산업 분야, 규모, 주요 위상 등 3문장 요약)",
+          "history": "주요 연혁 (설립, 상장, 최근 3년 내 주요 이슈 등 핵심만)",
+          "vision": "비전 및 미션 (기업이 추구하는 미래 가치)",
+          "core_values": "핵심 가치 (일하는 방식, 조직 문화 키워드)",
+          "talent": "인재상 (채용 페이지 기반 선호하는 인재 유형)"
         },
-        "analysis_3c": {
-          "company": "자사 분석 (Company)",
-          "competitor": "경쟁사 분석 (Competitor)",
-          "customer": "고객/시장 분석 (Customer)"
+        "section2": {
+          "business_policy": "주요 사업 정책 및 현황 (주력 상품, 서비스, 최근 사업 방향)",
+          "swot": {
+            "strength": ["강점1", "강점2"],
+            "weakness": ["약점1", "약점2"],
+            "opportunity": ["기회1", "기회2"],
+            "threat": ["위협1", "위협2"]
+          }
         },
-        "talent": "인재상 및 핵심 가치 서술",
-        "trend": "최근 주요 뉴스 및 채용 트렌드",
-        "strategy": "이 기업에 지원하기 위한 맞춤 전략 조언"
+        "section3": {
+          "market_trend": "국내외 시장 및 산업 동향 (업계 분위기, 성장성)",
+          "competitor": "경쟁사 대비 차별점 및 위치 (주요 경쟁사와 비교 분석)"
+        },
+        "section4": {
+          "strategies": [
+            "전략1: 지원 직무와 연관된 구체적인 어필 포인트",
+            "전략2: 기업의 최근 이슈(신사업 등)를 활용한 접근법",
+            "전략3: 인재상/조직문화에 맞춘 태도 강조 전략",
+            "전략4: 요청사항(${inputs.request})에 대한 맞춤형 조언"
+          ]
+        }
       }`;
 
       const parsed = await fetchGemini(prompt);
@@ -60,32 +85,33 @@ export default function CompanyAnalysisApp({ onClose }) {
     }
   };
 
-  const handleEdit = (section, key, value, index = null) => {
+  // 내용 수정 핸들러
+  const handleEdit = (section, subKey, value, index = null, deepKey = null) => {
     setResult(prev => {
       const newData = { ...prev };
-      if (section === 'swot' && index !== null) {
-        newData[section][key][index] = value;
-      } else if (section === 'analysis_3c') {
-        newData[section][key] = value;
-      } else {
-        newData[section] = value;
+      if (deepKey) { // swot 같은 중첩 객체 배열 수정
+        newData[section][subKey][deepKey][index] = value;
+      } else if (index !== null) { // 배열 수정 (strategies)
+        newData[section][subKey][index] = value;
+      } else { // 일반 텍스트 수정
+        newData[section][subKey] = value;
       }
       return newData;
     });
   };
 
-  const handleDownload = () => saveAsPng(reportRef, `${companyName}_기업분석`, showToast);
-  const handlePdfDownload = () => saveAsPdf(reportRef, `${companyName}_기업분석`, showToast);
+  const handleDownload = () => saveAsPng(reportRef, `${inputs.company}_기업분석`, showToast);
+  const handlePdfDownload = () => saveAsPdf(reportRef, `${inputs.company}_기업분석`, showToast);
 
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
       {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
       
-      {/* 헤더 */}
+      {/* 상단 헤더 */}
       <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
         <div className="flex items-center gap-3">
           <Building2 className="text-blue-400"/>
-          <h1 className="font-bold text-lg">기업 분석 리포트</h1>
+          <h1 className="font-bold text-lg">기업 분석 리포트 (Premium)</h1>
         </div>
         <button onClick={onClose} className="flex items-center text-sm hover:text-blue-200 transition-colors">
           <ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기
@@ -93,26 +119,56 @@ export default function CompanyAnalysisApp({ onClose }) {
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* 사이드바 (입력창) */}
+        {/* 사이드바: 입력창 4개 복구 */}
         <aside className="w-80 bg-white border-r p-6 shrink-0 overflow-y-auto">
           <div className="space-y-6">
+            <h3 className="font-bold text-sm text-blue-800 flex items-center border-b pb-2"><Search size={16} className="mr-2"/> 분석 조건 설정</h3>
+            
+            {/* 1. 기업명 */}
             <div>
-              <label className="block text-xs font-bold text-slate-500 mb-2">분석할 기업명</label>
+              <label className="block text-xs font-bold text-slate-500 mb-1">기업명 <span className="text-red-500">*</span></label>
+              <input 
+                value={inputs.company}
+                onChange={(e) => setInputs({...inputs, company: e.target.value})}
+                className="w-full p-2.5 border rounded-lg text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none" 
+                placeholder="예: 삼성전자, 쿠팡" 
+              />
+            </div>
+
+            {/* 2. 홈페이지 URL */}
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1">홈페이지/채용 URL (선택)</label>
+              <input 
+                value={inputs.url}
+                onChange={(e) => setInputs({...inputs, url: e.target.value})}
+                className="w-full p-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
+                placeholder="URL을 입력하면 더 정확해집니다" 
+              />
+            </div>
+
+            {/* 3. 직무명 */}
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1">지원 희망 직무 (선택)</label>
               <div className="relative">
                 <input 
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAnalysis()}
-                  className="w-full p-3 pl-10 border rounded-xl text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
-                  placeholder="예: 삼성전자, 카카오" 
+                  value={inputs.job}
+                  onChange={(e) => setInputs({...inputs, job: e.target.value})}
+                  className="w-full p-2.5 pl-9 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
+                  placeholder="예: 마케팅, SW개발" 
                 />
-                <Search className="absolute left-3 top-3.5 text-slate-400 w-4 h-4"/>
+                <Briefcase className="absolute left-3 top-2.5 text-slate-400 w-4 h-4"/>
               </div>
             </div>
 
-            <div className="bg-blue-50 p-4 rounded-xl text-xs text-slate-600 leading-relaxed">
-              <p className="mb-2 font-bold text-blue-800">💡 팁</p>
-              AI가 해당 기업의 최신 뉴스, 재무 정보, 인재상을 종합적으로 분석하여 합격 전략을 제시합니다.
+            {/* 4. 요청사항 */}
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1">특별 요청사항 (선택)</label>
+              <textarea 
+                value={inputs.request}
+                onChange={(e) => setInputs({...inputs, request: e.target.value})}
+                className="w-full p-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none h-24 resize-none" 
+                placeholder="예: 최근 신사업 이슈 위주로 분석해주세요. 경쟁사 비교를 깊이 있게 해주세요." 
+              />
             </div>
 
             <button 
@@ -120,7 +176,7 @@ export default function CompanyAnalysisApp({ onClose }) {
               disabled={loading} 
               className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold mt-2 shadow-lg hover:bg-blue-700 transition-all disabled:bg-slate-400"
             >
-              {loading ? <Loader2 className="animate-spin mx-auto"/> : "기업 분석 시작"}
+              {loading ? <Loader2 className="animate-spin mx-auto"/> : "상세 분석 시작"}
             </button>
           </div>
         </aside>
@@ -129,95 +185,135 @@ export default function CompanyAnalysisApp({ onClose }) {
         <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
           {result ? (
             <div ref={reportRef} className="w-[210mm] min-h-[297mm] h-fit bg-white shadow-2xl p-12 flex flex-col animate-in fade-in zoom-in-95 duration-500">
-              {/* 타이틀 */}
-              <div className="border-b-4 border-blue-600 pb-6 mb-8">
-                <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">COMPANY REPORT</span>
-                <h1 className="text-4xl font-extrabold text-slate-900 mb-2">{companyName}</h1>
-                <EditableContent className="text-lg text-slate-500" value={result.overview} onSave={(v)=>handleEdit('overview', null, v)} />
+              {/* 타이틀 영역 */}
+              <div className="border-b-4 border-blue-900 pb-6 mb-8">
+                <div className="flex justify-between items-end">
+                  <div>
+                    <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">CORPORATE ANALYSIS</span>
+                    <h1 className="text-4xl font-extrabold text-slate-900 mb-2">{inputs.company}</h1>
+                    <p className="text-slate-500 font-medium">{inputs.job ? `${inputs.job} 직무 중심 분석` : '종합 기업 분석'}</p>
+                  </div>
+                  <div className="text-right text-xs text-slate-400">
+                    <p>Powered by Career Vitamin</p>
+                    <p>{new Date().toLocaleDateString()}</p>
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-8">
-                {/* 1. SWOT 분석 */}
+              <div className="space-y-10">
+                {/* 1. 기업 개요 및 현황 (Overview) */}
                 <section>
-                  <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center"><Target className="mr-2 text-blue-600"/> SWOT 분석</h3>
+                  <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center border-b pb-2"><Building2 className="mr-2 text-blue-600"/> 1. 기업 개요 및 현황</h3>
+                  <div className="bg-slate-50 p-5 rounded-xl mb-4 border border-slate-200">
+                    <h4 className="font-bold text-sm text-slate-700 mb-2">기업 개요</h4>
+                    <EditableContent className="text-sm text-slate-600 leading-relaxed" value={result.section1?.summary} onSave={(v)=>handleEdit('section1', 'summary', v)} />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-white border p-4 rounded-lg">
+                       <h4 className="font-bold text-xs text-blue-800 mb-2 flex items-center"><History size={14} className="mr-1"/> 주요 연혁</h4>
+                       <EditableContent className="text-xs text-slate-600 leading-relaxed" value={result.section1?.history} onSave={(v)=>handleEdit('section1', 'history', v)} />
+                    </div>
+                    <div className="bg-white border p-4 rounded-lg">
+                       <h4 className="font-bold text-xs text-blue-800 mb-2 flex items-center"><Flag size={14} className="mr-1"/> 비전 & 미션</h4>
+                       <EditableContent className="text-xs text-slate-600 leading-relaxed" value={result.section1?.vision} onSave={(v)=>handleEdit('section1', 'vision', v)} />
+                    </div>
+                    <div className="bg-white border p-4 rounded-lg">
+                       <h4 className="font-bold text-xs text-blue-800 mb-2 flex items-center"><CheckCircle size={14} className="mr-1"/> 핵심 가치</h4>
+                       <EditableContent className="text-xs text-slate-600 leading-relaxed" value={result.section1?.core_values} onSave={(v)=>handleEdit('section1', 'core_values', v)} />
+                    </div>
+                    <div className="bg-white border p-4 rounded-lg">
+                       <h4 className="font-bold text-xs text-blue-800 mb-2 flex items-center"><Users size={14} className="mr-1"/> 인재상</h4>
+                       <EditableContent className="text-xs text-slate-600 leading-relaxed" value={result.section1?.talent} onSave={(v)=>handleEdit('section1', 'talent', v)} />
+                    </div>
+                  </div>
+                </section>
+
+                {/* 2. 주요 사업 & SWOT */}
+                <section>
+                  <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center border-b pb-2"><Target className="mr-2 text-blue-600"/> 2. 주요 사업 & SWOT</h3>
+                  <div className="mb-6">
+                    <h4 className="font-bold text-sm text-slate-700 mb-2">주요 사업 정책</h4>
+                    <EditableContent className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-lg" value={result.section2?.business_policy} onSave={(v)=>handleEdit('section2', 'business_policy', v)} />
+                  </div>
                   <div className="grid grid-cols-2 gap-4">
-                    {/* 강점 */}
-                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                      <h4 className="font-bold text-blue-800 mb-2 text-sm flex items-center"><Sword size={14} className="mr-1"/> Strength (강점)</h4>
-                      <ul className="list-disc pl-4 text-sm text-slate-700 space-y-1">
-                        {result.swot?.strength?.map((item, i) => (
-                          <li key={i}><EditableContent value={item} onSave={(v)=>handleEdit('swot', 'strength', v, i)}/></li>
+                    {/* Strength */}
+                    <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100">
+                      <h4 className="font-bold text-blue-800 mb-2 text-sm flex items-center uppercase">Strength (강점)</h4>
+                      <ul className="list-disc pl-4 text-xs text-slate-700 space-y-1">
+                        {result.section2?.swot?.strength?.map((item, i) => (
+                          <li key={i}><EditableContent value={item} onSave={(v)=>handleEdit('section2', 'swot', v, i, 'strength')}/></li>
                         ))}
                       </ul>
                     </div>
-                    {/* 약점 */}
-                    <div className="bg-red-50 p-4 rounded-lg border border-red-100">
-                      <h4 className="font-bold text-red-800 mb-2 text-sm flex items-center"><Shield size={14} className="mr-1"/> Weakness (약점)</h4>
-                      <ul className="list-disc pl-4 text-sm text-slate-700 space-y-1">
-                        {result.swot?.weakness?.map((item, i) => (
-                          <li key={i}><EditableContent value={item} onSave={(v)=>handleEdit('swot', 'weakness', v, i)}/></li>
+                    {/* Weakness */}
+                    <div className="bg-red-50/50 p-4 rounded-lg border border-red-100">
+                      <h4 className="font-bold text-red-800 mb-2 text-sm flex items-center uppercase">Weakness (약점)</h4>
+                      <ul className="list-disc pl-4 text-xs text-slate-700 space-y-1">
+                        {result.section2?.swot?.weakness?.map((item, i) => (
+                          <li key={i}><EditableContent value={item} onSave={(v)=>handleEdit('section2', 'swot', v, i, 'weakness')}/></li>
                         ))}
                       </ul>
                     </div>
-                    {/* 기회 */}
-                    <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-100">
-                      <h4 className="font-bold text-emerald-800 mb-2 text-sm flex items-center"><TrendingUp size={14} className="mr-1"/> Opportunity (기회)</h4>
-                      <ul className="list-disc pl-4 text-sm text-slate-700 space-y-1">
-                        {result.swot?.opportunity?.map((item, i) => (
-                          <li key={i}><EditableContent value={item} onSave={(v)=>handleEdit('swot', 'opportunity', v, i)}/></li>
+                    {/* Opportunity */}
+                    <div className="bg-emerald-50/50 p-4 rounded-lg border border-emerald-100">
+                      <h4 className="font-bold text-emerald-800 mb-2 text-sm flex items-center uppercase">Opportunity (기회)</h4>
+                      <ul className="list-disc pl-4 text-xs text-slate-700 space-y-1">
+                        {result.section2?.swot?.opportunity?.map((item, i) => (
+                          <li key={i}><EditableContent value={item} onSave={(v)=>handleEdit('section2', 'swot', v, i, 'opportunity')}/></li>
                         ))}
                       </ul>
                     </div>
-                    {/* 위협 */}
-                    <div className="bg-orange-50 p-4 rounded-lg border border-orange-100">
-                      <h4 className="font-bold text-orange-800 mb-2 text-sm flex items-center"><Shield size={14} className="mr-1"/> Threat (위협)</h4>
-                      <ul className="list-disc pl-4 text-sm text-slate-700 space-y-1">
-                        {result.swot?.threat?.map((item, i) => (
-                          <li key={i}><EditableContent value={item} onSave={(v)=>handleEdit('swot', 'threat', v, i)}/></li>
+                    {/* Threat */}
+                    <div className="bg-orange-50/50 p-4 rounded-lg border border-orange-100">
+                      <h4 className="font-bold text-orange-800 mb-2 text-sm flex items-center uppercase">Threat (위협)</h4>
+                      <ul className="list-disc pl-4 text-xs text-slate-700 space-y-1">
+                        {result.section2?.swot?.threat?.map((item, i) => (
+                          <li key={i}><EditableContent value={item} onSave={(v)=>handleEdit('section2', 'swot', v, i, 'threat')}/></li>
                         ))}
                       </ul>
                     </div>
                   </div>
                 </section>
 
-                {/* 2. 3C 분석 */}
+                {/* 3. 시장 및 경쟁 분석 */}
                 <section>
-                   <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center"><Globe className="mr-2 text-blue-600"/> 3C 분석</h3>
-                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                     <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                       <h4 className="font-bold text-slate-700 mb-2 text-center border-b pb-2">Company (자사)</h4>
-                       <EditableContent className="text-sm text-slate-600 leading-relaxed" value={result.analysis_3c?.company} onSave={(v)=>handleEdit('analysis_3c', 'company', v)} />
+                   <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center border-b pb-2"><Globe className="mr-2 text-blue-600"/> 3. 시장 및 경쟁 분석</h3>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                     <div>
+                       <h4 className="font-bold text-slate-700 mb-2 flex items-center"><TrendingUp size={16} className="mr-1"/> 국내외 산업 동향</h4>
+                       <EditableContent className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-lg h-full" value={result.section3?.market_trend} onSave={(v)=>handleEdit('section3', 'market_trend', v)} />
                      </div>
-                     <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                       <h4 className="font-bold text-slate-700 mb-2 text-center border-b pb-2">Competitor (경쟁사)</h4>
-                       <EditableContent className="text-sm text-slate-600 leading-relaxed" value={result.analysis_3c?.competitor} onSave={(v)=>handleEdit('analysis_3c', 'competitor', v)} />
-                     </div>
-                     <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                       <h4 className="font-bold text-slate-700 mb-2 text-center border-b pb-2">Customer (고객)</h4>
-                       <EditableContent className="text-sm text-slate-600 leading-relaxed" value={result.analysis_3c?.customer} onSave={(v)=>handleEdit('analysis_3c', 'customer', v)} />
+                     <div>
+                       <h4 className="font-bold text-slate-700 mb-2 flex items-center"><Sword size={16} className="mr-1"/> 경쟁사 대비 강점/위치</h4>
+                       <EditableContent className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-lg h-full" value={result.section3?.competitor} onSave={(v)=>handleEdit('section3', 'competitor', v)} />
                      </div>
                    </div>
                 </section>
 
-                {/* 3. 인재상 및 전략 */}
-                <section className="bg-slate-800 text-white p-6 rounded-xl">
-                   <h3 className="font-bold text-blue-300 mb-3 flex items-center"><Users className="mr-2"/> 인재상 및 핵심가치</h3>
-                   <EditableContent className="text-sm text-slate-300 mb-6 leading-relaxed" value={result.talent} onSave={(v)=>handleEdit('talent', null, v)} />
-                   
-                   <h3 className="font-bold text-yellow-400 mb-3 flex items-center"><Lightbulb className="mr-2"/> 지원 전략 및 조언</h3>
-                   <EditableContent className="text-sm text-slate-300 leading-relaxed" value={result.strategy} onSave={(v)=>handleEdit('strategy', null, v)} />
+                {/* 4. 지원자 취업 전략 */}
+                <section className="bg-slate-900 text-white p-6 rounded-xl mt-4">
+                   <h3 className="font-bold text-yellow-400 mb-4 flex items-center text-lg"><Lightbulb className="mr-2"/> 4. 지원자 합격 전략</h3>
+                   <div className="space-y-3">
+                      {result.section4?.strategies?.map((item, i) => (
+                        <div key={i} className="flex items-start">
+                          <span className="bg-blue-600 text-xs font-bold px-2 py-0.5 rounded mr-2 mt-0.5 shrink-0">POINT {i+1}</span>
+                          <EditableContent className="text-sm text-slate-300 leading-relaxed" value={item} onSave={(v)=>handleEdit('section4', 'strategies', v, i)} />
+                        </div>
+                      ))}
+                   </div>
                 </section>
               </div>
 
+              {/* 푸터 */}
               <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto">
-                <div className="flex items-center"><Building2 className="w-4 h-4 mr-1 text-blue-500" /><span>Career Vitamin</span></div>
-                <span>AI-Powered Company Analysis Report</span>
+                <div className="flex items-center"><Building2 className="w-4 h-4 mr-1 text-blue-500" /><span>Career Vitamin AI</span></div>
+                <span>Strategic Company Analysis Report</span>
               </div>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-slate-400">
               <Building2 size={64} className="mb-4 opacity-20"/>
-              <p>분석하고 싶은 기업 이름을 입력하세요.</p>
+              <p className="mt-4 text-center">좌측 메뉴에서 기업 정보를 입력하고<br/><strong>[상세 분석 시작]</strong>을 눌러주세요.</p>
             </div>
           )}
         </main>

@@ -34,6 +34,7 @@ import CompanyAnalysisApp from './components/CompanyAnalysis';
 import InterviewPrepApp from './components/InterviewPrep';
 import ExperienceStructApp from './components/ExperienceStructApp';
 import PTInterviewPrepApp from './components/PTInterviewPrep';
+import CareerRoadmapApp from './components/CareerRoadmapApp';
 
 // 아이콘 불러오기 (기존 코드 그대로 유지)
 import { 
@@ -89,98 +90,6 @@ const COLOR_VARIANTS = {
 
 // ... (Other Sub Apps: CareerRoadmapApp, etc. should be included here) ...
 
-function CareerRoadmapApp({ onClose }) {
-  const [inputs, setInputs] = useState({ company: '', job: '', years: '5' });
-  const [roadmapData, setRoadmapData] = useState(null); 
-  const [loading, setLoading] = useState(false);
-  const [toastMsg, setToastMsg] = useState(null);
-  const reportRef = useRef(null);
-
-  const showToast = (msg) => setToastMsg(msg);
-
-  const handleAIPlan = async () => {
-    if (!inputs.company || !inputs.job) return showToast("기업명과 직무를 입력해주세요.");
-    setLoading(true);
-    try {
-      const prompt = `커리어 로드맵 설계. 기업:${inputs.company}, 직무:${inputs.job}, 목표기간:${inputs.years}년. JSON: { "goal": "최종목표", "roadmap": [{"stage": "단계명", "action": "실천내용"}], "script": "입사후포부" }`;
-      const parsed = await fetchGemini(prompt);
-      setRoadmapData(parsed);
-    } catch (e) { showToast(e.message); } finally { setLoading(false); }
-  };
-  
-  const handleEdit = (key, value) => setRoadmapData(prev => ({ ...prev, [key]: value }));
-  const handleRoadmapEdit = (index, key, value) => {
-    setRoadmapData(prev => {
-      const newMap = [...prev.roadmap];
-      newMap[index] = { ...newMap[index], [key]: value };
-      return { ...prev, roadmap: newMap };
-    });
-  };
-
-  const handleDownload = () => saveAsPng(reportRef, `커리어로드맵_${inputs.company}`, showToast);
-  const handlePdfDownload = () => saveAsPdf(reportRef, `커리어로드맵_${inputs.company}`, showToast);
-  
-  return (
-    <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
-      {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
-      <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
-        <div className="flex items-center gap-3"><TrendingUp className="text-blue-400"/><h1 className="font-bold text-lg">커리어 로드맵</h1></div>
-        <button onClick={onClose} className="flex items-center text-sm hover:text-blue-200 transition-colors"><ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기</button>
-      </header>
-      <div className="flex flex-1 overflow-hidden">
-        <aside className="w-80 bg-white border-r p-6 shrink-0">
-          <div className="space-y-5">
-            <h3 className="font-bold text-sm text-blue-700 flex items-center uppercase tracking-wider"><Settings size={16} className="mr-2"/> 설정</h3>
-            <input value={inputs.company} onChange={e=>setInputs({...inputs, company:e.target.value})} className="w-full p-3 border rounded-lg" placeholder="목표 기업명"/>
-            <input value={inputs.job} onChange={e=>setInputs({...inputs, job:e.target.value})} className="w-full p-3 border rounded-lg" placeholder="희망 직무"/>
-            <div className="flex gap-2">
-              {['3', '5', '10'].map(y => (
-                <button key={y} onClick={()=>setInputs({...inputs, years:y})} className={`flex-1 py-3 border rounded-lg ${inputs.years===y ? 'bg-blue-600 text-white font-bold' : 'bg-white'}`}>{y}년</button>
-              ))}
-            </div>
-            <button onClick={handleAIPlan} disabled={loading} className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading ? <Loader2 className="animate-spin mx-auto"/> : "로드맵 생성"}</button>
-          </div>
-        </aside>
-        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
-          {roadmapData ? (
-            <div ref={reportRef} className="w-[210mm] min-h-[297mm] h-fit bg-white shadow-2xl p-12 flex flex-col animate-in fade-in zoom-in-95 duration-500">
-              <div className="border-b-4 border-blue-600 pb-6 mb-10">
-                <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">CAREER ROADMAP</span>
-                <h1 className="text-4xl font-extrabold text-slate-900">{inputs.company}</h1>
-                <EditableContent className="text-blue-600 font-bold text-xl mt-3" value={roadmapData.goal} onSave={(v)=>handleEdit('goal', v)} />
-              </div>
-              <div className="space-y-8 relative before:absolute before:left-[27px] before:top-4 before:bottom-4 before:w-0.5 before:bg-slate-200">
-                {roadmapData.roadmap?.map((r,i)=>(
-                  <div key={i} className="flex gap-6 relative">
-                    <div className="w-14 h-14 rounded-full bg-white border-4 border-blue-100 flex items-center justify-center font-bold text-blue-600 shadow-sm z-10 shrink-0 text-xl">{i+1}</div>
-                    <div className="flex-1 p-6 border border-slate-200 rounded-2xl bg-white shadow-sm hover:shadow-md transition-shadow">
-                      <EditableContent className="font-bold text-blue-800 mb-2 text-lg" value={r.stage} onSave={(v)=>handleRoadmapEdit(i, 'stage', v)} />
-                      <EditableContent className="text-slate-600 leading-relaxed" value={r.action} onSave={(v)=>handleRoadmapEdit(i, 'action', v)} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-12 bg-slate-900 p-8 rounded-2xl text-white shadow-xl">
-                <h3 className="font-bold text-blue-300 mb-4 flex items-center text-lg"><MessageSquare className="mr-2"/> 입사 후 포부</h3>
-                <EditableContent className="text-slate-300 leading-loose text-lg font-light" value={roadmapData.script} onSave={(v)=>handleEdit('script', v)} />
-              </div>
-              <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto">
-                <div className="flex items-center"><TrendingUp className="w-4 h-4 mr-1 text-blue-500" /><span>Career Vitamin</span></div>
-                <span>AI-Generated Career Roadmap</span>
-              </div>
-            </div>
-          ) : <div className="flex flex-col items-center justify-center h-full text-slate-400"><TrendingUp size={64} className="mb-4 opacity-20"/><p>커리어 목표를 입력하세요.</p></div>}
-        </main>
-        {roadmapData && (
-          <div className="absolute bottom-8 right-8 flex gap-3 z-50">
-            <button onClick={handleDownload} className="bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><Download className="mr-2" size={20}/> 이미지 저장</button>
-            <button onClick={handlePdfDownload} className="bg-red-600 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><FileText className="mr-2" size={20}/> PDF 저장</button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function SelfIntroApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', job: '', concept: 'competency', keyword: '', exp: '' });

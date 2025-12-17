@@ -35,6 +35,7 @@ import InterviewPrepApp from './components/InterviewPrep';
 import ExperienceStructApp from './components/ExperienceStructApp';
 import PTInterviewPrepApp from './components/PTInterviewPrep';
 import CareerRoadmapApp from './components/CareerRoadmapApp';
+import RoleModelApp from './components/RoleModelApp';
 
 // 아이콘 불러오기 (기존 코드 그대로 유지)
 import { 
@@ -138,136 +139,6 @@ function SelfIntroApp({ onClose }) {
         </div></aside>
         <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">{script ? <div ref={reportRef} className="w-[210mm] min-h-[297mm] h-fit bg-white shadow-lg p-10 flex flex-col animate-in fade-in zoom-in-95 duration-500"><div className="border-b-4 border-purple-600 pb-6 text-center"><span className="text-purple-600 font-bold text-sm tracking-widest block mb-2">1-MINUTE SPEECH</span><EditableContent className="text-3xl font-extrabold text-slate-900 text-center" value={script.slogan} onSave={(v)=>handleEdit('slogan', v)} /></div><div className="space-y-8 mt-8"> <div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-4 uppercase">Opening</div><div className="flex-1 bg-purple-50 p-6 rounded-2xl text-xl font-bold text-slate-800 shadow-sm"><EditableContent value={script.opening} onSave={(v)=>handleEdit('opening', v)} /></div></div><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-1 uppercase">Body</div><div className="flex-1 text-slate-700 leading-loose pl-6 border-l-2 border-purple-200 text-lg"><EditableContent value={script.body} onSave={(v)=>handleEdit('body', v)} /></div></div><div className="flex gap-6"><div className="w-20 text-right font-bold text-slate-400 text-sm pt-4 uppercase">Closing</div><div className="flex-1 bg-slate-50 p-6 rounded-2xl font-medium text-slate-800 text-lg"><EditableContent value={script.closing} onSave={(v)=>handleEdit('closing', v)} /></div></div></div><div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto"><div className="flex items-center"><Mic className="w-4 h-4 mr-1 text-purple-500" /><span>Career Vitamin</span></div><span>AI-Generated Speech Script</span></div></div> : <div className="flex flex-col items-center justify-center h-full text-slate-400"><Mic size={64} className="mb-4 opacity-20"/><p>정보를 입력하면 스크립트가 생성됩니다.</p></div>}</main>
         {script && (
-          <div className="absolute bottom-8 right-8 flex gap-3 z-50">
-            <button onClick={handleDownload} className="bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><Download className="mr-2" size={20}/> 이미지 저장</button>
-            <button onClick={handlePdfDownload} className="bg-red-600 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><FileText className="mr-2" size={20}/> PDF 저장</button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// 롤모델 분석 앱 - 추가 입력 필드(어록, 책) 및 프롬프트 반영
-function RoleModelGuideApp({ onClose }) {
-  // 입력 상태 분리: userQuotes, userBooks 추가
-  const [inputs, setInputs] = useState({ name: '', userQuotes: '', userBooks: '' });
-  const [result, setResult] = useState(null); // 결과 데이터는 result에 저장
-  const [loading, setLoading] = useState(false);
-  const [toastMsg, setToastMsg] = useState(null);
-  const reportRef = useRef(null);
-  
-  const showToast = (msg) => setToastMsg(msg);
-
-  const handleAIAnalysis = async () => {
-    if (!inputs.name) return showToast("이름을 입력해주세요.");
-    setLoading(true);
-    try {
-      // 프롬프트에 사용자 입력 정보 추가
-      const prompt = `롤모델 '${inputs.name}' 분석. 
-      [사용자 추가 정보]
-      - 감명 깊게 본 어록: ${inputs.userQuotes || '없음'}
-      - 관련 책/매체: ${inputs.userBooks || '없음'}
-
-      위 인물의 최신 근황과 업적을 포함하여 분석해줘.
-      특히 사용자가 입력한 어록이나 책이 있다면, 해당 내용이 왜 중요한지, 어떤 교훈을 주는지 '명언(quotes)'이나 '매체(media)' 섹션에 잘 녹여내줘.
-      
-      JSON: { 
-        "role": "인물의 대표 직함 또는 수식어", 
-        "intro": "인물 소개 및 주요 업적 (최신 근황 포함)", 
-        "quotes": "주요 명언 (사용자 입력 어록이 있다면 포함하여 구성)", 
-        "media": "추천 도서나 매체 (사용자 입력 책이 있다면 포함)", 
-        "reason": "면접에서 이 인물을 롤모델로 언급할 때의 활용 포인트 및 본받을 점" 
-      }`;
-      const parsed = await fetchGemini(prompt);
-      // 결과에 이름 포함하여 저장
-      setResult({ ...parsed, name: inputs.name }); 
-    } catch (e) { showToast(e.message); } finally { setLoading(false); }
-  };
-
-  const handleEdit = (key, value) => setResult(prev => ({ ...prev, [key]: value }));
-  const handleDownload = () => saveAsPng(reportRef, `롤모델_${result?.name || inputs.name}`, showToast);
-  const handlePdfDownload = () => saveAsPdf(reportRef, `롤모델_${result?.name || inputs.name}`, showToast);
-  
-  return (
-    <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
-      {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
-      <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
-        <div className="flex items-center gap-3"><Award className="text-orange-400"/><h1 className="font-bold text-lg">롤모델 분석</h1></div>
-        <button onClick={onClose} className="flex items-center text-sm hover:text-orange-200 transition-colors"><ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기</button>
-      </header>
-      <div className="flex flex-1 overflow-hidden">
-        <aside className="w-80 bg-white border-r p-6 shrink-0"><div className="space-y-5">
-          <h3 className="font-bold text-sm text-orange-700 flex items-center uppercase tracking-wider"><Search size={16} className="mr-2"/> 인물 검색</h3>
-          {/* 입력 필드 바인딩 변경 data -> inputs */}
-          <input value={inputs.name} onChange={e=>setInputs({...inputs, name:e.target.value})} className="w-full p-3 border border-slate-300 rounded-xl font-bold text-lg focus:ring-2 focus:ring-orange-500 outline-none" placeholder="예: 스티브 잡스"/>
-          
-          <div className="pt-4 border-t border-slate-100 space-y-3">
-            <h4 className="text-xs font-bold text-slate-400 uppercase">선택 옵션 (Optional)</h4>
-            <div>
-              <label className="text-xs text-slate-500 mb-1 block">감명 깊은 어록</label>
-              <textarea 
-                value={inputs.userQuotes} 
-                onChange={e=>setInputs({...inputs, userQuotes:e.target.value})} 
-                className="w-full p-3 border rounded-lg text-sm h-20 resize-none bg-slate-50 focus:bg-white" 
-                placeholder="인상 깊었던 명언이 있다면 적어주세요."
-              />
-            </div>
-            <div>
-              <label className="text-xs text-slate-500 mb-1 block">관련 책 / 영상</label>
-              <input 
-                value={inputs.userBooks} 
-                onChange={e=>setInputs({...inputs, userBooks:e.target.value})} 
-                className="w-full p-3 border rounded-lg text-sm bg-slate-50 focus:bg-white" 
-                placeholder="책 제목이나 영상 등"
-              />
-            </div>
-          </div>
-
-          <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-orange-600 text-white py-3.5 rounded-xl font-bold mt-4 shadow-lg disabled:bg-slate-400">{loading?<Loader2 className="animate-spin mx-auto"/>:"분석 시작"}</button>
-        </div></aside>
-        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
-          {/* 결과 표시 로직 data -> result */}
-          {result ? (
-            <div ref={reportRef} className="w-[210mm] min-h-[297mm] h-fit bg-white shadow-lg p-10 flex flex-col animate-in fade-in zoom-in-95 duration-500">
-              <div className="border-b-4 border-orange-500 pb-6">
-                <span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-xs font-bold">ROLE MODEL</span>
-                <h1 className="text-4xl font-extrabold mt-3">{result.name}</h1>
-                <EditableContent className="text-slate-500 text-lg mt-1" value={result.role} onSave={(v)=>handleEdit('role', v)} />
-              </div>
-              <div className="space-y-8 mt-8"> {/* flex-1 제거됨 */}
-                <div className="flex gap-8 items-start">
-                  <div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center shrink-0"><User className="w-8 h-8 text-orange-600"/></div>
-                  <EditableContent className="text-slate-700 leading-loose text-lg flex-1" value={result.intro} onSave={(v)=>handleEdit('intro', v)} />
-                </div>
-                <div className="bg-orange-50 p-8 rounded-2xl italic text-orange-900 font-serif text-xl border-l-8 border-orange-400 leading-relaxed">
-                  <EditableContent className="text-center" value={result.quotes} onSave={(v)=>handleEdit('quotes', v)} />
-                </div>
-                {/* 추가 미디어 섹션이 있으면 표시 */}
-                {result.media && (
-                  <div className="bg-slate-50 p-6 rounded-xl border border-slate-200">
-                    <h4 className="font-bold text-sm text-slate-500 mb-2 flex items-center"><BookOpen size={16} className="mr-2"/> 추천 자료</h4>
-                    <EditableContent className="text-slate-700" value={result.media} onSave={(v)=>handleEdit('media', v)} />
-                  </div>
-                )}
-                <div className="border-t border-slate-200 pt-8">
-                  <h3 className="font-bold text-xl mb-4 flex items-center text-slate-800"><MessageSquare className="mr-2 text-orange-500"/> 면접 활용 Tip</h3>
-                  <EditableContent className="text-slate-600 leading-relaxed text-lg" value={result.reason} onSave={(v)=>handleEdit('reason', v)} />
-                </div>
-              </div>
-              <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto">
-                <div className="flex items-center"><Award className="w-4 h-4 mr-1 text-orange-500" /><span>Career Vitamin</span></div>
-                <span>AI-Powered Role Model Analysis</span>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-slate-400">
-              <Award size={64} className="mb-4 opacity-20"/>
-              <p>롤모델 이름을 입력하세요.</p>
-            </div>
-          )}
-        </main>
-        {result && (
           <div className="absolute bottom-8 right-8 flex gap-3 z-50">
             <button onClick={handleDownload} className="bg-slate-900 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><Download className="mr-2" size={20}/> 이미지 저장</button>
             <button onClick={handlePdfDownload} className="bg-red-600 text-white px-6 py-3 rounded-full font-bold shadow-2xl hover:-translate-y-1 flex items-center transition-transform"><FileText className="mr-2" size={20}/> PDF 저장</button>

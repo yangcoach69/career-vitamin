@@ -760,7 +760,7 @@ export default function App() {
       {currentApp === 'sit_interview' && <InterviewPrepApp onClose={()=>setCurrentApp('none')} />}
       {currentApp === 'self_intro' && <SelfIntroApp onClose={()=>setCurrentApp('none')} />}
       {currentApp === 'exp_structuring' && <ExperienceStructApp onClose={()=>setCurrentApp('none')} />}
-      {currentApp === 'role_model' && <RoleModelGuideApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'role_model' && <RoleModelApp onClose={()=>setCurrentApp('none')} />}
       {currentApp === 'gpt_guide' && <JobExplorerApp onClose={()=>setCurrentApp('none')} />}
       {currentApp === 'holland_test' && <HollandTestApp onClose={()=>setCurrentApp('none')} />}
     </div>

@@ -3,14 +3,14 @@ import React, { useState, useRef } from 'react';
 import { 
   FileText, ChevronLeft, Settings, FileCheck, UploadCloud, 
   Loader2, ThumbsUp, AlertCircle, Target, MessageSquare, 
-  BrainCircuit, Download, Percent, CheckCircle2, Mic
+  BrainCircuit, Download, Percent, Mic
 } from 'lucide-react';
-import { fetchGemini, saveAsPng, saveAsPdf } from '../api'; // 도구 가져오기
-import { Toast, EditableContent } from './SharedUI'; // 부품 가져오기
+import { fetchGemini, saveAsPng, saveAsPdf } from '../api'; 
+import { Toast, EditableContent } from './SharedUI'; 
 
 export default function JobFitScannerApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', url: '', job: '' });
-  const [mode, setMode] = useState('document'); // 'document' | 'interview' (진단 모드 추가)
+  const [mode, setMode] = useState('document'); // 'document' | 'interview'
   const [jdFile, setJdFile] = useState(null);
   const [resumeFile, setResumeFile] = useState(null);
   const [result, setResult] = useState(null);
@@ -43,14 +43,13 @@ export default function JobFitScannerApp({ onClose }) {
     
     setLoading(true);
     try {
-      // 모드에 따른 프롬프트 분기 처리
       const modeInstruction = mode === 'document' 
         ? `[현재 상황] 지원자는 '서류 지원 전' 단계입니다.
-           [분석 목표] 서류(이력서/자소서)가 채용공고(JD)에 얼마나 부합하는지 분석하고, '서류 통과 확률'을 높이는 전략이 필요합니다.
-           [Gap Strategy 요구사항] 서류 상에 어떤 키워드를 추가하거나 경험을 더 강조해야 하는지 '글쓰기 관점'에서 조언하세요.`
+           [분석 목표] 서류 통과 확률을 높이기 위해 자소서/이력서 내용을 수정해야 합니다.
+           [Gap Strategy 요구사항] 3가지 구체적인 서류 수정 전략을 배열로 제시하세요.`
         : `[현재 상황] 지원자는 이미 '서류 전형에 합격'하여 면접을 앞두고 있습니다.
-           [분석 목표] 서류 통과 가능성을 논하지 말고(이미 합격함), 면접관이 공격할 만한 약점과 이를 '말로 방어하는 논리'를 구축해야 합니다.
-           [Gap Strategy 요구사항] 부족한 스킬이나 경험에 대해 면접관이 질문할 경우, 이를 어떻게 말로 커버하거나 배우려는 의지를 보여줄지 '답변 전략'을 제시하세요.`;
+           [분석 목표] 면접관의 공격 질문을 방어하고 합격하기 위한 말하기 전략이 필요합니다.
+           [Gap Strategy 요구사항] 3가지 구체적인 면접 방어/답변 전략을 배열로 제시하세요.`;
 
       const prompt = `당신은 채용 담당자이자 전문 커리어 코치입니다.
       ${modeInstruction}
@@ -62,33 +61,44 @@ export default function JobFitScannerApp({ onClose }) {
       4. 첨부된 채용공고(JD)와 지원자의 이력서/자소서를 비교 분석해주세요.
 
       [요청 사항]
-      반드시 다음 JSON 형식을 엄격히 따를 것:
+      반드시 다음 JSON 형식을 엄격히 따를 것 (주석 제외하고 JSON만 출력):
       {
         "score": 85,
         "fit_analysis": {
-          "strong": "지원자가 직무에 대해 가진 확실한 강점 (면접이나 서류에서 강조할 핵심 무기)",
-          "missing": "JD와 비교했을 때 명확히 부족하거나 우려되는 약점 요소"
+          "strong": "지원자가 직무에 대해 가진 확실한 강점 (한 문단)",
+          "missing": "JD와 비교했을 때 부족하거나 우려되는 약점 요소 (한 문단)"
         },
-        "gap_strategy": "${mode === 'document' ? '서류 보완 전략' : '면접 방어/답변 전략'} (3가지 이상 구체적으로)",
-        "interview_prep": [
-          "예상 질문 1 (약점 검증용)",
-          "예상 질문 2 (강점 심화 질문)",
-          "예상 질문 3 (직무 핏/컬쳐 핏 확인용)"
+        "gap_strategy": [
+            "전략 1: (구체적인 내용)",
+            "전략 2: (구체적인 내용)",
+            "전략 3: (구체적인 내용)"
         ],
-        "overall_comment": "${mode === 'document' ? '서류 합격 가능성 예측 및 조언' : '면접 합격 가능성 예측 및 최종 조언'}"
+        "interview_prep": [
+          "예상 질문 1",
+          "예상 질문 2",
+          "예상 질문 3"
+        ],
+        "overall_comment": "총평 및 조언"
       }`;
 
-      // Attach files
       const attachments = [jdFile, resumeFile];
       const parsed = await fetchGemini(prompt, attachments);
+      
+      // AI가 가끔 문자열로 줄 때를 대비해 배열로 강제 변환
+      if (parsed.gap_strategy && !Array.isArray(parsed.gap_strategy)) {
+          parsed.gap_strategy = [parsed.gap_strategy];
+      }
+      
       setResult(parsed);
     } catch (e) { showToast(e.message); } finally { setLoading(false); }
   };
 
+  // 데이터 수정 핸들러 (배열 처리 로직 보강)
   const handleEdit = (section, key, value, index) => {
     setResult(prev => {
         const newData = { ...prev };
-        if (section === 'fit_analysis' || section === 'interview_prep') {
+        // 배열 데이터 처리 (interview_prep, gap_strategy 등)
+        if (['fit_analysis', 'interview_prep', 'gap_strategy'].includes(section)) {
             if(Array.isArray(newData[section])) {
                  newData[section][index] = value;
             } else {
@@ -151,7 +161,6 @@ export default function JobFitScannerApp({ onClose }) {
                </div>
             </div>
 
-            {/* 진단 모드 선택 UI 추가 */}
             <div className="pt-2 border-t border-slate-100">
                 <label className="block text-xs font-bold text-slate-500 mb-2">진단 모드 선택</label>
                 <div className="flex gap-2">
@@ -208,14 +217,29 @@ export default function JobFitScannerApp({ onClose }) {
                     </div>
                 </section>
 
-                {/* 2. 갭 채우기 전략 (모드에 따라 제목 변경) */}
+                {/* 2. 갭 채우기 전략 (카드 형태로 변경) */}
                 <section>
                     <h3 className="text-xl font-bold text-slate-800 mb-4 pb-2 border-b border-slate-200 flex items-center">
                         <Target size={20} className="mr-2 text-rose-600"/> 
                         {mode === 'document' ? 'Resume Gap Strategy (서류 보완)' : 'Interview Defense Strategy (면접 방어)'}
                     </h3>
-                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                        <EditableContent className="text-slate-700 leading-loose" value={result.gap_strategy} onSave={(v)=>handleEdit('gap_strategy', null, v)} />
+                    <div className="space-y-3">
+                        {Array.isArray(result.gap_strategy) ? (
+                            result.gap_strategy.map((item, i) => (
+                                <div key={i} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex gap-3">
+                                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600 text-xs font-bold shrink-0">{i+1}</span>
+                                    <EditableContent 
+                                        className="text-slate-700 leading-relaxed flex-1" 
+                                        value={item} 
+                                        onSave={(v)=>handleEdit('gap_strategy', null, v, i)} 
+                                    />
+                                </div>
+                            ))
+                        ) : (
+                            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                                <EditableContent className="text-slate-700 leading-loose" value={result.gap_strategy} onSave={(v)=>handleEdit('gap_strategy', null, v)} />
+                            </div>
+                        )}
                     </div>
                 </section>
 

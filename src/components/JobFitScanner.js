@@ -5,7 +5,7 @@ import {
   Loader2, ThumbsUp, AlertCircle, Target, MessageSquare, 
   BrainCircuit, Download, Percent, Mic
 } from 'lucide-react';
-import { fetchGemini, saveAsPng, saveAsPdf } from '../api(1218)'; 
+import { fetchGemini, saveAsPng, saveAsPdf } from '../api'; 
 import { Toast, EditableContent } from './SharedUI'; 
 
 export default function JobFitScannerApp({ onClose }) {

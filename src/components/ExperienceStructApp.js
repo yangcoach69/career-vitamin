@@ -4,7 +4,7 @@ import {
   LayoutList, CheckCircle, Sparkles, Download, FileText, Star, Tag,
   ArrowRight
 } from 'lucide-react';
-import { fetchGemini, saveAsPng, saveAsPdf } from '../api(1218)';
+import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
 import { Toast, EditableContent } from './SharedUI';
 
 export default function ExperienceStructApp({ onClose }) {

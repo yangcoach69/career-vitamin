@@ -5,7 +5,6 @@ import {
   BarChart3, Smile, Meh, Target, Briefcase, Download, FileText 
 } from 'lucide-react';
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
-';
 import { Toast, EditableContent } from './SharedUI';
 
 export default function HollandTestApp({ onClose }) {

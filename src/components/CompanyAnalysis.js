@@ -5,7 +5,7 @@ import {
   Globe, Shield, Sword, Briefcase, MessageSquare, History, Flag, CheckCircle
 } from 'lucide-react';
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
-';
+
 import { Toast, EditableContent } from './SharedUI';
 
 export default function CompanyAnalysisApp({ onClose }) {

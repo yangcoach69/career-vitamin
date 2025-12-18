@@ -4,7 +4,7 @@ import {
   ClipboardList, ChevronLeft, Settings, Loader2, 
   BarChart3, Smile, Meh, Target, Briefcase, Download, FileText 
 } from 'lucide-react';
-import { fetchGemini, saveAsPng, saveAsPdf } from '../api
+import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
 ';
 import { Toast, EditableContent } from './SharedUI';
 

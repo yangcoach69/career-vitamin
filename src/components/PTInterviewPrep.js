@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Presentation, ChevronLeft, Lightbulb, ListChecks, Mic, Download, FileText, Loader2, CheckCircle2 } from 'lucide-react';
+import { Presentation, ChevronLeft, Lightbulb, ListChecks, Mic, Download, FileText, Loader2, CheckCircle2, Sparkles, PenTool } from 'lucide-react';
 
 // [표준 SOP 준수] 공용 도구 가져오기
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
@@ -7,76 +7,55 @@ import { Toast, EditableContent } from './SharedUI';
 
 export default function PtInterviewApp({ onClose }) {
   // --- 상태 관리 ---
-  const [inputs, setInputs] = useState({ job: '', category: 'trend' }); // 직무, 주제유형
-  const [topicList, setTopicList] = useState([]); // AI가 추천한 주제 5개
-  const [selectedTopic, setSelectedTopic] = useState(null); // 사용자가 선택한 주제
-  const [script, setScript] = useState(null); // 최종 스크립트 결과
+  const [activeTab, setActiveTab] = useState('ai'); // 'ai' (AI 추출) | 'direct' (직접 입력)
+  
+  // 입력값
+  const [inputs, setInputs] = useState({ 
+    company: '', 
+    job: '', 
+    request: '' // 옵션 요청사항
+  });
+  const [directTopic, setDirectTopic] = useState(''); // 직접 입력 탭의 주제
+
+  // 결과값
+  const [topicList, setTopicList] = useState([]); // AI 추천 주제 5개
+  const [selectedTopic, setSelectedTopic] = useState(null); // 선택된 주제
+  const [script, setScript] = useState(null); // 최종 스크립트
   
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState(1); // 1: 주제뽑기, 2: 스크립트 결과
   const [toastMsg, setToastMsg] = useState(null);
   const reportRef = useRef(null);
 
   const showToast = (msg) => setToastMsg(msg);
 
-  // 1단계: PT 면접 주제 5개 뽑기
+  // [1단계] AI 주제 5개 추천받기 (AI 추출 탭)
   const handleRecommendTopics = async () => {
+    if (!inputs.company) return showToast("지원 기업명을 입력해주세요.");
     if (!inputs.job) return showToast("지원 직무를 입력해주세요.");
     
     setLoading(true);
-    setScript(null); // 기존 결과 초기화
+    setScript(null);
     setTopicList([]); 
     setSelectedTopic(null);
 
     try {
       const prompt = `
-        지원 직무: ${inputs.job}
-        면접 유형: PT 면접 (발표)
-        주제 카테고리: ${inputs.category === 'trend' ? '최신 업계 트렌드 및 이슈' : '직무 관련 문제 해결 및 전략'}
+        [PT 면접 주제 추천 요청]
+        1. 지원 기업: ${inputs.company}
+        2. 지원 직무: ${inputs.job}
+        3. 추가 요청사항: ${inputs.request || '없음'}
         
-        위 정보를 바탕으로 면접장에서 출제될 법한 [핵심 PT 발표 주제] 5가지를 리스트로 추천해줘.
-        JSON 형식: { "topics": ["주제1", "주제2", "주제3", "주제4", "주제5"] }
+        위 정보를 바탕으로 해당 기업과 직무에서 실제 출제될 법한 **핵심 PT 면접 주제 5가지**를 추천해줘.
+        - 기업의 최근 이슈나 직무 연관성을 높여서 구체적으로 작성할 것.
+        - JSON 형식: { "topics": ["주제1", "주제2", "주제3", "주제4", "주제5"] }
       `;
       
       const parsed = await fetchGemini(prompt);
       if (parsed && parsed.topics) {
         setTopicList(parsed.topics);
-        setStep(1); // 주제 선택 단계 유지
       } else {
         throw new Error("주제 생성 실패");
       }
-    } catch (e) {
-      showToast("주제 추천 중 오류가 발생했습니다.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 2단계: 선택한 주제로 스크립트 생성하기
-  const handleGenerateScript = async () => {
-    if (!selectedTopic) return showToast("리스트에서 주제를 먼저 선택해주세요.");
-
-    setLoading(true);
-    try {
-      const prompt = `
-        발표 주제: ${selectedTopic}
-        지원 직무: ${inputs.job}
-        
-        위 주제에 대해 3~5분 분량의 논리적인 PT 면접 발표 대본을 작성해줘.
-        구성: 서론(현황/문제제기) - 본론(해결방안/전략 3가지) - 결론(기대효과/포부).
-        
-        JSON 형식:
-        {
-          "title": "발표 제목 (매력적으로)",
-          "intro": "서론 내용...",
-          "body": "본론 내용 (논리적 구조)...",
-          "conclusion": "결론 및 마무리..."
-        }
-      `;
-
-      const parsed = await fetchGemini(prompt);
-      setScript(parsed);
-      setStep(2); // 결과 화면으로 이동
     } catch (e) {
       showToast(e.message);
     } finally {
@@ -84,8 +63,52 @@ export default function PtInterviewApp({ onClose }) {
     }
   };
 
-  const handleDownload = () => saveAsPng(reportRef, `PT면접_${inputs.job}`, showToast);
-  const handlePdfDownload = () => saveAsPdf(reportRef, `PT면접_${inputs.job}`, showToast);
+  // [2단계] 스크립트 생성하기 (공통)
+  const handleGenerateScript = async () => {
+    // 1. 필수값 체크
+    if (!inputs.company || !inputs.job) return showToast("기업명과 직무를 먼저 입력해주세요.");
+
+    // 2. 주제 결정 (탭에 따라 다름)
+    let targetTopic = '';
+    if (activeTab === 'ai') {
+        if (!selectedTopic) return showToast("리스트에서 주제를 선택해주세요.");
+        targetTopic = selectedTopic;
+    } else {
+        if (!directTopic) return showToast("발표할 주제를 입력해주세요.");
+        targetTopic = directTopic;
+    }
+
+    setLoading(true);
+    try {
+      const prompt = `
+        [PT 면접 발표 스크립트 작성]
+        - 발표 주제: ${targetTopic}
+        - 지원 기업: ${inputs.company}
+        - 지원 직무: ${inputs.job}
+        
+        위 주제에 대해 3~5분 분량의 논리적인 PT 면접 발표 대본을 작성해줘.
+        구성은 '서론(현황/문제제기) - 본론(해결방안/전략 3가지) - 결론(기대효과/포부)' 흐름으로 작성할 것.
+        
+        JSON 형식:
+        {
+          "title": "발표 제목 (매력적으로)",
+          "intro": "서론 내용...",
+          "body": "본론 내용 (전략 1, 2, 3 포함)...",
+          "conclusion": "결론 및 마무리..."
+        }
+      `;
+
+      const parsed = await fetchGemini(prompt);
+      setScript(parsed);
+    } catch (e) {
+      showToast(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownload = () => saveAsPng(reportRef, `PT면접_${inputs.company}`, showToast);
+  const handlePdfDownload = () => saveAsPdf(reportRef, `PT면접_${inputs.company}`, showToast);
 
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
@@ -98,70 +121,95 @@ export default function PtInterviewApp({ onClose }) {
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* 사이드바: 설정 및 주제 선택 */}
-        <aside className="w-96 bg-white border-r p-6 shrink-0 overflow-y-auto flex flex-col">
+        {/* 사이드바: 입력 및 설정 */}
+        <aside className="w-[400px] bg-white border-r p-6 shrink-0 overflow-y-auto flex flex-col">
           <div className="space-y-6 flex-1">
-            <h3 className="font-bold text-sm text-purple-700 flex items-center uppercase tracking-wider border-b pb-2">
-              <Lightbulb size={16} className="mr-2"/> 주제 선정
-            </h3>
             
-            {/* 입력 영역 */}
-            <div className="space-y-3">
-               <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">지원 직무</label>
-                  <input value={inputs.job} onChange={e=>setInputs({...inputs, job:e.target.value})} className="w-full p-3 border rounded-lg text-sm font-bold focus:outline-none focus:border-purple-500" placeholder="예: 마케팅 기획, 영업관리"/>
-               </div>
-               <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">출제 유형</label>
-                  <select value={inputs.category} onChange={e=>setInputs({...inputs, category:e.target.value})} className="w-full p-3 border rounded-lg text-sm focus:outline-none focus:border-purple-500 bg-white">
-                    <option value="trend">업계 트렌드 및 이슈 분석</option>
-                    <option value="problem">직무 문제 해결 및 전략 제시</option>
-                  </select>
-               </div>
-               <button onClick={handleRecommendTopics} disabled={loading && step===1} className="w-full bg-slate-800 text-white py-3 rounded-lg font-bold text-sm hover:bg-slate-700 transition-colors">
-                  {loading && !script ? <Loader2 className="animate-spin mx-auto w-4 h-4"/> : "1단계: 주제 5개 뽑기"}
-               </button>
+            {/* 공통 필수 입력란 */}
+            <div className="space-y-3 pb-4 border-b border-slate-100">
+                <h3 className="font-bold text-sm text-slate-800">기본 설정 (필수)</h3>
+                <div className="grid grid-cols-2 gap-2">
+                    <input value={inputs.company} onChange={e=>setInputs({...inputs, company:e.target.value})} className="p-3 border rounded-lg text-sm font-bold focus:outline-purple-500" placeholder="지원 기업명"/>
+                    <input value={inputs.job} onChange={e=>setInputs({...inputs, job:e.target.value})} className="p-3 border rounded-lg text-sm font-bold focus:outline-purple-500" placeholder="지원 직무"/>
+                </div>
+                <input value={inputs.request} onChange={e=>setInputs({...inputs, request:e.target.value})} className="w-full p-3 border rounded-lg text-sm focus:outline-purple-500" placeholder="(선택) 예: 최근 기업 이슈 반영해줘"/>
             </div>
 
-            {/* 주제 리스트 영역 */}
-            {topicList.length > 0 && (
-              <div className="animate-in fade-in slide-in-from-top-4 duration-500 mt-6">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-bold text-purple-600">추천 주제 (택 1)</label>
-                  <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-1 rounded-full">클릭하여 선택</span>
-                </div>
-                <div className="space-y-2">
-                  {topicList.map((topic, idx) => (
-                    <div 
-                      key={idx}
-                      onClick={() => setSelectedTopic(topic)}
-                      className={`p-3 rounded-lg text-sm cursor-pointer border transition-all flex items-start gap-2
-                        ${selectedTopic === topic 
-                          ? 'bg-purple-50 border-purple-500 text-purple-900 font-bold shadow-md transform scale-[1.02]' 
-                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-purple-200'
-                        }`}
-                    >
-                      <div className={`mt-0.5 w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${selectedTopic === topic ? 'bg-purple-500 border-purple-500' : 'border-slate-300'}`}>
-                        {selectedTopic === topic && <CheckCircle2 size={10} className="text-white"/>}
-                      </div>
-                      <span className="leading-snug">{topic}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* 스크립트 생성 버튼 (주제가 선택되었을 때만 활성화) */}
+            {/* 탭 버튼 */}
+            <div className="flex bg-slate-100 p-1 rounded-lg">
                 <button 
-                  onClick={handleGenerateScript} 
-                  disabled={loading || !selectedTopic}
-                  className={`w-full py-4 rounded-xl font-bold mt-6 shadow-lg transition-all flex items-center justify-center gap-2
-                    ${!selectedTopic 
-                      ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
-                      : 'bg-purple-600 text-white hover:bg-purple-700 hover:-translate-y-1'
-                    }`}
+                    onClick={() => setActiveTab('ai')}
+                    className={`flex-1 py-2 text-sm font-bold rounded-md flex items-center justify-center gap-1 transition-all ${activeTab === 'ai' ? 'bg-white text-purple-700 shadow-sm' : 'text-slate-500'}`}
                 >
-                  {loading && script ? <Loader2 className="animate-spin w-5 h-5"/> : <><FileText size={18}/> 2단계: 발표 스크립트 작성</>}
+                    <Sparkles size={14}/> AI 주제 추출
                 </button>
-              </div>
+                <button 
+                    onClick={() => setActiveTab('direct')}
+                    className={`flex-1 py-2 text-sm font-bold rounded-md flex items-center justify-center gap-1 transition-all ${activeTab === 'direct' ? 'bg-white text-purple-700 shadow-sm' : 'text-slate-500'}`}
+                >
+                    <PenTool size={14}/> 직접 입력
+                </button>
+            </div>
+
+            {/* 탭 내용: AI 추출 */}
+            {activeTab === 'ai' && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-left-2 duration-300">
+                    <button onClick={handleRecommendTopics} disabled={loading && !topicList.length} className="w-full bg-slate-800 text-white py-3 rounded-lg font-bold text-sm hover:bg-slate-700 transition-colors">
+                        {loading && !topicList.length ? <Loader2 className="animate-spin mx-auto w-4 h-4"/> : "주제 5개 뽑기"}
+                    </button>
+
+                    {topicList.length > 0 && (
+                        <div className="space-y-2 mt-2">
+                            <label className="text-xs font-bold text-purple-600">주제 선택 (Click)</label>
+                            {topicList.map((topic, idx) => (
+                                <div 
+                                    key={idx}
+                                    onClick={() => setSelectedTopic(topic)}
+                                    className={`p-3 rounded-lg text-sm cursor-pointer border transition-all flex items-start gap-2
+                                    ${selectedTopic === topic 
+                                        ? 'bg-purple-50 border-purple-500 text-purple-900 font-bold shadow-md transform scale-[1.02]' 
+                                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-purple-200'
+                                    }`}
+                                >
+                                    <div className={`mt-0.5 w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${selectedTopic === topic ? 'bg-purple-500 border-purple-500' : 'border-slate-300'}`}>
+                                        {selectedTopic === topic && <CheckCircle2 size={10} className="text-white"/>}
+                                    </div>
+                                    <span className="leading-snug">{topic}</span>
+                                </div>
+                            ))}
+                            
+                            <button 
+                                onClick={handleGenerateScript} 
+                                disabled={loading || !selectedTopic}
+                                className="w-full bg-purple-600 text-white py-4 rounded-xl font-bold mt-4 shadow-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
+                            >
+                                {loading ? <Loader2 className="animate-spin w-5 h-5"/> : "발표 스크립트 생성"}
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* 탭 내용: 직접 입력 */}
+            {activeTab === 'direct' && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-right-2 duration-300">
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">발표 주제 / 질문 입력</label>
+                        <textarea 
+                            value={directTopic} 
+                            onChange={e=>setDirectTopic(e.target.value)} 
+                            className="w-full p-3 border rounded-lg h-32 resize-none text-sm focus:outline-purple-500" 
+                            placeholder="예: 우리 회사의 2030 비전 달성을 위한 마케팅 전략을 제시하시오."
+                        />
+                    </div>
+                    <button 
+                        onClick={handleGenerateScript} 
+                        disabled={loading}
+                        className="w-full bg-purple-600 text-white py-4 rounded-xl font-bold mt-4 shadow-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
+                    >
+                        {loading ? <Loader2 className="animate-spin w-5 h-5"/> : "바로 콘텐츠 생성"}
+                    </button>
+                </div>
             )}
           </div>
         </aside>
@@ -173,7 +221,7 @@ export default function PtInterviewApp({ onClose }) {
               
               <div className="border-b-4 border-purple-600 pb-6 text-center mb-8">
                 <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">PT INTERVIEW SCRIPT</span>
-                <h2 className="text-xl font-bold text-slate-500 mb-2">{inputs.job} 직무</h2>
+                <h2 className="text-xl font-bold text-slate-500 mb-2">{inputs.company} / {inputs.job}</h2>
                 <EditableContent className="text-2xl font-extrabold text-slate-900 text-center leading-tight" value={script.title} onSave={(v)=>setScript({...script, title: v})} />
               </div>
 
@@ -192,9 +240,18 @@ export default function PtInterviewApp({ onClose }) {
                    <h3 className="font-bold text-purple-700 mb-3 flex items-center"><CheckCircle2 size={18} className="mr-2"/> 결론 (Conclusion)</h3>
                    <EditableContent value={script.conclusion} onSave={(v)=>setScript({...script, conclusion: v})} />
                 </div>
+
+                {/* 하단 조언 메시지 (요청사항 반영) */}
+                <div className="mt-8 p-4 bg-slate-800 text-white text-xs leading-relaxed rounded-lg opacity-90">
+                    <p className="font-bold text-yellow-400 mb-1">💡 Coach's Advice</p>
+                    "기업마다 차이는 있으나, 대개 보도자료 등의 제시문을 주고 발표 주제를 정리할 시간이 주어집니다. (20분 내외). 
+                    사전 지식이 충분하지 않다면, 주어진 시간에 제시문만 가지고 발표 내용을 구조화하는 것은 매우 어렵습니다. 
+                    다양한 주제 Report 로 학습을 하고, 10분 내로 구조화(요약) 해보는 연습을 해보시기 바랍니다. 
+                    지식 습득과 면접 연습이라는 1석 2조의 효과를 얻게 되실 겁니다"
+                </div>
               </div>
 
-              <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400">
+              <div className="mt-8 pt-4 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400">
                 <div className="flex items-center"><Presentation className="w-4 h-4 mr-1 text-purple-500" /><span>Career Vitamin AI</span></div>
                 <span>Generated by Gemini Pro</span>
               </div>
@@ -203,8 +260,8 @@ export default function PtInterviewApp({ onClose }) {
             <div className="flex flex-col items-center justify-center h-full text-slate-400">
               <Presentation size={64} className="mb-4 opacity-20 text-purple-500"/>
               <p className="text-center leading-relaxed">
-                먼저 직무를 입력하고 <strong>주제를 추천</strong>받으세요.<br/>
-                마음에 드는 주제를 <strong>선택</strong>하면 스크립트가 완성됩니다.
+                좌측에서 <strong>AI 주제 추출</strong>을 하거나<br/>
+                <strong>직접 주제를 입력</strong>하여 스크립트를 생성해보세요.
               </p>
             </div>
           )}

@@ -1,13 +1,7 @@
-// src/components/SelfIntroApp.js
 import React, { useState, useRef, useEffect } from 'react';
 import { Mic, ChevronLeft, Settings, Loader2, Download, FileText } from 'lucide-react';
-import { GoogleGenerativeAI } from "@google/generative-ai"; // AI 기능
-import html2canvas from 'html2canvas'; // 이미지 저장 기능
-import jsPDF from 'jspdf'; // PDF 저장 기능
 
-// --- [1] 내장된 도구들 (이 파일 안에서만 씁니다) ---
-
-// 1. Toast 알림 컴포넌트
+// [1] UI 컴포넌트: 파일 분리 없이 바로 사용할 수 있도록 내장
 const Toast = ({ message, onClose }) => {
   useEffect(() => {
     const timer = setTimeout(onClose, 3000);
@@ -20,7 +14,6 @@ const Toast = ({ message, onClose }) => {
   );
 };
 
-// 2. 수정 가능한 텍스트 컴포넌트
 const EditableContent = ({ value, onSave, className }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [localValue, setLocalValue] = useState(value);
@@ -45,54 +38,9 @@ const EditableContent = ({ value, onSave, className }) => {
   );
 };
 
-// 3. Gemini 호출 함수
-const fetchGemini = async (prompt) => {
-  const API_KEY = process.env.REACT_APP_GEMINI_API_KEY;
-  if (!API_KEY) throw new Error("API 키가 없습니다.");
-  const genAI = new GoogleGenerativeAI(API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-  const result = await model.generateContent(prompt);
-  const response = await result.response;
-  const text = response.text();
-  try {
-    const jsonStr = text.replace(/```json|```/g, "").trim();
-    return JSON.parse(jsonStr);
-  } catch (e) { throw new Error("AI 응답 분석 실패"); }
-};
-
-// 4. 저장 함수들
-const saveAsPng = async (ref, fileName, showToast) => {
-  if (!ref.current) return;
-  try {
-    const canvas = await html2canvas(ref.current, { scale: 2 });
-    const link = document.createElement('a');
-    link.href = canvas.toDataURL('image/png');
-    link.download = `${fileName}.png`;
-    link.click();
-    if(showToast) showToast('이미지로 저장되었습니다.');
-  } catch (e) { if(showToast) showToast('저장 실패'); }
-};
-
-const saveAsPdf = async (ref, fileName, showToast) => {
-  if (!ref.current) return;
-  try {
-    const canvas = await html2canvas(ref.current, { scale: 2 });
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
-    const imgWidth = canvas.width;
-    const imgHeight = canvas.height;
-    const ratio = pdfWidth / imgWidth;
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeight * ratio);
-    pdf.save(`${fileName}.pdf`);
-    if(showToast) showToast('PDF로 저장되었습니다.');
-  } catch (e) { if(showToast) showToast('저장 실패'); }
-};
-
-// --- [2] 메인 앱 컴포넌트 ---
-
-function SelfIntroApp({ onClose }) {
+// [2] 메인 앱: props로 기능들(fetchGemini 등)을 받아옵니다.
+function SelfIntroApp({ onClose, fetchGemini, saveAsPng, saveAsPdf }) {
+  // 요청하신 '컨셉 설정', '인성/성격 강조' 수정 사항 반영 완료
   const [inputs, setInputs] = useState({ company: '', job: '', concept: 'competency', keyword: '', exp: '' });
   const [script, setScript] = useState(null); 
   const [loading, setLoading] = useState(false);
@@ -105,6 +53,7 @@ function SelfIntroApp({ onClose }) {
     if (!inputs.company) return showToast("기업명을 입력해주세요.");
     setLoading(true);
     try {
+      // App.js에서 받은 fetchGemini를 그대로 사용
       const prompt = `1분 자기소개. 기업:${inputs.company}, 직무:${inputs.job}, 컨셉:${inputs.concept}, 키워드:${inputs.keyword}, 경험:${inputs.exp}. JSON: { "slogan": "...", "opening": "...", "body": "...", "closing": "..." }`;
       const parsed = await fetchGemini(prompt);
       setScript(parsed);
@@ -112,6 +61,8 @@ function SelfIntroApp({ onClose }) {
   };
   
   const handleEdit = (key, value) => setScript(prev => ({ ...prev, [key]: value }));
+  
+  // App.js에서 받은 저장 함수 사용
   const handleDownload = () => saveAsPng(reportRef, `자기소개_${inputs.company}`, showToast);
   const handlePdfDownload = () => saveAsPdf(reportRef, `자기소개_${inputs.company}`, showToast);
   

@@ -19,7 +19,7 @@ export default function PTInterviewPrepApp({ onClose }) {
 
   const showToast = (msg) => setToastMsg(msg);
 
-  // [안전장치] 데이터 정규화 (api.js 도움 없이 스스로 해결)
+  // 데이터 정규화 함수
   const normalizeToArray = (data) => {
     if (!data) return [];
     if (Array.isArray(data)) return data;
@@ -39,14 +39,12 @@ export default function PTInterviewPrepApp({ onClose }) {
     setResult(null);
 
     try {
-      // 마크다운 제거를 위한 강력한 프롬프트 지침 추가
       const prompt = `
       당신은 기업 채용 면접 출제 위원입니다.
       
       [지시사항]
       지원자의 정보를 바탕으로 'PT 면접 예상 주제' 5가지를 추천해주세요.
-      **중요: 응답에 \`\`\`json 이나 \`\`\` 같은 마크다운 기호를 절대 포함하지 마십시오.**
-      **오직 순수한 JSON 텍스트만 반환하십시오.**
+      **응답에 마크다운(\`\`\`)을 절대 포함하지 말고, 순수 JSON 텍스트만 반환하세요.**
 
       [지원 정보]
       1. 기업명: ${inputs.company}
@@ -56,15 +54,12 @@ export default function PTInterviewPrepApp({ onClose }) {
       [출력 포맷 Example]
       {
         "topics": [
-          "주제 1 내용...",
-          "주제 2 내용...",
-          "주제 3 내용...",
-          "주제 4 내용...",
-          "주제 5 내용..."
+          "주제 1...", "주제 2...", "주제 3...", "주제 4...", "주제 5..."
         ]
       }`;
 
-      const data = await fetchGemini(prompt);
+      // ✅ 수정된 부분: 두 번째 인자로 빈 배열([]) 전달
+      const data = await fetchGemini(prompt, []); 
       
       let safeTopics = [];
       if (data && data.topics) safeTopics = normalizeToArray(data.topics);
@@ -76,7 +71,8 @@ export default function PTInterviewPrepApp({ onClose }) {
         throw new Error("주제 생성 실패 (데이터 형식 오류)");
       }
     } catch (e) {
-      showToast("주제 추천 실패: " + e.message);
+      console.error("Gemini API Error:", e); // 콘솔에 에러 출력
+      showToast("오류 발생: " + e.message);
     } finally {
       setLoading(false);
     }
@@ -99,8 +95,7 @@ export default function PTInterviewPrepApp({ onClose }) {
       
       [지시사항]
       입력된 주제로 '3분 PT 발표 스크립트'를 작성해주세요.
-      **중요: 응답에 \`\`\`json 이나 \`\`\` 같은 마크다운 기호를 절대 포함하지 마십시오.**
-      **오직 순수한 JSON 텍스트만 반환하십시오.**
+      **응답에 마크다운(\`\`\`)을 절대 포함하지 말고, 순수 JSON 텍스트만 반환하세요.**
 
       [입력 정보]
       1. 기업명: ${inputs.company}
@@ -110,17 +105,17 @@ export default function PTInterviewPrepApp({ onClose }) {
       [출력 포맷 Example]
       {
         "slide_title": "제목",
-        "opening": "도입부 스크립트",
+        "opening": "도입부",
         "body_points": [
           { "title": "핵심1", "script": "내용1" },
-          { "title": "핵심2", "script": "내용2" },
-          { "title": "핵심3", "script": "내용3" }
+          { "title": "핵심2", "script": "내용2" }
         ],
-        "closing": "마무리 스크립트",
+        "closing": "마무리",
         "qna_prep": ["질문1", "질문2"]
       }`;
 
-      const parsed = await fetchGemini(prompt);
+      // ✅ 수정된 부분: 두 번째 인자로 빈 배열([]) 전달
+      const parsed = await fetchGemini(prompt, []);
       
       if (parsed.body_points) parsed.body_points = normalizeToArray(parsed.body_points);
       if (parsed.qna_prep) parsed.qna_prep = normalizeToArray(parsed.qna_prep);
@@ -130,7 +125,8 @@ export default function PTInterviewPrepApp({ onClose }) {
       if (selectedTopic) setInputs(prev => ({ ...prev, topic: selectedTopic }));
       
     } catch (e) {
-      showToast("스크립트 생성 실패: " + e.message);
+      console.error("Gemini API Error:", e); // 콘솔에 에러 출력
+      showToast("오류 발생: " + e.message);
     } finally {
       setLoading(false);
     }

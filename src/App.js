@@ -36,6 +36,7 @@ import ExperienceStructApp from './components/ExperienceStructApp';
 import PTInterviewPrepApp from './components/PTInterviewPrep';
 import CareerRoadmapApp from './components/CareerRoadmapApp';
 import RoleModelApp from './components/RoleModelApp';
+import SelfIntroApp from './components/SelfIntroApp';
 
 // 아이콘 불러오기 (기존 코드 그대로 유지)
 import { 

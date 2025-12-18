@@ -20,7 +20,8 @@ export default function PTInterviewPrepApp({ onClose }) {
   });
 
   // 데이터 상태
-  const [topics, setTopics] = useState(null); // 추천된 15개 주제
+  const [topics, setTopics] = useState(null); // 추천된 주제들
+  const [selectedTopicIdx, setSelectedTopicIdx] = useState(null); // 리스트에서 선택한 주제 인덱스
   const [result, setResult] = useState(null); // 최종 스크립트 결과
   const [loading, setLoading] = useState(false);
   const [toastMsg, setToastMsg] = useState(null);
@@ -28,19 +29,29 @@ export default function PTInterviewPrepApp({ onClose }) {
 
   const showToast = (msg) => setToastMsg(msg);
 
-  // 1. [탭1] AI 주제 추천 받기 (15개)
+  // [안전장치] AI 응답 데이터 정규화 (문자열/객체를 배열로 변환)
+  const normalizeToArray = (data) => {
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+    if (typeof data === 'string') return [data];
+    if (typeof data === 'object') return Object.values(data);
+    return [];
+  };
+
+  // 1. [탭1] AI 주제 추천 받기 (5개로 변경)
   const handleGetTopics = async () => {
     if (!inputs.company.trim()) return showToast("지원 기업명을 입력해주세요.");
     if (!inputs.job.trim()) return showToast("지원 직무명을 입력해주세요.");
 
     setLoading(true);
-    setTopics(null); // 초기화
+    setTopics(null); 
+    setSelectedTopicIdx(null); // 선택 초기화
     setResult(null);
 
     try {
       const prompt = `
       당신은 기업 채용 및 PT 면접 출제 위원입니다.
-      지원자의 [기업, 직무, 요청사항]을 분석하여, 실제 PT 면접에 나올법한 **예상 출제 주제 15가지**를 뽑아주세요.
+      지원자의 [기업, 직무, 요청사항]을 분석하여, 실제 PT 면접에 나올법한 **예상 출제 주제 5가지**를 엄선해 주세요.
 
       [지원 정보]
       1. 기업명: ${inputs.company}
@@ -49,20 +60,28 @@ export default function PTInterviewPrepApp({ onClose }) {
 
       [출력 요구사항]
       - 주제는 직무 전문성, 시사 이슈, 문제 해결 능력을 볼 수 있는 것으로 구성할 것.
-      - JSON 포맷으로 "topics" 배열에 문자열 15개를 담아줄 것.
+      - JSON 포맷으로 "topics" 배열에 문자열 5개를 담아줄 것.
       
       Example JSON:
       {
         "topics": [
           "주제 1...",
           "주제 2...",
-          ...
+          "주제 3...",
+          "주제 4...",
+          "주제 5..."
         ]
       }`;
 
       const data = await fetchGemini(prompt);
-      if (data && data.topics) {
-        setTopics(data.topics);
+      
+      // 안전하게 배열로 변환
+      let safeTopics = [];
+      if (data && data.topics) safeTopics = normalizeToArray(data.topics);
+      else if (Array.isArray(data)) safeTopics = data;
+
+      if (safeTopics.length > 0) {
+        setTopics(safeTopics);
       } else {
         throw new Error("주제 생성 실패");
       }
@@ -73,13 +92,13 @@ export default function PTInterviewPrepApp({ onClose }) {
     }
   };
 
-  // 2. [공통] PT 스크립트 생성하기 (주제 선택 or 직접 입력)
+  // 2. [공통] PT 스크립트 생성하기
   const handleGenerateScript = async (selectedTopic = null) => {
     const finalTopic = selectedTopic || inputs.topic;
 
     if (!inputs.company.trim()) return showToast("지원 기업명을 입력해주세요.");
     if (!inputs.job.trim()) return showToast("지원 직무명을 입력해주세요.");
-    if (!finalTopic.trim()) return showToast("PT 발표 주제가 없습니다.");
+    if (!finalTopic || !finalTopic.trim()) return showToast("PT 발표 주제가 없습니다.");
 
     // 직접 입력 탭일 때 inputs.topic 업데이트
     if (!selectedTopic) setInputs(prev => ({ ...prev, topic: finalTopic }));
@@ -115,8 +134,14 @@ export default function PTInterviewPrepApp({ onClose }) {
       }`;
 
       const parsed = await fetchGemini(prompt);
+      
+      // 안전장치 적용
+      if (parsed.body_points) parsed.body_points = normalizeToArray(parsed.body_points);
+      if (parsed.qna_prep) parsed.qna_prep = normalizeToArray(parsed.qna_prep);
+
       setResult(parsed);
-      // 만약 주제 추천 탭에서 생성했다면, topic input에도 넣어줌 (표시용)
+      
+      // 주제 추천 탭에서 생성했다면, topic input에도 넣어줌 (표시용)
       if (selectedTopic) setInputs(prev => ({ ...prev, topic: selectedTopic }));
       
     } catch (e) {
@@ -160,7 +185,7 @@ export default function PTInterviewPrepApp({ onClose }) {
 
       <div className="flex flex-1 overflow-hidden">
         
-        {/* 사이드바 (입력 및 탭) - 결과가 없을 때만 넓게 보여주고, 결과 있으면 좁게? -> UI 일관성을 위해 고정 */}
+        {/* 사이드바 (입력 및 탭) */}
         <aside className="w-[400px] bg-white border-r flex flex-col shrink-0">
           
           {/* 탭 버튼 */}
@@ -229,27 +254,45 @@ export default function PTInterviewPrepApp({ onClose }) {
                     disabled={loading} 
                     className="w-full bg-slate-800 text-white py-3 rounded-xl font-bold shadow hover:bg-slate-700 transition-all disabled:bg-slate-400"
                   >
-                    {loading ? <Loader2 className="animate-spin mx-auto"/> : "예상 주제 15개 뽑기"}
+                    {loading ? <Loader2 className="animate-spin mx-auto"/> : "예상 주제 5개 뽑기"}
                   </button>
                 ) : (
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-xs font-bold text-orange-600">추천 주제 목록 (클릭하여 생성)</span>
-                      <button onClick={() => setTopics(null)} className="text-xs text-slate-400 underline">다시 뽑기</button>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs font-bold text-orange-600">추천 주제 (선택해주세요)</span>
+                      <button onClick={() => setTopics(null)} className="text-xs text-slate-400 underline hover:text-slate-600">다시 뽑기</button>
                     </div>
-                    <div className="h-[400px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                    
+                    {/* 주제 리스트 (선택형) */}
+                    <div className="space-y-2">
                       {topics.map((t, i) => (
-                        <button 
+                        <div 
                           key={i} 
-                          onClick={() => handleGenerateScript(t)}
-                          disabled={loading}
-                          className="w-full text-left p-3 text-xs bg-orange-50 border border-orange-100 rounded-lg hover:bg-orange-100 hover:border-orange-300 transition-all leading-relaxed"
+                          onClick={() => !loading && setSelectedTopicIdx(i)}
+                          className={`p-3 text-sm rounded-lg border cursor-pointer transition-all leading-relaxed
+                            ${selectedTopicIdx === i 
+                                ? 'bg-orange-50 border-orange-500 text-orange-900 ring-1 ring-orange-500 shadow-sm' 
+                                : 'bg-white border-slate-200 text-slate-600 hover:border-orange-200 hover:bg-slate-50'
+                            }`}
                         >
-                          <span className="font-bold text-orange-500 mr-1">{i+1}.</span> {t}
-                        </button>
+                          <div className="flex gap-2">
+                             <span className={`font-bold shrink-0 ${selectedTopicIdx === i ? 'text-orange-600' : 'text-slate-400'}`}>{i+1}.</span>
+                             <span>{t}</span>
+                          </div>
+                        </div>
                       ))}
                     </div>
-                    {loading && <div className="text-center py-2"><Loader2 className="animate-spin inline text-orange-500"/> 스크립트 작성 중...</div>}
+
+                    {/* 선택 시 나타나는 생성 버튼 */}
+                    {selectedTopicIdx !== null && (
+                        <button 
+                            onClick={() => handleGenerateScript(topics[selectedTopicIdx])}
+                            disabled={loading}
+                            className="w-full bg-orange-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-orange-700 transition-all animate-in slide-in-from-bottom-2 disabled:bg-slate-400"
+                        >
+                            {loading ? <Loader2 className="animate-spin mx-auto"/> : "선택한 주제로 스크립트 작성"}
+                        </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -277,10 +320,10 @@ export default function PTInterviewPrepApp({ onClose }) {
               </div>
             )}
             
-            {/* 결과가 나왔을 때, 다시 돌아가는 버튼 */}
+            {/* 결과 화면에서 '다른 주제로' 버튼 */}
             {result && (
               <div className="text-center mt-4">
-                <button onClick={() => setResult(null)} className="text-sm text-slate-500 underline hover:text-orange-500">
+                <button onClick={() => { setResult(null); setSelectedTopicIdx(null); }} className="text-sm text-slate-500 underline hover:text-orange-500">
                   다른 주제로 다시 하기
                 </button>
               </div>
@@ -354,7 +397,7 @@ export default function PTInterviewPrepApp({ onClose }) {
                 </section>
               </div>
 
-              {/* [요청하신 하단 메시지] */}
+              {/* [사용자가 중요하게 생각한 하단 메시지 유지] */}
               <div className="mt-auto bg-slate-800 text-slate-300 p-5 rounded-xl text-xs leading-relaxed flex gap-3 shadow-inner">
                 <Lightbulb className="shrink-0 text-yellow-400 w-5 h-5 mt-1"/>
                 <div>
@@ -376,9 +419,9 @@ export default function PTInterviewPrepApp({ onClose }) {
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-slate-400">
               <Presentation size={64} className="mb-4 opacity-20"/>
-              <p className="text-center mt-4">
+              <p className="text-center mt-4 whitespace-pre-line">
                 {activeTab === 'recommend' ? 
-                  "기업 정보를 입력하고\n[예상 주제 15개 뽑기]를 눌러보세요." : 
+                  "기업 정보를 입력하고\n[예상 주제 5개 뽑기]를 눌러보세요." : 
                   "준비된 주제를 직접 입력하고\n[PT 스크립트 생성]을 눌러보세요."}
               </p>
             </div>

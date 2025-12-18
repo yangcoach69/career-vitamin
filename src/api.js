@@ -4,12 +4,12 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
 // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-// [중요] 여기에 'AIza'로 시작하는 키를 따옴표 안에 붙여넣으세요!
+// [중요] 아까 넣으셨던 'AIza'로 시작하는 키를 다시 여기에 붙여넣으세요!
 const REAL_API_KEY = "AIzaSy..."; 
 // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-if (REAL_API_KEY === "AAIzaSyBIa1ZOdGkqAh38quytvLeRJfgm6yFyLXoIzaSy..." || !REAL_API_KEY) {
-  console.error("🚨 API 키가 입력되지 않았습니다! src/api.js 파일을 수정해주세요.");
+if (REAL_API_KEY === "AIzaSyBIa1ZOdGkqAh38quytvLeRJfgm6yFyLXo" || !REAL_API_KEY) {
+  console.error("🚨 API 키가 없습니다. src/api.js 파일 8번째 줄에 키를 넣어주세요.");
 }
 
 const genAI = new GoogleGenerativeAI(REAL_API_KEY);
@@ -28,6 +28,14 @@ export const safeJsonParse = (str) => {
       return JSON.parse(cleaned);
     } catch (e2) { return null; }
   }
+};
+
+// ✅ [복구된 함수] 텍스트 렌더링 헬퍼 (이게 빠져서 에러가 났었습니다!)
+export const renderText = (content) => {
+  if (!content) return '';
+  if (Array.isArray(content)) return content.join('\n');
+  if (typeof content === 'object') return JSON.stringify(content, null, 2);
+  return content;
 };
 
 // [이미지 저장 함수]
@@ -84,11 +92,9 @@ export const saveAsPdf = async (elementRef, fileName, showToast) => {
   } catch (error) { console.error(error); }
 };
 
-// [Gemini 호출 함수 - 최종]
+// [Gemini 호출 함수]
 export const fetchGemini = async (prompt, attachments = []) => {
-  // 이제 무조건 위에 적은 REAL_API_KEY를 사용합니다.
   const apiKey = REAL_API_KEY;
-  
   const models = ["gemini-1.5-flash", "gemini-2.0-flash-exp"];
   let lastError = null;
   
@@ -100,35 +106,3 @@ export const fetchGemini = async (prompt, attachments = []) => {
       if (file && file.data) {
         parts.push({
             inlineData: {
-            mimeType: file.mimeType || "image/png",
-            data: file.data 
-            }
-        });
-      }
-    });
-  }
-
-  for (const model of models) {
-    try {
-        console.log(`AI 호출: ${model}`);
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts: parts }] })
-        });
-
-        if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
-
-        const data = await response.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        
-        const parsed = safeJsonParse(text);
-        if (parsed) return parsed;
-        
-    } catch (e) {
-        console.warn(`${model} 실패:`, e);
-        lastError = e;
-    }
-  }
-  throw lastError || new Error("AI 연결 실패 (키를 확인해주세요)");
-};

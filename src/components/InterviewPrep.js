@@ -4,7 +4,7 @@ import {
   MessageSquare, ChevronLeft, Mic, Loader2, 
   Split, User, Download, FileText, Lightbulb, CheckCircle, AlertTriangle
 } from 'lucide-react';
-import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
+import { fetchGemini, saveAsPng, saveAsPdf } from '../api(1218)';
 import { Toast, EditableContent } from './SharedUI';
 
 export default function InterviewPrepApp({ onClose }) {

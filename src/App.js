@@ -26,7 +26,7 @@ import {
 } from "firebase/firestore";
 
 // [수정 포인트 4] 우리가 분리해서 만든 파일들 불러오기
-import { fetchGemini, saveAsPng, saveAsPdf, renderText } from './api';
+import { fetchGemini, saveAsPng, saveAsPdf, renderText } from './api(1218)';
 import { Toast, EditableContent } from './components/SharedUI';
 import JobFitScannerApp from './components/JobFitScanner';
 import HollandTestApp from './components/HollandTest';

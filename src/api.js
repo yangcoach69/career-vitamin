@@ -1,4 +1,7 @@
 // src/api.js
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 // [JSON 파싱 헬퍼]
 export const safeJsonParse = (str) => {
@@ -161,9 +164,11 @@ export const saveAsPdf = async (elementRef, fileName, showToast) => {
 
 // [Gemini 호출 함수]
 export const fetchGemini = async (prompt, attachments = []) => {
-  let apiKey = localStorage.getItem("custom_gemini_key");
+  // ✅ [수정됨] 로컬스토리지에 없으면, 환경변수(.env)에서 가져오도록 수정
+  let apiKey = localStorage.getItem("custom_gemini_key") || process.env.REACT_APP_GEMINI_API_KEY;
+
   if (!apiKey) {
-    throw new Error("🚨 API 키가 없습니다. [대시보드] 상단에서 본인의 Google API 키를 먼저 등록해주세요.");
+    throw new Error("🚨 API 키가 없습니다. .env 파일을 확인하거나 [대시보드]에서 키를 등록해주세요.");
   }
   
   const models = ["gemini-1.5-flash", "gemini-2.0-flash-exp", "gemini-2.5-flash-preview-09-2025"];
@@ -179,19 +184,25 @@ export const fetchGemini = async (prompt, attachments = []) => {
   const parts = [{ text: finalPrompt }];
   if (attachments && attachments.length > 0) {
     attachments.forEach(file => {
-      parts.push({
-        inlineData: {
-          mimeType: file.mimeType,
-          data: file.data 
-        }
-      });
+      // data가 있는 경우만 첨부
+      if (file.data) {
+        parts.push({
+            inlineData: {
+            mimeType: file.mimeType || "image/png",
+            data: file.data 
+            }
+        });
+      }
     });
   }
 
+  // 모델 순차 시도
   for (const model of models) {
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
         console.log(`AI 호출 시도: ${model} (${attempt}회차)`);
+        
+        // Google Generative AI 라이브러리가 아니라 fetch로 직접 호출하는 방식 유지
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -209,7 +220,7 @@ export const fetchGemini = async (prompt, attachments = []) => {
              await new Promise(resolve => setTimeout(resolve, 2000));
              continue;
           }
-          if (status === 404) break;
+          if (status === 404) break; 
           throw new Error(errData.error?.message || `HTTP Error ${status}`);
         }
 

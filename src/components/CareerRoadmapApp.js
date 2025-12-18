@@ -4,7 +4,7 @@ import {
   Target, Flag, TrendingUp, Award, Download, FileText,
   User, Briefcase, Clock, Calendar, Building2
 } from 'lucide-react';
-import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
+import { fetchGemini, saveAsPng, saveAsPdf } from '../api(1218)';
 import { Toast, EditableContent } from './SharedUI';
 
 export default function CareerRoadmapApp({ onClose }) {

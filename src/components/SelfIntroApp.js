@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Mic, ChevronLeft, Settings, Loader2, Download, FileText, User, Briefcase, Sparkles, Building2 } from 'lucide-react';
 
 // [핵심] 기존 앱들처럼 공용 파일에서 도구를 가져옵니다! (라이브러리 설치 불필요)
-import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
+import { fetchGemini, saveAsPng, saveAsPdf } from '../api(1218)';
 import { Toast, EditableContent } from './SharedUI';
 
 export default function SelfIntroApp({ onClose }) {

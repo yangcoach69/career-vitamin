@@ -4,7 +4,7 @@ import {
   Quote, BookOpen, Mic, Sparkles, Download, FileText,
   User, CheckCircle
 } from 'lucide-react';
-import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
+import { fetchGemini, saveAsPng, saveAsPdf } from '../api(1218)';
 import { Toast, EditableContent } from './SharedUI';
 
 export default function RoleModelApp({ onClose }) {

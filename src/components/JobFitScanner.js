@@ -3,13 +3,14 @@ import React, { useState, useRef } from 'react';
 import { 
   FileText, ChevronLeft, Settings, FileCheck, UploadCloud, 
   Loader2, ThumbsUp, AlertCircle, Target, MessageSquare, 
-  BrainCircuit, Download, Percent 
+  BrainCircuit, Download, Percent, CheckCircle2, Mic
 } from 'lucide-react';
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api'; // 도구 가져오기
 import { Toast, EditableContent } from './SharedUI'; // 부품 가져오기
 
 export default function JobFitScannerApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', url: '', job: '' });
+  const [mode, setMode] = useState('document'); // 'document' | 'interview' (진단 모드 추가)
   const [jdFile, setJdFile] = useState(null);
   const [resumeFile, setResumeFile] = useState(null);
   const [result, setResult] = useState(null);
@@ -42,7 +43,18 @@ export default function JobFitScannerApp({ onClose }) {
     
     setLoading(true);
     try {
-      const prompt = `당신은 채용 담당자이자 커리어 코치입니다.
+      // 모드에 따른 프롬프트 분기 처리
+      const modeInstruction = mode === 'document' 
+        ? `[현재 상황] 지원자는 '서류 지원 전' 단계입니다.
+           [분석 목표] 서류(이력서/자소서)가 채용공고(JD)에 얼마나 부합하는지 분석하고, '서류 통과 확률'을 높이는 전략이 필요합니다.
+           [Gap Strategy 요구사항] 서류 상에 어떤 키워드를 추가하거나 경험을 더 강조해야 하는지 '글쓰기 관점'에서 조언하세요.`
+        : `[현재 상황] 지원자는 이미 '서류 전형에 합격'하여 면접을 앞두고 있습니다.
+           [분석 목표] 서류 통과 가능성을 논하지 말고(이미 합격함), 면접관이 공격할 만한 약점과 이를 '말로 방어하는 논리'를 구축해야 합니다.
+           [Gap Strategy 요구사항] 부족한 스킬이나 경험에 대해 면접관이 질문할 경우, 이를 어떻게 말로 커버하거나 배우려는 의지를 보여줄지 '답변 전략'을 제시하세요.`;
+
+      const prompt = `당신은 채용 담당자이자 전문 커리어 코치입니다.
+      ${modeInstruction}
+
       [분석 대상]
       1. 기업명: ${inputs.company}
       2. 홈페이지: ${inputs.url || 'N/A'}
@@ -50,22 +62,20 @@ export default function JobFitScannerApp({ onClose }) {
       4. 첨부된 채용공고(JD)와 지원자의 이력서/자소서를 비교 분석해주세요.
 
       [요청 사항]
-      채용공고의 요건(자격요건, 우대사항 등)과 지원자의 역량(경력, 스킬, 경험)을 면밀히 대조하여 직무 적합도를 진단하고 합격 전략을 제시해주세요.
-
-      반드시 다음 JSON 형식을 따를 것:
+      반드시 다음 JSON 형식을 엄격히 따를 것:
       {
         "score": 85,
         "fit_analysis": {
-          "strong": "지원자가 완벽하게 충족하는 강점 요소 (구체적으로)",
-          "missing": "공고에는 있으나 지원자 서류에서 부족하거나 누락된 부분"
+          "strong": "지원자가 직무에 대해 가진 확실한 강점 (면접이나 서류에서 강조할 핵심 무기)",
+          "missing": "JD와 비교했을 때 명확히 부족하거나 우려되는 약점 요소"
         },
-        "gap_strategy": "부족한 점을 보완하고 합격률을 높이기 위해 서류에 추가해야 할 구체적인 키워드나 문장 전략 (3가지 이상)",
+        "gap_strategy": "${mode === 'document' ? '서류 보완 전략' : '면접 방어/답변 전략'} (3가지 이상 구체적으로)",
         "interview_prep": [
-          "예상 꼬리 질문 1 (약점 검증용)",
-          "예상 꼬리 질문 2 (강점 확인용)",
-          "예상 꼬리 질문 3 (직무 적합성 확인용)"
+          "예상 질문 1 (약점 검증용)",
+          "예상 질문 2 (강점 심화 질문)",
+          "예상 질문 3 (직무 핏/컬쳐 핏 확인용)"
         ],
-        "overall_comment": "냉정한 합격 가능성 예측 및 조언 총평"
+        "overall_comment": "${mode === 'document' ? '서류 합격 가능성 예측 및 조언' : '면접 합격 가능성 예측 및 최종 조언'}"
       }`;
 
       // Attach files
@@ -129,7 +139,7 @@ export default function JobFitScannerApp({ onClose }) {
                <div>
                   <label className="block text-xs font-bold text-slate-500 mb-2">내 서류 (이력서/자소서)</label>
                   <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100">
-                       <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
                           {resumeFile ? (
                               <><FileCheck className="w-8 h-8 text-green-500 mb-1"/><p className="text-xs text-slate-500 truncate w-4/5 text-center">{resumeFile.name}</p></>
                           ) : (
@@ -141,15 +151,42 @@ export default function JobFitScannerApp({ onClose }) {
                </div>
             </div>
 
-            <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-rose-600 text-white py-3.5 rounded-xl font-bold mt-2 shadow-lg disabled:bg-slate-400">{loading ? <Loader2 className="animate-spin mx-auto"/> : "적합도 진단 시작"}</button>
+            {/* 진단 모드 선택 UI 추가 */}
+            <div className="pt-2 border-t border-slate-100">
+                <label className="block text-xs font-bold text-slate-500 mb-2">진단 모드 선택</label>
+                <div className="flex gap-2">
+                    <button 
+                        onClick={() => setMode('document')}
+                        className={`flex-1 py-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all ${mode === 'document' ? 'bg-rose-100 text-rose-700 border-2 border-rose-500' : 'bg-slate-50 text-slate-400 border border-slate-200 hover:bg-slate-100'}`}
+                    >
+                        <FileText size={14}/> 서류 전형용
+                    </button>
+                    <button 
+                        onClick={() => setMode('interview')}
+                        className={`flex-1 py-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all ${mode === 'interview' ? 'bg-rose-100 text-rose-700 border-2 border-rose-500' : 'bg-slate-50 text-slate-400 border border-slate-200 hover:bg-slate-100'}`}
+                    >
+                        <Mic size={14}/> 면접 전형용
+                    </button>
+                </div>
+            </div>
+
+            <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-rose-600 text-white py-3.5 rounded-xl font-bold mt-2 shadow-lg disabled:bg-slate-400 transition-colors hover:bg-rose-700">
+                {loading ? <Loader2 className="animate-spin mx-auto"/> : (mode === 'document' ? "서류 적합도 진단 시작" : "면접 성공 가능성 진단")}
+            </button>
           </div>
         </aside>
+        
         <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
           {result ? (
             <div ref={reportRef} className="w-[210mm] min-h-[297mm] h-fit bg-white shadow-2xl p-12 flex flex-col animate-in fade-in zoom-in-95 duration-500">
               <div className="border-b-4 border-rose-500 pb-6 mb-8 flex justify-between items-end">
                 <div>
-                    <span className="bg-rose-100 text-rose-800 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">JOB FIT REPORT</span>
+                    <div className="flex gap-2 mb-3">
+                         <span className="bg-rose-100 text-rose-800 px-3 py-1 rounded-full text-xs font-bold tracking-wider inline-block">JOB FIT REPORT</span>
+                         <span className={`px-3 py-1 rounded-full text-xs font-bold tracking-wider inline-block border ${mode==='document' ? 'bg-slate-100 text-slate-600' : 'bg-blue-100 text-blue-700 border-blue-200'}`}>
+                            {mode === 'document' ? 'DOCUMENT CHECK' : 'INTERVIEW PREP'}
+                         </span>
+                    </div>
                     <h1 className="text-4xl font-extrabold text-slate-900">{inputs.company}</h1>
                     <p className="text-lg text-slate-500 mt-2">{inputs.job} 직무 적합도 분석</p>
                 </div>
@@ -166,14 +203,17 @@ export default function JobFitScannerApp({ onClose }) {
                         <EditableContent className="text-sm text-slate-700 leading-relaxed" value={result.fit_analysis?.strong} onSave={(v)=>handleEdit('fit_analysis', 'strong', v)} />
                     </div>
                     <div className="bg-red-50 p-6 rounded-xl border border-red-100">
-                        <h3 className="font-bold text-red-800 mb-3 flex items-center"><AlertCircle size={18} className="mr-2"/> Missing Point (누락/부족)</h3>
+                        <h3 className="font-bold text-red-800 mb-3 flex items-center"><AlertCircle size={18} className="mr-2"/> Missing Point (부족)</h3>
                         <EditableContent className="text-sm text-slate-700 leading-relaxed" value={result.fit_analysis?.missing} onSave={(v)=>handleEdit('fit_analysis', 'missing', v)} />
                     </div>
                 </section>
 
-                {/* 2. 갭 채우기 전략 */}
+                {/* 2. 갭 채우기 전략 (모드에 따라 제목 변경) */}
                 <section>
-                    <h3 className="text-xl font-bold text-slate-800 mb-4 pb-2 border-b border-slate-200 flex items-center"><Target size={20} className="mr-2 text-rose-600"/> Gap Filling Strategy</h3>
+                    <h3 className="text-xl font-bold text-slate-800 mb-4 pb-2 border-b border-slate-200 flex items-center">
+                        <Target size={20} className="mr-2 text-rose-600"/> 
+                        {mode === 'document' ? 'Resume Gap Strategy (서류 보완)' : 'Interview Defense Strategy (면접 방어)'}
+                    </h3>
                     <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                         <EditableContent className="text-slate-700 leading-loose" value={result.gap_strategy} onSave={(v)=>handleEdit('gap_strategy', null, v)} />
                     </div>
@@ -207,7 +247,7 @@ export default function JobFitScannerApp({ onClose }) {
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-slate-400">
               <Percent size={64} className="mb-4 opacity-20"/>
-              <p>JD와 이력서를 업로드하여 진단을 시작하세요.</p>
+              <p>JD와 이력서를 업로드하고 진단 모드를 선택하세요.</p>
             </div>
           )}
         </main>

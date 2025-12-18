@@ -1,106 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { Mic, ChevronLeft, Settings, Loader2, Download, FileText, User, Briefcase, Sparkles, Building2 } from 'lucide-react';
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
 
-// --- [1] 내장 도구들 (외부 파일 의존성 제거) ---
-
-// 1. Toast 알림
-const Toast = ({ message, onClose }) => {
-  useEffect(() => {
-    const timer = setTimeout(onClose, 3000);
-    return () => clearTimeout(timer);
-  }, [onClose]);
-  return (
-    <div className="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl animate-bounce z-[60]">
-      {message}
-    </div>
-  );
-};
-
-// 2. 수정 가능한 텍스트
-const EditableContent = ({ value, onSave, className }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [localValue, setLocalValue] = useState(value);
-  useEffect(() => { setLocalValue(value); }, [value]);
-
-  if (isEditing) {
-    return (
-      <textarea
-        autoFocus
-        value={localValue}
-        onChange={(e) => setLocalValue(e.target.value)}
-        onBlur={() => { setIsEditing(false); onSave(localValue); }}
-        className={`w-full bg-purple-50 p-2 rounded outline-purple-500 resize-none ${className}`}
-        style={{ minHeight: '1.5em' }}
-      />
-    );
-  }
-  return (
-    <div onClick={() => setIsEditing(true)} className={`cursor-pointer hover:bg-yellow-100 transition-colors rounded px-1 -mx-1 ${className}`} title="클릭하여 수정">
-      {value || <span className="text-gray-300 text-sm">(내용 없음 - 클릭하여 입력)</span>}
-    </div>
-  );
-};
-
-// 3. Gemini 호출 함수 (API Key 자동 감지)
-const fetchGemini = async (prompt) => {
-  // 사용 가능한 모든 키 이름 시도
-  const API_KEY = process.env.REACT_APP_GEMINI_API_KEY || 
-                  process.env.REACT_APP_API_KEY || 
-                  process.env.REACT_APP_GOOGLE_API_KEY;
-
-  if (!API_KEY) throw new Error("API 키가 없습니다. .env 파일을 확인해주세요.");
-  
-  const genAI = new GoogleGenerativeAI(API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-  
-  const result = await model.generateContent(prompt);
-  const response = await result.response;
-  const text = response.text();
-
-  try {
-    const jsonStr = text.replace(/```json|```/g, "").trim();
-    return JSON.parse(jsonStr);
-  } catch (e) {
-    throw new Error("AI 응답을 분석할 수 없습니다.");
-  }
-};
-
-// 4. 저장 함수들
-const saveAsPng = async (ref, fileName, showToast) => {
-  if (!ref.current) return;
-  try {
-    const canvas = await html2canvas(ref.current, { scale: 2 });
-    const link = document.createElement('a');
-    link.href = canvas.toDataURL('image/png');
-    link.download = `${fileName}.png`;
-    link.click();
-    if(showToast) showToast('이미지로 저장되었습니다.');
-  } catch (e) { if(showToast) showToast('저장 실패'); }
-};
-
-const saveAsPdf = async (ref, fileName, showToast) => {
-  if (!ref.current) return;
-  try {
-    const canvas = await html2canvas(ref.current, { scale: 2 });
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
-    const imgWidth = canvas.width;
-    const ratio = pdfWidth / imgWidth;
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeight * ratio);
-    pdf.save(`${fileName}.pdf`);
-    if(showToast) showToast('PDF로 저장되었습니다.');
-  } catch (e) { if(showToast) showToast('저장 실패'); }
-};
-
-// --- [2] 메인 앱 컴포넌트 ---
+// [핵심] 기존 앱들처럼 공용 파일에서 도구를 가져옵니다! (라이브러리 설치 불필요)
+import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
+import { Toast, EditableContent } from './SharedUI';
 
 export default function SelfIntroApp({ onClose }) {
-  // 디자인 요청사항 반영: concept 기본값 'competency'
+  // 상태 관리
   const [inputs, setInputs] = useState({ company: '', job: '', concept: 'competency', keyword: '', exp: '' });
   const [script, setScript] = useState(null); 
   const [loading, setLoading] = useState(false);
@@ -110,6 +16,7 @@ export default function SelfIntroApp({ onClose }) {
   const showToast = (msg) => setToastMsg(msg);
 
   const handleAIAnalysis = async () => {
+    // 필수값 체크
     if (!inputs.company) return showToast("기업명을 입력해주세요.");
     if (!inputs.job) return showToast("직무명을 입력해주세요.");
 
@@ -143,6 +50,7 @@ export default function SelfIntroApp({ onClose }) {
         "closing": "마무리 및 입사 포부"
       }`;
 
+      // api.js에 있는 함수 사용
       const parsed = await fetchGemini(prompt);
       setScript(parsed);
     } catch (e) { showToast(e.message); } finally { setLoading(false); }
@@ -166,7 +74,6 @@ export default function SelfIntroApp({ onClose }) {
         {/* 사이드바: 입력창 */}
         <aside className="w-80 bg-white border-r p-6 shrink-0 overflow-y-auto">
           <div className="space-y-6">
-            {/* 요청 수정사항: '전략 설정' -> '컨셉 설정' */}
             <h3 className="font-bold text-sm text-purple-700 flex items-center uppercase tracking-wider border-b pb-2">
               <Settings size={16} className="mr-2"/> 컨셉 설정
             </h3>
@@ -194,7 +101,6 @@ export default function SelfIntroApp({ onClose }) {
                   >
                     <Briefcase size={14}/> 직무역량 강조
                   </button>
-                  {/* 요청 수정사항: '인성/태도' -> '인성/성격 강조' */}
                   <button 
                     onClick={()=>setInputs({...inputs, concept:'character'})} 
                     className={`flex-1 py-3 text-xs rounded-lg transition-all font-bold flex items-center justify-center gap-1

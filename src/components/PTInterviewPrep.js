@@ -2,34 +2,24 @@ import React, { useState, useRef } from 'react';
 import { 
   Presentation, ChevronLeft, Loader2, 
   Lightbulb, CheckCircle, MonitorPlay, Download, FileText, 
-  Building2, Briefcase, Megaphone, List, Keyboard, ArrowRight
+  Building2, Briefcase, Megaphone, List, Keyboard
 } from 'lucide-react';
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
 import { Toast, EditableContent } from './SharedUI';
 
 export default function PTInterviewPrepApp({ onClose }) {
-  // 탭 상태: 'recommend' (주제 추천) | 'direct' (직접 입력)
   const [activeTab, setActiveTab] = useState('recommend');
-  
-  // 입력값 관리
-  const [inputs, setInputs] = useState({
-    company: '',
-    job: '',
-    request: '', // 기타 요청사항 (옵션)
-    topic: ''    // 최종 선택된 주제
-  });
-
-  // 데이터 상태
-  const [topics, setTopics] = useState(null); // 추천된 주제들
-  const [selectedTopicIdx, setSelectedTopicIdx] = useState(null); // 리스트에서 선택한 주제 인덱스
-  const [result, setResult] = useState(null); // 최종 스크립트 결과
+  const [inputs, setInputs] = useState({ company: '', job: '', request: '', topic: '' });
+  const [topics, setTopics] = useState(null); 
+  const [selectedTopicIdx, setSelectedTopicIdx] = useState(null); 
+  const [result, setResult] = useState(null); 
   const [loading, setLoading] = useState(false);
   const [toastMsg, setToastMsg] = useState(null);
   const reportRef = useRef(null);
 
   const showToast = (msg) => setToastMsg(msg);
 
-  // [안전장치] AI 응답 데이터 정규화 (문자열/객체를 배열로 변환)
+  // [안전장치] 데이터 정규화 (api.js 도움 없이 스스로 해결)
   const normalizeToArray = (data) => {
     if (!data) return [];
     if (Array.isArray(data)) return data;
@@ -38,44 +28,44 @@ export default function PTInterviewPrepApp({ onClose }) {
     return [];
   };
 
-  // 1. [탭1] AI 주제 추천 받기 (5개로 변경)
+  // 1. [탭1] AI 주제 추천 받기
   const handleGetTopics = async () => {
     if (!inputs.company.trim()) return showToast("지원 기업명을 입력해주세요.");
     if (!inputs.job.trim()) return showToast("지원 직무명을 입력해주세요.");
 
     setLoading(true);
     setTopics(null); 
-    setSelectedTopicIdx(null); // 선택 초기화
+    setSelectedTopicIdx(null);
     setResult(null);
 
     try {
+      // 마크다운 제거를 위한 강력한 프롬프트 지침 추가
       const prompt = `
-      당신은 기업 채용 및 PT 면접 출제 위원입니다.
-      지원자의 [기업, 직무, 요청사항]을 분석하여, 실제 PT 면접에 나올법한 **예상 출제 주제 5가지**를 엄선해 주세요.
+      당신은 기업 채용 면접 출제 위원입니다.
+      
+      [지시사항]
+      지원자의 정보를 바탕으로 'PT 면접 예상 주제' 5가지를 추천해주세요.
+      **중요: 응답에 \`\`\`json 이나 \`\`\` 같은 마크다운 기호를 절대 포함하지 마십시오.**
+      **오직 순수한 JSON 텍스트만 반환하십시오.**
 
       [지원 정보]
       1. 기업명: ${inputs.company}
       2. 지원 직무: ${inputs.job}
-      3. 추가 요청사항: ${inputs.request || '최신 트렌드 및 직무 이슈 반영'}
+      3. 추가 요청사항: ${inputs.request || '최신 트렌드 반영'}
 
-      [출력 요구사항]
-      - 주제는 직무 전문성, 시사 이슈, 문제 해결 능력을 볼 수 있는 것으로 구성할 것.
-      - JSON 포맷으로 "topics" 배열에 문자열 5개를 담아줄 것.
-      
-      Example JSON:
+      [출력 포맷 Example]
       {
         "topics": [
-          "주제 1...",
-          "주제 2...",
-          "주제 3...",
-          "주제 4...",
-          "주제 5..."
+          "주제 1 내용...",
+          "주제 2 내용...",
+          "주제 3 내용...",
+          "주제 4 내용...",
+          "주제 5 내용..."
         ]
       }`;
 
       const data = await fetchGemini(prompt);
       
-      // 안전하게 배열로 변환
       let safeTopics = [];
       if (data && data.topics) safeTopics = normalizeToArray(data.topics);
       else if (Array.isArray(data)) safeTopics = data;
@@ -83,16 +73,16 @@ export default function PTInterviewPrepApp({ onClose }) {
       if (safeTopics.length > 0) {
         setTopics(safeTopics);
       } else {
-        throw new Error("주제 생성 실패");
+        throw new Error("주제 생성 실패 (데이터 형식 오류)");
       }
     } catch (e) {
-      showToast("주제 추천 중 오류가 발생했습니다: " + e.message);
+      showToast("주제 추천 실패: " + e.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // 2. [공통] PT 스크립트 생성하기
+  // 2. [공통] 스크립트 생성
   const handleGenerateScript = async (selectedTopic = null) => {
     const finalTopic = selectedTopic || inputs.topic;
 
@@ -100,52 +90,47 @@ export default function PTInterviewPrepApp({ onClose }) {
     if (!inputs.job.trim()) return showToast("지원 직무명을 입력해주세요.");
     if (!finalTopic || !finalTopic.trim()) return showToast("PT 발표 주제가 없습니다.");
 
-    // 직접 입력 탭일 때 inputs.topic 업데이트
     if (!selectedTopic) setInputs(prev => ({ ...prev, topic: finalTopic }));
 
     setLoading(true);
     try {
       const prompt = `
-      당신은 대기업 PT 면접관 출신의 취업 컨설턴트입니다.
-      지원자가 입력한 정보를 바탕으로 **고득점 PT 발표 스크립트**를 작성해주세요.
+      당신은 PT 면접 컨설턴트입니다.
+      
+      [지시사항]
+      입력된 주제로 '3분 PT 발표 스크립트'를 작성해주세요.
+      **중요: 응답에 \`\`\`json 이나 \`\`\` 같은 마크다운 기호를 절대 포함하지 마십시오.**
+      **오직 순수한 JSON 텍스트만 반환하십시오.**
 
       [입력 정보]
       1. 기업명: ${inputs.company}
       2. 지원 직무: ${inputs.job}
       3. PT 주제: ${finalTopic}
 
-      [작성 가이드]
-      - 발표 시간: 약 3~5분 분량
-      - 구성: 서론(현황/이슈) -> 본론(해결방안/아이디어 3가지) -> 결론(기대효과/포부)
-      - 말투: "안녕하십니까, 지원자 OOO입니다." 와 같은 정중하고 자신감 있는 구어체.
-      - 내용은 뜬구름 잡는 소리가 아닌, 구체적이고 논리적인 근거를 댈 것.
-
-      [JSON 출력 형식]
+      [출력 포맷 Example]
       {
-        "slide_title": "PT 발표 제목 (핵심을 관통하는 카피)",
-        "opening": "도입부 스크립트 (인사, 현황 분석)",
+        "slide_title": "제목",
+        "opening": "도입부 스크립트",
         "body_points": [
-          { "title": "핵심 방안 1", "script": "상세 설명 스크립트" },
-          { "title": "핵심 방안 2", "script": "상세 설명 스크립트" },
-          { "title": "핵심 방안 3", "script": "상세 설명 스크립트" }
+          { "title": "핵심1", "script": "내용1" },
+          { "title": "핵심2", "script": "내용2" },
+          { "title": "핵심3", "script": "내용3" }
         ],
-        "closing": "마무리 스크립트 (요약, 기대효과, 포부)",
-        "qna_prep": ["예상 질문 1", "예상 질문 2"]
+        "closing": "마무리 스크립트",
+        "qna_prep": ["질문1", "질문2"]
       }`;
 
       const parsed = await fetchGemini(prompt);
       
-      // 안전장치 적용
       if (parsed.body_points) parsed.body_points = normalizeToArray(parsed.body_points);
       if (parsed.qna_prep) parsed.qna_prep = normalizeToArray(parsed.qna_prep);
 
       setResult(parsed);
       
-      // 주제 추천 탭에서 생성했다면, topic input에도 넣어줌 (표시용)
       if (selectedTopic) setInputs(prev => ({ ...prev, topic: selectedTopic }));
       
     } catch (e) {
-      showToast(e.message);
+      showToast("스크립트 생성 실패: " + e.message);
     } finally {
       setLoading(false);
     }
@@ -172,7 +157,6 @@ export default function PTInterviewPrepApp({ onClose }) {
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
       {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
       
-      {/* 헤더 */}
       <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
         <div className="flex items-center gap-3">
           <Presentation className="text-orange-400"/>
@@ -185,10 +169,7 @@ export default function PTInterviewPrepApp({ onClose }) {
 
       <div className="flex flex-1 overflow-hidden">
         
-        {/* 사이드바 (입력 및 탭) */}
         <aside className="w-[400px] bg-white border-r flex flex-col shrink-0">
-          
-          {/* 탭 버튼 */}
           <div className="flex border-b">
             <button 
               onClick={() => { setActiveTab('recommend'); setResult(null); }}
@@ -204,10 +185,7 @@ export default function PTInterviewPrepApp({ onClose }) {
             </button>
           </div>
 
-          {/* 입력 폼 영역 */}
           <div className="p-6 overflow-y-auto flex-1 space-y-5">
-            
-            {/* 공통 입력 (기업/직무) */}
             <div className="space-y-4 pb-4 border-b border-slate-100">
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-1">지원 기업명 <span className="text-red-500">*</span></label>
@@ -235,7 +213,6 @@ export default function PTInterviewPrepApp({ onClose }) {
               </div>
             </div>
 
-            {/* 탭 1: 주제 추천 */}
             {activeTab === 'recommend' && !result && (
               <div className="space-y-4 animate-in fade-in slide-in-from-left-4 duration-300">
                 <div>
@@ -263,7 +240,6 @@ export default function PTInterviewPrepApp({ onClose }) {
                       <button onClick={() => setTopics(null)} className="text-xs text-slate-400 underline hover:text-slate-600">다시 뽑기</button>
                     </div>
                     
-                    {/* 주제 리스트 (선택형) */}
                     <div className="space-y-2">
                       {topics.map((t, i) => (
                         <div 
@@ -283,7 +259,6 @@ export default function PTInterviewPrepApp({ onClose }) {
                       ))}
                     </div>
 
-                    {/* 선택 시 나타나는 생성 버튼 */}
                     {selectedTopicIdx !== null && (
                         <button 
                             onClick={() => handleGenerateScript(topics[selectedTopicIdx])}
@@ -298,7 +273,6 @@ export default function PTInterviewPrepApp({ onClose }) {
               </div>
             )}
 
-            {/* 탭 2: 직접 입력 */}
             {activeTab === 'direct' && !result && (
               <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
                  <div>
@@ -320,7 +294,6 @@ export default function PTInterviewPrepApp({ onClose }) {
               </div>
             )}
             
-            {/* 결과 화면에서 '다른 주제로' 버튼 */}
             {result && (
               <div className="text-center mt-4">
                 <button onClick={() => { setResult(null); setSelectedTopicIdx(null); }} className="text-sm text-slate-500 underline hover:text-orange-500">
@@ -328,16 +301,13 @@ export default function PTInterviewPrepApp({ onClose }) {
                 </button>
               </div>
             )}
-
           </div>
         </aside>
 
-        {/* 메인 결과 화면 */}
         <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
           {result ? (
             <div ref={reportRef} className="w-[210mm] min-h-[297mm] h-fit bg-white shadow-2xl p-12 flex flex-col animate-in fade-in zoom-in-95 duration-500 relative">
               
-              {/* 타이틀 */}
               <div className="border-b-4 border-orange-600 pb-6 mb-8">
                 <span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">PT PRESENTATION</span>
                 <EditableContent className="text-3xl font-extrabold text-slate-900 mb-2" value={result.slide_title} onSave={(v)=>handleEdit('slide_title', null, v)} />
@@ -347,9 +317,7 @@ export default function PTInterviewPrepApp({ onClose }) {
                 </div>
               </div>
 
-              {/* 스크립트 본문 */}
               <div className="space-y-8 mb-10">
-                {/* 도입부 */}
                 <section>
                    <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center"><Megaphone className="mr-2 text-orange-500"/> Opening (도입)</h3>
                    <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 text-slate-700 leading-relaxed text-justify">
@@ -357,7 +325,6 @@ export default function PTInterviewPrepApp({ onClose }) {
                    </div>
                 </section>
 
-                {/* 본론 (3단 구성) */}
                 <section>
                    <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center"><Lightbulb className="mr-2 text-orange-500"/> Body (본론: 핵심 해결방안)</h3>
                    <div className="space-y-4">
@@ -375,7 +342,6 @@ export default function PTInterviewPrepApp({ onClose }) {
                    </div>
                 </section>
 
-                {/* 결론 */}
                 <section>
                    <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center"><CheckCircle className="mr-2 text-orange-500"/> Closing (마무리)</h3>
                    <div className="bg-orange-50 p-5 rounded-xl border border-orange-200 text-slate-800 leading-relaxed font-medium">
@@ -383,7 +349,6 @@ export default function PTInterviewPrepApp({ onClose }) {
                    </div>
                 </section>
 
-                {/* 예상 질문 */}
                 <section className="mt-8 pt-6 border-t border-slate-200">
                     <h4 className="font-bold text-slate-500 text-xs mb-3 uppercase tracking-wide">Q&A Prep</h4>
                     <ul className="space-y-2">
@@ -397,14 +362,12 @@ export default function PTInterviewPrepApp({ onClose }) {
                 </section>
               </div>
 
-              {/* [사용자가 중요하게 생각한 하단 메시지 유지] */}
               <div className="mt-auto bg-slate-800 text-slate-300 p-5 rounded-xl text-xs leading-relaxed flex gap-3 shadow-inner">
                 <Lightbulb className="shrink-0 text-yellow-400 w-5 h-5 mt-1"/>
                 <div>
                   <p className="font-bold text-white mb-1">💡 PT 면접 실전 가이드</p>
                   <p>
                     최근 발표 PT면접은 현장에서 주제 및 참고 제시문과 함께 20분 내외의 준비시간이 주어집니다. 
-                    주어진 제시문 내용만 가지고는 충분치 않습니다. 
                     구조화된 본 가이드 스크립트를 보면서 10분 내로 요약하는 연습을 한다면, 
                     관련 지식 습득과 실전 대비까지 1석 2조의 효과를 누릴 수 있습니다.
                   </p>

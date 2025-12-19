@@ -514,7 +514,7 @@ export default function App() {
             <LayoutDashboard className="text-white w-6 h-6"/>
           </div>
           <div>
-            <h1 className="font-bold text-lg leading-none text-white tracking-tight">CADA</h1>
+            <h1 className="font-bold text-lg leading-none text-white tracking-tight">Career Vitamin</h1>
             <p className="text-[11px] text-indigo-200 font-medium mt-1 tracking-wide opacity-80">커리어 AI 대시보드 올인원</p>
           </div>
         </div>

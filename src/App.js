@@ -493,8 +493,8 @@ export default function App() {
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
       {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
       <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md w-full">
-        <h1 className="text-3xl font-bold mb-2 text-slate-900">Career Vitamin</h1>
-        <p className="text-slate-500 mb-6">전문가 전용 AI 솔루션</p>
+        <h1 className="text-3xl font-bold mb-2 text-slate-900">CADA</h1>
+        <p className="text-slate-500 mb-6">커리어 AI 대시보드 올인원</p>
         {user && <div className="bg-red-50 text-red-600 p-3 rounded mb-4 text-sm flex items-center gap-2 justify-center"><AlertCircle size={16}/>접근 권한이 없습니다. 관리자에게 문의하세요.</div>}
         {!user ? <button onClick={()=>signInWithPopup(auth, new GoogleAuthProvider())} className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors">Google 로그인</button> 
                : <button onClick={()=>signOut(auth)} className="w-full bg-slate-200 py-3 rounded-xl font-bold hover:bg-slate-300 transition-colors">로그아웃</button>}
@@ -514,8 +514,8 @@ export default function App() {
             <LayoutDashboard className="text-white w-6 h-6"/>
           </div>
           <div>
-            <h1 className="font-bold text-lg leading-none text-white tracking-tight">Career Vitamin</h1>
-            <p className="text-[11px] text-indigo-200 font-medium mt-1 tracking-wide opacity-80">커리어 AI 대시보드</p>
+            <h1 className="font-bold text-lg leading-none text-white tracking-tight">CADA</h1>
+            <p className="text-[11px] text-indigo-200 font-medium mt-1 tracking-wide opacity-80">커리어 AI 대시보드 올인원</p>
           </div>
         </div>
         <nav className="flex-1 p-4 space-y-2">

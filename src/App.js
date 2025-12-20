@@ -37,6 +37,7 @@ import PTInterviewPrepApp from './components/PTInterviewPrep';
 import CareerRoadmapApp from './components/CareerRoadmapApp';
 import RoleModelApp from './components/RoleModelApp';
 import SelfIntroApp from './components/SelfIntroApp';
+import Clinic from './components/Clinic';
 
 // 아이콘 불러오기 (기존 코드 그대로 유지)
 import { 
@@ -707,6 +708,7 @@ export default function App() {
       {currentApp === 'role_model' && <RoleModelApp onClose={()=>setCurrentApp('none')} />}
       {currentApp === 'gpt_guide' && <JobExplorerApp onClose={()=>setCurrentApp('none')} />}
       {currentApp === 'holland_test' && <HollandTestApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'clinic' && <Clinic onClose={()=>setCurrentApp('none')} />}
     </div>
   );
 } 

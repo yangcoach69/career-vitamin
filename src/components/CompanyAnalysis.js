@@ -195,8 +195,7 @@ export default function CompanyAnalysisApp({ onClose }) {
                     <p className="text-slate-500 font-medium">{inputs.job ? `${inputs.job} 직무 중심 분석` : '종합 기업 분석'}</p>
                   </div>
                   <div className="text-right text-xs text-slate-400">
-                    <p>Powered by Career Vitamin</p>
-                    <p>{new Date().toLocaleDateString()}</p>
+                    <p>{new Date().toLocaleDateString()}</p>                    
                   </div>
                 </div>
               </div>

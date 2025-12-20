@@ -109,13 +109,13 @@ export default function ExperienceStructApp({ onClose }) {
             
             {/* 키워드 */}
             <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200">
-              <label className="block text-xs font-bold text-slate-600 mb-1">핵심 역량 키워드 <span className="text-red-500">*</span></label>
+              <label className="block text-xs font-bold text-slate-600 mb-1">경험 키워드 <span className="text-red-500">*</span></label>
               <div className="relative">
                 <input 
                   value={keyword}
                   onChange={(e) => setKeyword(e.target.value)}
                   className="w-full p-2.5 pl-9 border rounded-lg text-sm font-bold focus:ring-2 focus:ring-yellow-500 outline-none bg-white" 
-                  placeholder="예: 갈등관리, 문제해결" 
+                  placeholder="예: 갈등관리, 문제해결, 목표달성 등" 
                 />
                 <Tag className="absolute left-3 top-2.5 text-yellow-500 w-4 h-4"/>
               </div>

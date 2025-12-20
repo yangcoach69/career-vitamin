@@ -27,7 +27,7 @@ import {
 
 // [수정 포인트 4] 우리가 분리해서 만든 파일들 불러오기
 import { fetchGemini, saveAsPng, saveAsPdf, renderText } from './api';
-import { Toast, EditableContent } from './components/SharedUI';
+import { Toast, EditableContent, Footer } from './components/SharedUI';
 import JobFitScannerApp from './components/JobFitScanner';
 import HollandTestApp from './components/HollandTest';
 import CompanyAnalysisApp from './components/CompanyAnalysis';
@@ -343,10 +343,7 @@ function JobExplorerApp({ onClose }) {
                 </section>
               </div>
 
-              <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto">
-                <div className="flex items-center"><Compass className="w-4 h-4 mr-1 text-emerald-500" /><span>Career Vitamin</span></div>
-                <span>AI-Powered Job Analysis</span>
-              </div>
+              <Footer />
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-slate-400">

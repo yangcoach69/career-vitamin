@@ -155,7 +155,7 @@ export default function RoleModelApp({ onClose }) {
               {/* 타이틀 섹션 */}
               <div className="text-center mb-10">
                 <div className="inline-flex items-center justify-center bg-orange-100 text-orange-700 px-4 py-1.5 rounded-full text-xs font-extrabold tracking-widest mb-4">
-                    INTERVIEW SCRIPT
+                    ROLE MODEL SCRIPT
                 </div>
                 <h1 className="text-4xl font-extrabold text-slate-900 mb-2">
                     {name}

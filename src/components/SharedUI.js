@@ -34,23 +34,21 @@ export const EditableContent = ({ value, onSave, className }) => {
 
 // ... (Toast, EditableContent 등 위쪽 코드는 그대로 유지) ...
 
-// ✅ [수정] 공통 바닥글 컴포넌트 (요청하신 문구 반영)
+// src/components/SharedUI.js 의 Footer 부분
+
 export const Footer = () => {
   return (
     <div className="mt-auto pt-8 border-t border-slate-100 flex justify-between items-center text-xs text-slate-400 font-mono">
-      {/* 왼쪽: 서비스명 */}
       <div className="font-bold text-slate-500">
          Career AI Dashboard All-in-One (CADA)
       </div>
-
-      {/* 오른쪽: 기술 출처 + 개발자용 뱃지 */}
       <div className="flex items-center gap-1">
         <span className="opacity-70">Powered by</span>
-        <strong className="text-indigo-500 opacity-90">Google Gemini API</strong>
+        <strong className="text-indigo-600 opacity-90">Google Gemini API</strong>
         
-        {/* 👇 [추가] 개발자용 뱃지 (원하는 문구로 선택하세요) */}
-        <span className="ml-2 bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-tight">
-          DEV MODE
+        {/* 👇 [변경] Enterprise 뱃지 */}
+        <span className="ml-2 bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded border border-indigo-100 text-[10px] font-bold tracking-tight">
+          ENTERPRISE
         </span>
       </div>
     </div>

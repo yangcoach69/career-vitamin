@@ -1,6 +1,5 @@
 // src/api.js
 
-
 // [JSON 파싱 헬퍼]
 export const safeJsonParse = (str) => {
   if (!str) return null;
@@ -11,7 +10,7 @@ export const safeJsonParse = (str) => {
       const lastBrace = cleaned.lastIndexOf('}');
       const firstBracket = cleaned.indexOf('[');
       const lastBracket = cleaned.lastIndexOf(']');
-     
+      
       if (firstBrace !== -1 && lastBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
          cleaned = cleaned.substring(firstBrace, lastBrace + 1);
       } else if (firstBracket !== -1 && lastBracket !== -1) {
@@ -25,7 +24,6 @@ export const safeJsonParse = (str) => {
   }
 };
 
-
 // [텍스트 렌더링 헬퍼]
 export const renderText = (content) => {
   if (!content) return '';
@@ -33,7 +31,6 @@ export const renderText = (content) => {
   if (typeof content === 'object') return JSON.stringify(content, null, 2);
   return content;
 };
-
 
 // [이미지 저장 함수]
 export const saveAsPng = async (elementRef, fileName, showToast) => {
@@ -49,7 +46,6 @@ export const saveAsPng = async (elementRef, fileName, showToast) => {
       });
     }
 
-
     const originalElement = elementRef.current;
     const width = originalElement.offsetWidth;
     const container = document.createElement('div');
@@ -63,9 +59,7 @@ export const saveAsPng = async (elementRef, fileName, showToast) => {
     container.style.flexDirection = 'column';
     container.style.overflow = 'visible';
 
-
     document.body.appendChild(container);
-
 
     const clone = originalElement.cloneNode(true);
     clone.style.cssText = `
@@ -80,10 +74,9 @@ export const saveAsPng = async (elementRef, fileName, showToast) => {
       border-radius: 0 !important;
       background-color: transparent !important;
     `;
-   
+    
     container.appendChild(clone);
     await new Promise(resolve => setTimeout(resolve, 500));
-
 
     const fullHeight = container.scrollHeight;
     container.style.height = `${fullHeight}px`;
@@ -102,9 +95,9 @@ export const saveAsPng = async (elementRef, fileName, showToast) => {
       scrollX: 0,
       scrollY: 0
     });
-   
+    
     document.body.removeChild(container);
-   
+    
     const link = document.createElement('a');
     link.download = `${fileName}.png`;
     link.href = canvas.toDataURL('image/png');
@@ -115,7 +108,6 @@ export const saveAsPng = async (elementRef, fileName, showToast) => {
     if(showToast) showToast("저장 중 오류가 발생했습니다.");
   }
 };
-
 
 // [PDF 저장 함수]
 export const saveAsPdf = async (elementRef, fileName, showToast) => {
@@ -131,7 +123,6 @@ export const saveAsPdf = async (elementRef, fileName, showToast) => {
         });
     }
 
-
     if (!window.jspdf) {
       await new Promise((resolve, reject) => {
         const script = document.createElement('script');
@@ -142,9 +133,7 @@ export const saveAsPdf = async (elementRef, fileName, showToast) => {
       });
     }
 
-
     if(showToast) showToast("PDF 변환 중입니다. 잠시만 기다려주세요...");
-
 
     const element = elementRef.current;
     const canvas = await window.html2canvas(element, {
@@ -155,13 +144,13 @@ export const saveAsPdf = async (elementRef, fileName, showToast) => {
     });
     const imgData = canvas.toDataURL('image/png');
     const { jsPDF } = window.jspdf;
-   
+    
     const pdfWidth = 210;
     const imgProps = { width: canvas.width, height: canvas.height };
     const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
     const pdf = new jsPDF('p', 'mm', [pdfWidth, pdfHeight]);
     pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-   
+    
     pdf.save(`${fileName}.pdf`);
     if(showToast) showToast("PDF가 성공적으로 저장되었습니다.");
   } catch (error) {
@@ -170,16 +159,15 @@ export const saveAsPdf = async (elementRef, fileName, showToast) => {
   }
 };
 
-
 // [Gemini 호출 함수]
-// 👇 [핵심] "화면 입력값"이 없으면 "Vercel 환경변수"를 쓰라고 (||) 연결해 줍니다.
-let apiKey = localStorage.getItem("custom_gemini_key") || process.env.REACT_APP_GEMINI_API_KEY;
-
-if (!apiKey) {
-  // 메시지도 살짝 바꿔주면 좋습니다.
-  throw new Error("🚨 API 키가 없습니다. 환경변수 설정이나 대시보드 등록을 확인하세요.");
-}
- 
+export const fetchGemini = async (prompt, attachments = []) => {
+  // ✅ [수정완료] 로컬 스토리지에 키가 없으면 Vercel 환경변수를 사용합니다.
+  let apiKey = localStorage.getItem("custom_gemini_key") || process.env.REACT_APP_GEMINI_API_KEY;
+  
+  if (!apiKey) {
+    throw new Error("🚨 API 키가 없습니다. [대시보드]에서 키를 등록하거나, 관리자에게 문의하세요.");
+  }
+  
   const models = ["gemini-1.5-flash", "gemini-2.0-flash-exp", "gemini-2.5-flash-preview-09-2025"];
   let lastError = null;
   const jsonInstruction = `
@@ -189,7 +177,6 @@ if (!apiKey) {
   If searching, use the latest information found.
   `;
   const finalPrompt = prompt + jsonInstruction;
-
 
   const parts = [{ text: finalPrompt }];
   if (attachments && attachments.length > 0) {
@@ -203,7 +190,6 @@ if (!apiKey) {
     });
   }
 
-
   for (const model of models) {
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
@@ -216,11 +202,10 @@ if (!apiKey) {
           })
         });
 
-
         if (!response.ok) {
           const errData = await response.json();
           const status = response.status;
-         
+          
           if (status === 429 || status === 503) {
              console.warn(`Model ${model} busy (Status ${status}). Retrying...`);
              await new Promise(resolve => setTimeout(resolve, 2000));
@@ -230,10 +215,9 @@ if (!apiKey) {
           throw new Error(errData.error?.message || `HTTP Error ${status}`);
         }
 
-
         const data = await response.json();
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-       
+        
         const parsed = safeJsonParse(text);
         if (!parsed) {
           console.warn("JSON 파싱 실패, 재시도합니다.", text);

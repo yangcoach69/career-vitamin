@@ -264,7 +264,7 @@ export default function JobFitScannerApp({ onClose }) {
               </div>
 
               
-              </Footer>
+              <Footer />
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-slate-400">

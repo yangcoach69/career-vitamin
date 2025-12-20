@@ -243,7 +243,7 @@ export default function ExperienceStructApp({ onClose }) {
               </section>
 
               {/* 푸터 */}
-              </Footer>
+              <Footer />
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-slate-400">

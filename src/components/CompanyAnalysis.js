@@ -306,7 +306,7 @@ export default function CompanyAnalysisApp({ onClose }) {
               </div>
 
               {/* 푸터 */}
-              </Footer>
+              <Footer />
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-slate-400">

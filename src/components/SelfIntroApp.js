@@ -169,7 +169,7 @@ export default function SelfIntroApp({ onClose }) {
               </div>
 
               
-              </Footer>
+              <Footer />
 
             </div>
           ) : (

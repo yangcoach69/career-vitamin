@@ -5,7 +5,7 @@ import {
   CheckCircle, AlertCircle, Building2
 } from 'lucide-react';
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
-import { Toast, EditableContent } from './SharedUI';
+import { Toast, EditableContent, Footer } from './SharedUI';
 
 export default function Clinic({ onClose }) {
   // 1. 입력 상태값

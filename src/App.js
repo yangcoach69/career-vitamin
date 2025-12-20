@@ -71,7 +71,15 @@ const SERVICES = {
   role_model: { name: "[AI] 롤모델 분석", desc: "존경하는 인물 면접 활용 팁", link: null, internal: true, icon: Award, color: "orange" },
   exp_structuring: { name: "[AI] 경험 구조화 (STAR)", desc: "경험 구조화 및 면접 스크립트", link: null, internal: true, icon: LayoutList, color: "indigo" },
   sit_interview: { name: "[AI] 상황면접 가이드", desc: "상황별 구조화된 면접 스크립트", link: null, internal: true, icon: Split, color: "teal" },
-  pt_interview: { name: "[AI] PT 면접 가이드", desc: "주제 추출 및 발표 스크립트", link: null, internal: true, icon: MonitorPlay, color: "rose" }, 
+  pt_interview: { name: "[AI] PT 면접 가이드", desc: "주제 추출 및 발표 스크립트", link: null, internal: true, icon: MonitorPlay, color: "rose" },
+  clinic: { 
+  name: "[AI] 자기소개서 클리닉", 
+  desc: "자기소개서 강평 및 수정", 
+  link: "/clinic",  // 👈 [수정] null을 주소로 변경
+  internal: true, 
+  icon: PenTool,          // 👈 [수정] MonitorPlay -> PenTool (펜)
+  color: "rose" 
+}, 
   
   // [외부 도구]
   card_bot: { name: "[노트북LM] 커리어스타일 챗봇", desc: "유료 프로그램 전용 챗봇", link: "https://notebooklm.google.com/notebook/595da4c0-fcc1-4064-82c8-9901e6dd8772", internal: false, icon: MessageSquare, color: "violet" },

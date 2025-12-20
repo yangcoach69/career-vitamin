@@ -194,20 +194,32 @@ export default function Clinic({ onClose }) {
             <div ref={reportRef} className="w-[210mm] min-h-[297mm] h-fit bg-white shadow-2xl p-12 flex flex-col animate-in fade-in zoom-in-95 duration-500 relative">
               
               {/* 리포트 헤더 */}
-              <div className="flex justify-between items-end border-b-2 border-slate-900 pb-6 mb-8">
-                 <div>
-                    <div className="text-indigo-600 font-extrabold tracking-widest text-xs mb-1">AI SELF-INTRODUCTION CLINIC</div>
+                <div className="flex justify-between items-end border-b-2 border-slate-900 pb-6 mb-8">
+                <div>
+                    {/* 1. [수정] 타이틀 변경 (SELF-INTRODUCTION -> RESUME) */}
+                    <div className="text-indigo-600 font-extrabold tracking-widest text-xs mb-1">
+                        AI RESUME CLINIC
+                    </div>
                     <h1 className="text-3xl font-extrabold text-slate-900 flex items-center gap-2">
-                       <Building2 className="text-slate-400" size={28}/> 
-                       {inputs.company}
+                        <Building2 className="text-slate-400" size={28}/> 
+                        {inputs.company}
                     </h1>
                     <p className="text-slate-500 font-medium mt-1 ml-1">{inputs.job} 직무 지원</p>
-                 </div>
-                 <div className="text-right">
-                    <div className="text-5xl font-black text-indigo-600">{result.score}</div>
-                    <div className="text-xs text-slate-400 font-bold uppercase">Total Score</div>
-                 </div>
-              </div>
+                </div>
+                
+                <div className="text-right">
+                    {/* 2. [수정] 점수 표기 방식 (85 / 100) */}
+                    <div className="flex items-baseline justify-end">
+                        <span className="text-5xl font-black text-indigo-600 tracking-tighter">
+                        {result.score}
+                        </span>
+                        <span className="text-2xl font-bold text-slate-300 ml-1">
+                        /100
+                        </span>
+                    </div>
+                    <div className="text-xs text-slate-400 font-bold uppercase mt-1">Total Score</div>
+                </div>
+                </div>
 
               {/* 총평 (Editable) */}
               <div className="mb-8">

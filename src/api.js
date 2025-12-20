@@ -172,11 +172,13 @@ export const saveAsPdf = async (elementRef, fileName, showToast) => {
 
 
 // [Gemini 호출 함수]
-export const fetchGemini = async (prompt, attachments = []) => {
-  let apiKey = localStorage.getItem("custom_gemini_key");
-  if (!apiKey) {
-    throw new Error("🚨 API 키가 없습니다. [대시보드] 상단에서 본인의 Google API 키를 먼저 등록해주세요.");
-  }
+// 👇 [핵심] "화면 입력값"이 없으면 "Vercel 환경변수"를 쓰라고 (||) 연결해 줍니다.
+let apiKey = localStorage.getItem("custom_gemini_key") || process.env.REACT_APP_GEMINI_API_KEY;
+
+if (!apiKey) {
+  // 메시지도 살짝 바꿔주면 좋습니다.
+  throw new Error("🚨 API 키가 없습니다. 환경변수 설정이나 대시보드 등록을 확인하세요.");
+}
  
   const models = ["gemini-1.5-flash", "gemini-2.0-flash-exp", "gemini-2.5-flash-preview-09-2025"];
   let lastError = null;

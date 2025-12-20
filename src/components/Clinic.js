@@ -257,10 +257,7 @@ export default function Clinic({ onClose }) {
               </section>
 
               {/* 푸터 */}
-              <div className="mt-auto flex justify-between items-center text-xs text-slate-300 font-mono">
-                 <div>Powered by Google Gemini</div>
-                 <div>CADA : Career AI Dashboard All-in-One</div>
-              </div>
+              <Footer />
 
             </div>
           ) : (

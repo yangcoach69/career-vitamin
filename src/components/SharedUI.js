@@ -31,3 +31,23 @@ export const EditableContent = ({ value, onSave, className }) => {
     </div>
   );
 };
+
+// ... (Toast, EditableContent 등 위쪽 코드는 그대로 유지) ...
+
+// ✅ [수정] 공통 바닥글 컴포넌트 (요청하신 문구 반영)
+export const Footer = () => {
+  return (
+    <div className="mt-auto pt-8 border-t border-slate-100 flex justify-between items-center text-xs text-slate-400 font-mono">
+      {/* 왼쪽: 서비스명 (나중에 기관명으로 교체 가능) */}
+      <div className="font-bold text-slate-500">
+         Career AI Dashboard All-in-One (CADA)
+      </div>
+
+      {/* 오른쪽: 기술 출처 */}
+      <div className="flex items-center gap-1 opacity-70">
+        <span>Powered by</span>
+        <strong className="text-indigo-500">Google Gemini API</strong>
+      </div>
+    </div>
+  );
+};

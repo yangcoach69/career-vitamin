@@ -5,7 +5,7 @@ import {
   Split, User, Download, FileText, Lightbulb, CheckCircle, AlertTriangle
 } from 'lucide-react';
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
-import { Toast, EditableContent } from './SharedUI';
+import { Toast, EditableContent, Footer } from './SharedUI';
 
 export default function InterviewPrepApp({ onClose }) {
   // 입력 상태 관리
@@ -214,10 +214,8 @@ export default function InterviewPrepApp({ onClose }) {
                  <EditableContent className="text-sm text-slate-300 leading-relaxed" value={result.advice} onSave={(v)=>handleEdit('advice', null, v)} />
               </div>
 
-              <div className="mt-8 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400">
-                 <div className="flex items-center"><MessageSquare className="w-4 h-4 mr-1 text-emerald-500" /><span>Career Vitamin</span></div>
-                <span>Situation Interview Guide Script</span>
-              </div>
+          
+              </Footer>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-slate-400">

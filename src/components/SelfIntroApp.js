@@ -3,7 +3,7 @@ import { Mic, ChevronLeft, Settings, Loader2, Download, FileText, User, Briefcas
 
 // [핵심] 기존 앱들처럼 공용 파일에서 도구를 가져옵니다! (라이브러리 설치 불필요)
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
-import { Toast, EditableContent } from './SharedUI';
+import { Toast, EditableContent, Footer } from './SharedUI';
 
 export default function SelfIntroApp({ onClose }) {
   // 상태 관리
@@ -168,10 +168,8 @@ export default function SelfIntroApp({ onClose }) {
                 </div>
               </div>
 
-              <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400">
-                <div className="flex items-center"><Mic className="w-4 h-4 mr-1 text-purple-500" /><span>Career Vitamin AI</span></div>
-                <span>AI-Generated Speech Script</span>
-              </div>
+              
+              </Footer>
 
             </div>
           ) : (

@@ -5,7 +5,7 @@ import {
   BarChart3, Smile, Meh, Target, Briefcase, Download, FileText 
 } from 'lucide-react';
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
-import { Toast, EditableContent } from './SharedUI';
+import { Toast, EditableContent, Footer } from './SharedUI';
 
 export default function HollandTestApp({ onClose }) {
   const [scores, setScores] = useState({ R: '', I: '', A: '', S: '', E: '', C: '' });
@@ -212,10 +212,7 @@ export default function HollandTestApp({ onClose }) {
                 </section>
               </div>
 
-              <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto">
-                 <div className="flex items-center"><ClipboardList className="w-4 h-4 mr-1 text-pink-500" /><span>Career Vitamin</span></div>
-                <span>AI-Powered Holland Assessment Report</span>
-              </div>
+              </Footer>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-slate-400">

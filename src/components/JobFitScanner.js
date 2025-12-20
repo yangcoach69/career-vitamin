@@ -6,7 +6,7 @@ import {
   BrainCircuit, Download, Percent, Mic
 } from 'lucide-react';
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api'; 
-import { Toast, EditableContent } from './SharedUI'; 
+import { Toast, EditableContent, Footer } from './SharedUI'; 
 
 export default function JobFitScannerApp({ onClose }) {
   const [inputs, setInputs] = useState({ company: '', url: '', job: '' });
@@ -263,10 +263,8 @@ export default function JobFitScannerApp({ onClose }) {
                 </section>
               </div>
 
-              <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto">
-                <div className="flex items-center"><Percent className="w-4 h-4 mr-1 text-rose-500" /><span>Career Vitamin</span></div>
-                <span>AI-Powered Job Fit Scanner</span>
-              </div>
+              
+              </Footer>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-slate-400">

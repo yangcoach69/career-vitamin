@@ -5,7 +5,7 @@ import {
   User, Briefcase, Clock, Calendar, Building2
 } from 'lucide-react';
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
-import { Toast, EditableContent } from './SharedUI';
+import { Toast, EditableContent, Footer } from './SharedUI';
 
 export default function CareerRoadmapApp({ onClose }) {
   // 상태 관리
@@ -339,10 +339,7 @@ export default function CareerRoadmapApp({ onClose }) {
                    </div>
               </section>
 
-              <div className="mt-8 pt-4 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400">
-                 <div className="flex items-center"><MapPin className="w-4 h-4 mr-1 text-purple-500" /><span>Career Vitamin AI</span></div>
-                <span>AI-Powered Career Roadmap Generator</span>
-              </div>
+              </Footer>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-slate-400">

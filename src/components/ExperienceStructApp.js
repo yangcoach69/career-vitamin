@@ -5,7 +5,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
-import { Toast, EditableContent } from './SharedUI';
+import { Toast, EditableContent, Footer } from './SharedUI';
 
 export default function ExperienceStructApp({ onClose }) {
   // 입력 상태 관리
@@ -243,10 +243,7 @@ export default function ExperienceStructApp({ onClose }) {
               </section>
 
               {/* 푸터 */}
-              <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto">
-                 <div className="flex items-center"><Star className="w-4 h-4 mr-1 text-yellow-500" /><span>Career Vitamin AI</span></div>
-                <span>STAR Method Experience Organizer</span>
-              </div>
+              </Footer>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-slate-400">

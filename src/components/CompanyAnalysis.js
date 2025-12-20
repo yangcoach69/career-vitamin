@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
 
-import { Toast, EditableContent } from './SharedUI';
+import { Toast, EditableContent, Footer } from './SharedUI';
 
 export default function CompanyAnalysisApp({ onClose }) {
   // 1. 입력값 관리 (기업명, URL, 직무, 요청사항)
@@ -306,10 +306,7 @@ export default function CompanyAnalysisApp({ onClose }) {
               </div>
 
               {/* 푸터 */}
-              <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-xs text-slate-400 mt-auto">
-                <div className="flex items-center"><Building2 className="w-4 h-4 mr-1 text-blue-500" /><span>Career Vitamin AI</span></div>
-                <span>Strategic Company Analysis Report</span>
-              </div>
+              </Footer>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-slate-400">

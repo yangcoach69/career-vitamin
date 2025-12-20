@@ -5,7 +5,7 @@ import {
   User, CheckCircle
 } from 'lucide-react';
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
-import { Toast, EditableContent } from './SharedUI';
+import { Toast, EditableContent, Footer } from './SharedUI';
 
 export default function RoleModelApp({ onClose }) {
   // 스크린샷에 있는 입력 항목 그대로 적용
@@ -200,12 +200,8 @@ export default function RoleModelApp({ onClose }) {
               </section>
 
               {/* 하단 푸터 */}
-              <div className="mt-auto pt-8 border-t border-slate-100 flex justify-between items-center text-xs text-slate-400">
-                 <div className="flex items-center font-bold text-slate-300">
-                    CAREER VITAMIN
-                 </div>
-                 <span>Role Model Analysis & Speech</span>
-              </div>
+              
+              </Footer>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-slate-300">

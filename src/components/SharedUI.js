@@ -38,15 +38,20 @@ export const EditableContent = ({ value, onSave, className }) => {
 export const Footer = () => {
   return (
     <div className="mt-auto pt-8 border-t border-slate-100 flex justify-between items-center text-xs text-slate-400 font-mono">
-      {/* 왼쪽: 서비스명 (나중에 기관명으로 교체 가능) */}
+      {/* 왼쪽: 서비스명 */}
       <div className="font-bold text-slate-500">
          Career AI Dashboard All-in-One (CADA)
       </div>
 
-      {/* 오른쪽: 기술 출처 */}
-      <div className="flex items-center gap-1 opacity-70">
-        <span>Powered by</span>
-        <strong className="text-indigo-500">Google Gemini API</strong>
+      {/* 오른쪽: 기술 출처 + 개발자용 뱃지 */}
+      <div className="flex items-center gap-1">
+        <span className="opacity-70">Powered by</span>
+        <strong className="text-indigo-500 opacity-90">Google Gemini API</strong>
+        
+        {/* 👇 [추가] 개발자용 뱃지 (원하는 문구로 선택하세요) */}
+        <span className="ml-2 bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-tight">
+          DEV MODE
+        </span>
       </div>
     </div>
   );

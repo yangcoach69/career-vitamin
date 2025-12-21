@@ -31,9 +31,9 @@ export const EditableContent = ({ value, onSave, className }) => {
   );
 };
 
-// 👇 [핵심 수정] ReportFooter 컴포넌트
+// 👇 [핵심 수정] Footer 컴포넌트
 // 복잡한 로직(useAuth 등)은 다 빼고, 부모에게서 'customMessage'를 받아오게 변경했습니다.
-export const ReportFooter = ({ customMessage }) => {
+export const Footer = ({ customMessage }) => {
   return (
     <div className="mt-auto pt-4 border-t border-slate-200 flex flex-col md:flex-row justify-between items-end text-xs">
       

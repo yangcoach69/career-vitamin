@@ -1,9 +1,8 @@
-// src/components/SharedUI.js
 import React, { useEffect } from 'react';
 import { Info } from 'lucide-react';
-import { renderText } from '../api'; // 아까 만든 api.js에서 가져옴
+import { renderText } from '../api'; 
 
-// [알림창 컴포넌트]
+// [알림창 컴포넌트] (기존 코드 유지)
 export const Toast = ({ message, onClose }) => {
   useEffect(() => {
     const timer = setTimeout(onClose, 3000);
@@ -18,7 +17,7 @@ export const Toast = ({ message, onClose }) => {
   );
 };
 
-// [수정 가능한 텍스트 컴포넌트]
+// [수정 가능한 텍스트 컴포넌트] (기존 코드 유지)
 export const EditableContent = ({ value, onSave, className }) => {
   return (
     <div
@@ -32,19 +31,9 @@ export const EditableContent = ({ value, onSave, className }) => {
   );
 };
 
-// ... (Toast, EditableContent 등 위쪽 코드는 그대로 유지) ...
-
-// src/components/SharedUI.js 의 Footer 부분
-
-export const ReportFooter = () => {
-  const { userProfile } = useAuth(); // 현재 로그인한 사용자 정보
-  
-  // 1. 사용자 정보에 기관명이 있는지 확인
-  const orgName = userProfile?.organization || ""; 
-  
-  // 2. 메시지 사전에서 찾기 (없으면 null)
-  const customMessage = ORG_MESSAGES[orgName];
-
+// 👇 [핵심 수정] ReportFooter 컴포넌트
+// 복잡한 로직(useAuth 등)은 다 빼고, 부모에게서 'customMessage'를 받아오게 변경했습니다.
+export const ReportFooter = ({ customMessage }) => {
   return (
     <div className="mt-auto pt-4 border-t border-slate-200 flex flex-col md:flex-row justify-between items-end text-xs">
       
@@ -53,11 +42,11 @@ export const ReportFooter = () => {
         {customMessage ? (
           // 기관 메시지가 있을 때 (강조 디자인)
           <div className="bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg font-bold border border-indigo-100 shadow-sm flex items-center gap-2">
-            <span className="text-lg">🏫</span> {/* 아이콘 */}
+            <span className="text-lg">🏫</span>
             <span>{customMessage}</span>
           </div>
         ) : (
-          // 기관 메시지가 없을 때 (기본 문구 혹은 빈칸)
+          // 기관 메시지가 없을 때 (기본 문구)
           <span className="text-slate-400 font-medium">
              Career AI Dashboard All-in-One (CADA)
           </span>
@@ -69,7 +58,7 @@ export const ReportFooter = () => {
         <span className="opacity-70">Powered by</span>
         <strong className="text-indigo-600 opacity-90">Google Gemini API</strong>
         
-        {/* 👇 [변경] Enterprise 뱃지 */}
+        {/* Enterprise 뱃지 */}
         <span className="ml-2 bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded border border-indigo-100 text-[10px] font-bold tracking-tight">
           ENTERPRISE
         </span>

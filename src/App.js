@@ -633,7 +633,11 @@ export default function App() {
                 <p>
                   본 서비스(CADA)는 커리어비타민의 자체 개발 솔루션이며, 
                   <span className="font-semibold text-indigo-400 mx-1">Google Gemini Enterprise API</span>
-                  기반으로 운영됩니다. 입력된 데이터는 서버에 저장되거나 AI 학습에 사용되지 않습니다.
+                  기반으로 운영됩니다. 
+                  </p>
+                  <p>
+                    입력된 데이터는 서버에 저장되거나, AI 학습에 사용되지 않습니다.
+                  </p>    
                 </p>
               </div>
 

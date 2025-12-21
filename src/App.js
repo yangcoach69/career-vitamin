@@ -597,7 +597,7 @@ export default function App() {
 
              <div className={`transition-all duration-500 ${!hasPersonalKey ? 'opacity-40 pointer-events-none grayscale' : ''}`}>
                <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                 <Sparkles className="text-indigo-600" size={20}/> 커리어 비타민 전용 AI 앱
+                 <Sparkles className="text-indigo-600" size={20}/> 커리어 AI 대시보드 올인원 (CADA)
                </h3>
                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                  {internalApps.map(([key, svc]) => (
@@ -621,7 +621,35 @@ export default function App() {
 
              {hasPersonalKey && <div className="border-t border-slate-200 my-2"></div>}
 
-                          
+             {/* --- [대시보드 하단 저작권 섹션] --- */}
+            <div className="mt-12 py-8 border-t border-slate-200 text-center">
+              {/* 1. 저작권 표시 */}
+              <p className="text-sm font-bold text-slate-500 mb-2">
+                © 2025 Career Vitamin. All Rights Reserved.
+              </p>
+              
+              {/* 2. 서비스 운영 정책 및 AI 면책 조항 (있어 보이는 문구) */}
+              <div className="text-xs text-slate-400 space-y-1 leading-relaxed">
+                <p>
+                  본 서비스(CADA)는 커리어비타민의 자체 개발 솔루션이며, 
+                  <span className="font-semibold text-indigo-400 mx-1">Google Gemini Enterprise API</span>
+                  기반으로 운영됩니다.입력된 개인 데이터는 저장되거나 학습에 사용되지 않습니다.
+                </p>
+              </div>
+
+              {/* 3. (선택사항) 문의처 또는 링크 */}
+              <div className="mt-4">
+                <a 
+                  href="https://blog.naver.com/yangcoach69" // 선생님 블로그 주소 등
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-xs font-medium text-slate-400 hover:text-indigo-600 transition-colors border-b border-dashed border-slate-300 hover:border-indigo-600 pb-0.5"
+                >
+                  Contact Instructor
+                </a>
+              </div>
+            </div>
+
              {!hasPersonalKey && <div className="text-center text-slate-500 text-sm mt-4 animate-bounce">👆 먼저 위에서 API 키를 등록해주세요.</div>}
            </div>
         ) : (

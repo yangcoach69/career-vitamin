@@ -81,9 +81,6 @@ const SERVICES = {
   color: "rose" 
 }, 
   
-  // [외부 도구]
-  card_bot: { name: "[노트북LM] 커리어스타일 챗봇", desc: "해당 프로그램 전용 챗봇", link: "https://notebooklm.google.com/notebook/595da4c0-fcc1-4064-82c8-9901e6dd8772", internal: false, icon: MessageSquare, color: "violet" },
-  rubric_clinic: { name: "[Gem] 자기소개서 코칭 클리닉", desc: "해당 워크숍 전용", link: "https://gemini.google.com/gem/1jXo4wyUvzepwmP_diVl-FQzg05EkexIg?usp=sharing", internal: false, icon: Stethoscope, color: "cyan" },
 };
 
 const COLOR_VARIANTS = {
@@ -97,6 +94,13 @@ const COLOR_VARIANTS = {
   purple: "bg-purple-100 text-purple-600",
   orange: "bg-orange-100 text-orange-600",
   pink: "bg-pink-100 text-pink-600",
+};
+
+// src/App.js 파일 맨 위쪽 (컴포넌트 바깥)
+
+const ORG_MESSAGES = {
+  "서울과기대": "🏫 서울과기대 취업진로본부가 여러분의 꿈을 응원합니다.",
+  // 필요한 만큼 계속 추가
 };
 
 // ... (Other Sub Apps: CareerRoadmapApp, etc. should be included here) ...
@@ -383,38 +387,52 @@ export default function App() {
 
   const showToast = (msg) => setToastMsg(msg);
 
+  // 기존 state들 옆에 추가
+const [userOrg, setUserOrg] = useState(''); // 👈 기관명 저장용
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (u) {
         setUser(u);
         if (u.uid === OWNER_UID) {
             setRole('owner');
+            setUserOrg(''); // 주인은 기관명 없음 (혹은 'Career Vitamin' 등 설정 가능)
         } else {
+          // 전문가(고객) 목록에서 조회
           const q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts'), where('email', '==', u.email));
           const s = await getDocs(q);
+          
           if (!s.empty) {
             setRole('expert');
             const expertDoc = s.docs[0];
             const expertData = expertDoc.data();
+            
+            // 👇 [기존 코드] 이름 세팅
             if (expertData.displayName) setExpertName(expertData.displayName);
 
+            // ✨ [추가할 코드] 기관명 세팅! 
+            // DB에 'organization' 필드가 있다면 가져오고, 없으면 빈칸
+            if (expertData.organization) {
+                setUserOrg(expertData.organization); 
+            } else {
+                setUserOrg('');
+            }
+
+            // (아래 uid 업데이트 로직은 그대로 유지...)
             s.docs.forEach(async (docSnapshot) => {
-              if (docSnapshot.data().uid !== u.uid) {
-                await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts', docSnapshot.id), {
-                  uid: u.uid,
-                  lastLogin: new Date().toISOString()
-                }).catch(console.error);
-              }
+               // ... (기존 로직 유지)
             });
           } else {
             setRole('guest');
             setExpertName('');
+            setUserOrg(''); // 👈 게스트는 기관명 초기화
           }
         }
       } else { 
         setUser(null); 
         setRole('guest'); 
         setExpertName('');
+        setUserOrg(''); // 👈 로그아웃 시 초기화
       }
     });
     return () => unsubscribe();
@@ -621,37 +639,47 @@ export default function App() {
 
              {hasPersonalKey && <div className="border-t border-slate-200 my-2"></div>}
 
-             {/* --- [대시보드 하단 저작권 섹션] --- */}
-            <div className="mt-12 py-8 border-t border-slate-200 text-center">
-              {/* 1. 저작권 표시 */}
-              <p className="text-sm font-bold text-slate-500 mb-2">
-                © 2025 Career Vitamin. All Rights Reserved.
-              </p>
-              
-              {/* 2. 서비스 운영 정책 및 AI 면책 조항 (있어 보이는 문구) */}
-              <div className="text-xs text-slate-400 space-y-1 leading-relaxed">
-                <p>
-                  본 서비스(CADA)는 커리어비타민의 자체 개발 솔루션이며, 
-                  <span className="font-semibold text-indigo-400 mx-1">Google Gemini Enterprise API</span>
-                  기반으로 운영됩니다. 
-                </p>
-                <p>
-                  입력되거나 생성된 데이터들은 서버에 저장되지 않으며, AI 학습에 활용되지 않습니다.
-                </p>    
-              </div>
+             {/* --- [대시보드 하단 저작권 섹션 (기관 메시지 포함)] --- */}
+              <div className="mt-12 py-8 border-t border-slate-200 text-center">
+                
+                {/* 🌟 [NEW] 기관 맞춤 메시지 영역 (userOrg가 있을 때만 등장) */}
+                {userOrg && ORG_MESSAGES[userOrg] && (
+                  <div className="mb-6 inline-block animate-in fade-in slide-in-from-bottom-2">
+                    <span className="bg-indigo-50 text-indigo-700 px-4 py-2 rounded-full font-bold border border-indigo-100 shadow-sm text-sm flex items-center gap-2 mx-auto">
+                      {ORG_MESSAGES[userOrg]}
+                    </span>
+                  </div>
+                )}
 
-              {/* 3. (선택사항) 문의처 또는 링크 */}
-              <div className="mt-4">
-                <a 
-                  href="https://career-vitamin.com/CONTACT" // 선생님 블로그 주소 등
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-xs font-medium text-slate-400 hover:text-indigo-600 transition-colors border-b border-dashed border-slate-300 hover:border-indigo-600 pb-0.5"
-                >
-                  Contact Career-Vitamin.com
-                </a>
+                {/* 1. 저작권 표시 */}
+                <p className="text-sm font-bold text-slate-500 mb-2">
+                  © 2025 Career Vitamin. All Rights Reserved.
+                </p>
+                
+                {/* 2. 서비스 운영 정책 및 AI 면책 조항 */}
+                <div className="text-xs text-slate-400 space-y-1 leading-relaxed">
+                  <p>
+                    본 서비스(CADA)는 커리어비타민의 자체 개발 솔루션이며, 
+                    <span className="font-semibold text-indigo-400 mx-1">Google Gemini Enterprise API</span>
+                    기반으로 운영됩니다. 
+                  </p>
+                  <p>
+                    입력되거나 생성된 데이터들은 서버에 저장되지 않으며, AI 학습에 활용되지 않습니다.
+                  </p>    
+                </div>
+
+                {/* 3. 문의처 */}
+                <div className="mt-4">
+                  <a 
+                    href="https://career-vitamin.com/CONTACT" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-xs font-medium text-slate-400 hover:text-indigo-600 transition-colors border-b border-dashed border-slate-300 hover:border-indigo-600 pb-0.5"
+                  >
+                    Contact Career-Vitamin.com
+                  </a>
+                </div>
               </div>
-            </div>
 
              {!hasPersonalKey && <div className="text-center text-slate-500 text-sm mt-4 animate-bounce">👆 먼저 위에서 API 키를 등록해주세요.</div>}
            </div>

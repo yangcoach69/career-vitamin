@@ -633,19 +633,19 @@ export default function App() {
                 <p>
                   본 서비스(CADA)는 커리어비타민의 자체 개발 솔루션이며, 
                   <span className="font-semibold text-indigo-400 mx-1">Google Gemini Enterprise API</span>
-                  기반으로 운영됩니다.입력된 개인 데이터는 저장되거나 학습에 사용되지 않습니다.
+                  기반으로 운영됩니다. 입력된 데이터는 서버에 저장되거나 AI 학습에 사용되지 않습니다.
                 </p>
               </div>
 
               {/* 3. (선택사항) 문의처 또는 링크 */}
               <div className="mt-4">
                 <a 
-                  href="https://blog.naver.com/yangcoach69" // 선생님 블로그 주소 등
+                  href="https://career-vitamin.com/CONTACT" // 선생님 블로그 주소 등
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="text-xs font-medium text-slate-400 hover:text-indigo-600 transition-colors border-b border-dashed border-slate-300 hover:border-indigo-600 pb-0.5"
                 >
-                  Contact Instructor
+                  Contact Career-Vitamin.com
                 </a>
               </div>
             </div>

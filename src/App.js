@@ -621,30 +621,7 @@ export default function App() {
 
              {hasPersonalKey && <div className="border-t border-slate-200 my-2"></div>}
 
-             <div className={`transition-all duration-500 ${!hasPersonalKey ? 'opacity-40 pointer-events-none grayscale' : ''}`}>
-               <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                 <ExternalLink className="text-slate-500" size={20}/> 외부 맞춤형 AI 도구
-               </h3>
-               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                 {externalApps.map(([key, svc]) => (
-                   <div key={key} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md border border-slate-200 transition-all group cursor-pointer h-full relative" onClick={() => {
-                       if(!hasPersonalKey) return;
-                       window.open(svc.link, '_blank');
-                     }}>
-                     {!hasPersonalKey && <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/10"><Lock className="text-slate-500 w-8 h-8"/></div>}
-                     <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${COLOR_VARIANTS[svc.color]} group-hover:scale-110 transition-transform`}>
-                       <svc.icon size={24} color={svc.color === 'black' ? '#000' : undefined} /> 
-                     </div>
-                     <h3 className="font-bold text-lg mb-2 group-hover:text-indigo-600 transition-colors">{svc.name}</h3>
-                     <p className="text-sm text-slate-500 mb-4 h-10 line-clamp-2">{svc.desc}</p>
-                     <div className="text-xs font-bold text-slate-400 flex items-center group-hover:text-slate-600">
-                       외부 도구 열기 <ExternalLink className="ml-1 w-3 h-3"/>
-                     </div>
-                   </div>
-                 ))}
-               </div>
-             </div>
-             
+                          
              {!hasPersonalKey && <div className="text-center text-slate-500 text-sm mt-4 animate-bounce">👆 먼저 위에서 API 키를 등록해주세요.</div>}
            </div>
         ) : (

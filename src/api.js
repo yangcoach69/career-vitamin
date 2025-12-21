@@ -169,6 +169,14 @@ export const fetchGemini = async (prompt, attachments = []) => {
   }
   
   const models = ["gemini-1.5-flash", "gemini-2.0-flash-exp", "gemini-2.5-flash-preview-09-2025"];
+  // 👇 [핵심] 고객에게는 무조건 '안전빵(1.5 Flash)'을 제공해야 합니다.
+  const selectedModel = models[0]; // "gemini-1.5-flash"
+
+  const model = genAI.getGenerativeModel({ 
+      model: selectedModel 
+  });
+
+
   let lastError = null;
   const jsonInstruction = `
   IMPORTANT: You must return the result strictly as a valid JSON string.

@@ -668,16 +668,11 @@ const [userOrg, setUserOrg] = useState(''); // 👈 기관명 저장용
                   </p>    
                 </div>
 
-                {/* 3. 문의처 */}
+                {/* 3. 문의처 (링크 제거, 이메일 텍스트만 표시) */}
                 <div className="mt-4">
-                  <a 
-                    href="https://career-vitamin.com/CONTACT" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-xs font-medium text-slate-400 hover:text-indigo-600 transition-colors border-b border-dashed border-slate-300 hover:border-indigo-600 pb-0.5"
-                  >
-                    Contact Career-Vitamin.com
-                  </a>
+                  <span className="text-xs font-medium text-slate-400">
+                    Contact : yangcoach@gmail.com
+                  </span>
                 </div>
               </div>
 

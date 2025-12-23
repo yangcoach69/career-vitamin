@@ -31,34 +31,24 @@ export const EditableContent = ({ value, onSave, className }) => {
   );
 };
 
-// 👇 [핵심 수정] Footer 컴포넌트
-// 복잡한 로직(useAuth 등)은 다 빼고, 부모에게서 'customMessage'를 받아오게 변경했습니다.
-export const Footer = ({ customMessage }) => {
+// 👇 [초기화] Footer 컴포넌트
+// 복잡한 기관 로직(useAuth, ORG_MESSAGES)을 모두 제거하고, 
+// 가장 깔끔한 기본 상태(Standard)로 되돌렸습니다.
+export const Footer = () => {
   return (
     <div className="mt-auto pt-4 border-t border-slate-200 flex flex-col md:flex-row justify-between items-end text-xs">
       
-      {/* [좌측 하단] 기관 맞춤 메시지 영역 */}
+      {/* [좌측 하단] 기본 문구로 고정 */}
       <div className="mb-2 md:mb-0">
-        {customMessage ? (
-          // 기관 메시지가 있을 때 (강조 디자인)
-          <div className="bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg font-bold border border-indigo-100 shadow-sm flex items-center gap-2">
-            <span className="text-lg">🏫</span>
-            <span>{customMessage}</span>
-          </div>
-        ) : (
-          // 기관 메시지가 없을 때 (기본 문구)
-          <span className="text-slate-400 font-medium">
+        <span className="text-slate-400 font-medium">
              Career AI Dashboard All-in-One (CADA)
-          </span>
-        )}
+        </span>
       </div>
 
-      {/* [우측 하단] 기존 CADA 로고 및 API 표시 */}
+      {/* [우측 하단] 로고 및 Enterprise 뱃지 */}
       <div className="flex items-center gap-1">
         <span className="opacity-70">Powered by</span>
         <strong className="text-indigo-600 opacity-90">Google Gemini API</strong>
-        
-        {/* Enterprise 뱃지 */}
         <span className="ml-2 bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded border border-indigo-100 text-[10px] font-bold tracking-tight">
           ENTERPRISE
         </span>

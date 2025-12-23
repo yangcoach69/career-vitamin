@@ -367,7 +367,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [expertName, setExpertName] = useState(''); 
   const [experts, setExperts] = useState([]);
-  // 전문가 등록 필드 (이름, 이메일, 기관명)
+  // 사용자 등록 필드 (이름, 이메일, 기관명)
   const [newExpertEmail, setNewExpertEmail] = useState('');
   const [newExpertName, setNewExpertName] = useState(''); 
   const [newExpertOrg, setNewExpertOrg] = useState(''); // NEW: 기관명 상태 추가
@@ -390,7 +390,7 @@ const [userOrg, setUserOrg] = useState(''); // 👈 기관명 저장용
             setRole('owner');
             setUserOrg(''); // 주인은 기관명 없음 (혹은 'Career Vitamin' 등 설정 가능)
         } else {
-          // 전문가(고객) 목록에서 조회
+          // 사용자(고객) 목록에서 조회
           const q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts'), where('email', '==', u.email));
           const s = await getDocs(q);
           
@@ -455,7 +455,7 @@ const [userOrg, setUserOrg] = useState(''); // 👈 기관명 저장용
       showToast("개인 API 키가 삭제되었습니다.");
   }
 
-  // 전문가 추가 (기관명 포함)
+  // 사용자 추가 (기관명 포함)
   const handleAddExpert = async (e) => {
     e.preventDefault();
     if(!newExpertEmail || !newExpertName) return;
@@ -468,7 +468,7 @@ const [userOrg, setUserOrg] = useState(''); // 👈 기관명 저장용
     setNewExpertEmail(''); 
     setNewExpertName('');
     setNewExpertOrg(''); // 초기화
-    showToast("전문가가 추가되었습니다.");
+    showToast("사용자가 추가되었습니다.");
   };
 
   const handleDeleteExpert = async (id) => {
@@ -498,7 +498,7 @@ const [userOrg, setUserOrg] = useState(''); // 👈 기관명 저장용
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `전문가목록_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `사용자목록_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -542,7 +542,7 @@ const [userOrg, setUserOrg] = useState(''); // 👈 기관명 저장용
         <div className="p-4 border-t border-slate-700">
           <div className="text-xs text-slate-500 mb-2 px-2">
             {role === 'expert' && expertName ? expertName : user.displayName}님 
-            ({role === 'owner' ? '관리자' : '전문가'})
+            ({role === 'owner' ? '관리자' : '사용자'})
           </div>
           <button onClick={()=>signOut(auth)} className="w-full border border-slate-600 text-slate-400 py-2 rounded hover:bg-slate-800 hover:text-white transition-colors flex items-center justify-center gap-2"><LogOut size={16}/> 로그아웃</button>
           <div className="mt-4 text-xs text-center text-slate-600 opacity-50">v9.5 (Stable 2.5)</div>
@@ -648,7 +648,7 @@ const [userOrg, setUserOrg] = useState(''); // 👈 기관명 저장용
                   </p>
                   <p>
                     입력되거나 생성된 데이터들은 서버에 저장되지 않으며, AI 학습에 활용되지 않습니다.
-                  </p>    
+                  </p>  
                 </div>
 
                 {/* 3. 문의처 (링크 제거, 이메일 텍스트만 표시) */}
@@ -666,7 +666,7 @@ const [userOrg, setUserOrg] = useState(''); // 👈 기관명 저장용
           <div className="space-y-8 max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4">
             <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold flex items-center gap-2"><User className="text-slate-500"/> 전문가 관리 ({experts.length}명)</h2>
+                <h2 className="text-xl font-bold flex items-center gap-2"><User className="text-slate-500"/> 사용자 관리 ({experts.length}명)</h2>
                 <button onClick={handleExportCSV} className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 transition-colors shadow-sm">
                   <FileSpreadsheet size={16}/> 엑셀/시트 다운로드 (CSV)
                 </button>
@@ -709,7 +709,7 @@ const [userOrg, setUserOrg] = useState(''); // 👈 기관명 저장용
                         </td>
                       </tr>
                     ))}
-                    {experts.length === 0 && <tr><td colSpan="5" className="text-center py-8 text-slate-400">등록된 전문가가 없습니다.</td></tr>}
+                    {experts.length === 0 && <tr><td colSpan="5" className="text-center py-8 text-slate-400">등록된 사용자가 없습니다.</td></tr>}
                   </tbody>
                 </table>
               </div>

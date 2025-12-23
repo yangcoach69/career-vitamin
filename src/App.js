@@ -96,16 +96,8 @@ const COLOR_VARIANTS = {
   pink: "bg-pink-100 text-pink-600",
 };
 
-// src/App.js 파일 맨 위쪽 (컴포넌트 바깥)
 
-const ORG_MESSAGES = {
-  "서울과기대": "🏫 서울과기대 취업진로본부가 여러분의 꿈을 응원합니다.",
-  // 필요한 만큼 계속 추가
-};
-
-// ... (Other Sub Apps: CareerRoadmapApp, etc. should be included here) ...
-
-
+// ... (Other Sub Apps: JobExplorerApp, etc. should be included here) ...
 // [NEW] 직업 탐색 가이드 앱
 function JobExplorerApp({ onClose }) {
   const [inputs, setInputs] = useState({ job: '' });
@@ -642,15 +634,6 @@ const [userOrg, setUserOrg] = useState(''); // 👈 기관명 저장용
              {/* --- [대시보드 하단 저작권 섹션 (기관 메시지 포함)] --- */}
               <div className="mt-12 py-8 border-t border-slate-200 text-center">
                 
-                {/* 🌟 [NEW] 기관 맞춤 메시지 영역 (userOrg가 있을 때만 등장) */}
-                {userOrg && ORG_MESSAGES[userOrg] && (
-                  <div className="mb-6 inline-block animate-in fade-in slide-in-from-bottom-2">
-                    <span className="bg-indigo-50 text-indigo-700 px-4 py-2 rounded-full font-bold border border-indigo-100 shadow-sm text-sm flex items-center gap-2 mx-auto">
-                      {ORG_MESSAGES[userOrg]}
-                    </span>
-                  </div>
-                )}
-
                 {/* 1. 저작권 표시 */}
                 <p className="text-sm font-bold text-slate-500 mb-2">
                   © 2025 Career Vitamin. All Rights Reserved.

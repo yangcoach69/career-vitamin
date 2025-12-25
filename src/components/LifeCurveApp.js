@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react';
-// [안전 모드] 검증된 아이콘 사용
+// [아이콘 추가] ArrowUp, ArrowDown 추가
 import { 
   TrendingUp, ChevronLeft, Loader2, Download, 
-  FileText, Plus, X, Award, Smile, Frown, PenTool, History
+  FileText, Plus, X, Award, Smile, Frown, PenTool, History,
+  ArrowUp, ArrowDown 
 } from 'lucide-react';
 
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
@@ -23,58 +24,44 @@ const LifeCurveChart = ({ events, width = 600, height = 300 }) => {
   const graphWidth = width - padding * 2;
   const graphHeight = height - padding * 2;
   
-  // Y축 계산: +5 ~ -5 (총 10칸)
-  // Top: +5 -> y=padding
-  // Center: 0 -> y=height/2
-  // Bottom: -5 -> y=height-padding
   const zeroY = height / 2;
-  const scaleY = graphHeight / 10; // 1점당 픽셀
+  const scaleY = graphHeight / 10; 
 
-  // X축 계산
   const totalPoints = events.length;
   const stepX = totalPoints > 1 ? graphWidth / (totalPoints - 1) : graphWidth / 2;
 
-  // 좌표 변환 함수
   const getCoord = (index, score) => {
     return {
       x: padding + (index * stepX),
-      y: zeroY - (score * scaleY) // 점수가 높을수록 y값은 작아짐(위로 감)
+      y: zeroY - (score * scaleY) 
     };
   };
 
-  // Path 데이터 생성
   let pathD = "";
   events.forEach((ev, i) => {
     const { x, y } = getCoord(i, ev.score);
     if (i === 0) pathD += `M ${x} ${y}`;
     else pathD += ` L ${x} ${y}`;
-    // 곡선 효과를 원하면 L 대신 C(베지어) 사용 가능하지만, 인생 굴곡은 직선이 더 명확할 수 있음
   });
 
   return (
     <div className="w-full overflow-x-auto">
       <svg width={width} height={height} style={{ minWidth: '100%' }}>
-        {/* 기준선 (0점) */}
         <line x1={padding} y1={zeroY} x2={width-padding} y2={zeroY} stroke="#cbd5e1" strokeWidth="2" strokeDasharray="5 5"/>
         <text x={width-padding+10} y={zeroY} className="text-xs fill-slate-400" alignmentBaseline="middle">0</text>
         
-        {/* 최고/최저 가이드 */}
         <text x={padding-10} y={padding} className="text-xs fill-amber-500 font-bold" textAnchor="end">+5</text>
         <text x={padding-10} y={height-padding} className="text-xs fill-slate-400 font-bold" textAnchor="end">-5</text>
 
-        {/* 그래프 선 */}
         <path d={pathD} fill="none" stroke="#4f46e5" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
         
-        {/* 데이터 포인트 */}
         {events.map((ev, i) => {
           const { x, y } = getCoord(i, ev.score);
           const color = ev.score > 0 ? '#d97706' : ev.score < 0 ? '#64748b' : '#94a3b8';
           return (
             <g key={i} className="group cursor-pointer">
               <circle cx={x} cy={y} r="6" fill="white" stroke={color} strokeWidth="3"/>
-              {/* 호버 시 툴팁 (간단) */}
               <title>{`[${ev.age}] ${ev.text} (${ev.score}점)`}</title>
-              {/* 라벨 (이벤트명) - 지그재그 배치로 겹침 방지 */}
               <text 
                 x={x} 
                 y={ev.score >= 0 ? y - 15 : y + 25} 
@@ -102,7 +89,6 @@ const LifeCurveChart = ({ events, width = 600, height = 300 }) => {
 // ----------------------------------------------------------------------
 // 2. 메인 앱 컴포넌트
 export default function LifeCurveApp({ onClose }) {
-  // 데이터 구조: 연령대별 배열
   const [timeline, setTimeline] = useState({
     '10대': [], '20대': [], '30대': [], '40대': [], '50대': [], '60대+': []
   });
@@ -143,6 +129,20 @@ export default function LifeCurveApp({ onClose }) {
     setTimeline(prev => ({
       ...prev,
       [age]: prev[age].filter(ev => ev.id !== id)
+    }));
+  };
+
+  // [New] 사건 순서 변경 (위/아래)
+  const moveEvent = (direction, index) => {
+    const currentEvents = [...timeline[activeTab]];
+    if (direction === 'up' && index > 0) {
+      [currentEvents[index], currentEvents[index - 1]] = [currentEvents[index - 1], currentEvents[index]];
+    } else if (direction === 'down' && index < currentEvents.length - 1) {
+      [currentEvents[index], currentEvents[index + 1]] = [currentEvents[index + 1], currentEvents[index]];
+    }
+    setTimeline(prev => ({
+      ...prev,
+      [activeTab]: currentEvents
     }));
   };
 
@@ -207,7 +207,7 @@ export default function LifeCurveApp({ onClose }) {
   const handleDownload = () => saveAsPng(reportRef, `인생곡선_리포트`, showToast);
   const handlePdfDownload = () => saveAsPdf(reportRef, `인생곡선_리포트`, showToast);
 
-  const allEventsSorted = getAllEvents().sort((a, b) => b.score - a.score); // 점수 높은 순 정렬
+  const allEventsSorted = getAllEvents().sort((a, b) => b.score - a.score);
 
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
@@ -232,7 +232,7 @@ export default function LifeCurveApp({ onClose }) {
             <div className="bg-indigo-50 p-4 rounded-xl text-sm text-indigo-900 leading-relaxed border border-indigo-100">
               <strong>💡 작성 가이드</strong><br/>
               각 연령대별로 기억에 남는 사건을 추가하세요.<br/>
-              <strong>+5점(최고의 순간)</strong>부터 <strong>-5점(힘든 순간)</strong>까지 점수를 매기면 인생 곡선이 그려집니다.
+              사건의 <strong>순서</strong>가 중요하다면 화살표 버튼으로 조정하세요.
             </div>
 
             {/* 연령대 탭 */}
@@ -297,19 +297,36 @@ export default function LifeCurveApp({ onClose }) {
               </div>
             </div>
 
-            {/* 현재 탭의 입력 목록 */}
+            {/* 현재 탭의 입력 목록 (순서 변경 기능 추가) */}
             <div className="space-y-2">
-              {timeline[activeTab].map(ev => (
-                <div key={ev.id} className="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-200">
-                  <div>
+              {timeline[activeTab].map((ev, index) => (
+                <div key={ev.id} className="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-200 group">
+                  <div className="flex-1">
                     <div className="font-bold text-sm text-slate-700">{ev.text}</div>
                     <div className={`text-xs font-bold ${ev.score > 0 ? 'text-indigo-500' : ev.score < 0 ? 'text-red-500' : 'text-slate-400'}`}>
                       {ev.score > 0 ? `+${ev.score}점` : `${ev.score}점`}
                     </div>
                   </div>
-                  <button onClick={() => removeEvent(activeTab, ev.id)} className="text-slate-400 hover:text-red-500">
-                    <X size={16}/>
-                  </button>
+                  
+                  <div className="flex items-center gap-1">
+                    {/* 순서 변경 버튼 */}
+                    <div className="flex flex-col gap-0.5 mr-2">
+                        {index > 0 && (
+                            <button onClick={() => moveEvent('up', index)} className="text-slate-400 hover:text-indigo-600 p-0.5 rounded hover:bg-slate-200">
+                                <ArrowUp size={12}/>
+                            </button>
+                        )}
+                        {index < timeline[activeTab].length - 1 && (
+                            <button onClick={() => moveEvent('down', index)} className="text-slate-400 hover:text-indigo-600 p-0.5 rounded hover:bg-slate-200">
+                                <ArrowDown size={12}/>
+                            </button>
+                        )}
+                    </div>
+
+                    <button onClick={() => removeEvent(activeTab, ev.id)} className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50">
+                      <X size={16}/>
+                    </button>
+                  </div>
                 </div>
               ))}
               {timeline[activeTab].length === 0 && (

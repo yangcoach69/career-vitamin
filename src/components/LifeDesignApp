@@ -1,27 +1,22 @@
 import React, { useState, useRef } from 'react';
-// [핵심] HollandTest.js 에서 이미 100% 작동 검증된 아이콘만 가져옵니다.
-// (새로운 아이콘을 쓰지 않아 충돌 원인을 원천 차단)
-import { 
-  ClipboardList, ChevronLeft, Settings, Loader2, 
-  BarChart3, Smile, Meh, Target, Briefcase, Download, FileText 
-} from 'lucide-react';
-
+// ❌ 아이콘 import 전부 제거 (충돌 원천 차단)
+// ✅ 기능 import만 유지
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
 import { Toast, EditableContent, Footer } from './SharedUI';
 
+const DEFAULT_AREAS = [
+  { id: 'work', label: '업(業)', score: 5, note: '' },
+  { id: 'growth', label: '자기성장', score: 5, note: '' },
+  { id: 'contribution', label: '사회공헌', score: 5, note: '' },
+  { id: 'family', label: '가족', score: 5, note: '' },
+  { id: 'relation', label: '인간관계', score: 5, note: '' },
+  { id: 'material', label: '물적소유', score: 5, note: '' },
+  { id: 'finance', label: '재무', score: 5, note: '' },
+  { id: 'leisure', label: '여가', score: 5, note: '' },
+];
+
 export default function LifeDesignApp({ onClose }) {
-  // 1. 기본 8대 영역 데이터 (HollandTest 구조 차용)
-  const [areas, setAreas] = useState([
-    { id: 'work', label: '업(業)', eng: 'Work', score: 5, note: '' },
-    { id: 'growth', label: '자기성장', eng: 'Self-Growth', score: 5, note: '' },
-    { id: 'contribution', label: '사회공헌', eng: 'Contribution', score: 5, note: '' },
-    { id: 'family', label: '가족', eng: 'Family', score: 5, note: '' },
-    { id: 'relation', label: '사회적 관계', eng: 'Relationship', score: 5, note: '' },
-    { id: 'material', label: '물적소유', eng: 'Possession', score: 5, note: '' },
-    { id: 'finance', label: '재무', eng: 'Finance', score: 5, note: '' },
-    { id: 'leisure', label: '여가', eng: 'Leisure', score: 5, note: '' },
-  ]);
-  
+  const [areas, setAreas] = useState(DEFAULT_AREAS);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [toastMsg, setToastMsg] = useState(null);
@@ -29,7 +24,6 @@ export default function LifeDesignApp({ onClose }) {
 
   const showToast = (msg) => setToastMsg(msg);
 
-  // --- 입력 핸들러 ---
   const handleScoreChange = (index, val) => {
     const newAreas = [...areas];
     newAreas[index].score = parseInt(val, 10);
@@ -42,41 +36,23 @@ export default function LifeDesignApp({ onClose }) {
     setAreas(newAreas);
   };
 
-  // --- AI 생성 요청 ---
   const handleGenerate = async () => {
     setLoading(true);
     try {
-      // 점수 높은 순으로 정렬해서 프롬프트에 제공
-      const sortedForPrompt = [...areas].sort((a, b) => b.score - a.score);
-      const inputSummary = sortedForPrompt.map((a, i) => 
-        `${i+1}위. ${a.label}(${a.score}점): ${a.note || '특이사항 없음'}`
-      ).join('\n');
+      const sorted = [...areas].sort((a, b) => b.score - a.score);
+      const inputSummary = sorted.map((a, i) => `${i+1}위. ${a.label}(${a.score}점): ${a.note}`).join('\n');
 
       const prompt = `
-      당신은 4050 중장년 생애설계(Life Design) 전문 코치입니다.
-      사용자가 입력한 '인생 8대 영역'의 점수와 메모를 분석하여 코칭 리포트를 작성해주세요.
-
-      [사용자 데이터 (점수 높은 순)]
+      당신은 생애설계 코치입니다. 다음 8대 영역 점수를 분석해 코칭해주세요.
+      
+      [데이터]
       ${inputSummary}
 
-      [분석 요청사항]
-      1. 점수가 높은 영역(상위권)은 현재의 강점이므로 칭찬하고 유지 방법을 조언하세요.
-      2. 점수가 낮은 영역(하위권)은 삶의 균형을 위해 보완할 수 있는 작고 구체적인 액션 플랜을 제안하세요.
-      3. 전체적인 삶의 만족도와 균형에 대한 총평을 남겨주세요.
-
-      [JSON 출력 형식 준수]
+      [형식 (JSON)]
       {
-        "high_satisfaction": {
-          "title": "삶의 활력소가 되는 영역들 (강점)",
-          "summary": "상위 영역들에 대한 통합 분석 및 칭찬 (한 문단)",
-          "coaching": "이 만족감을 유지하고 삶의 에너지로 삼기 위한 조언"
-        },
-        "low_satisfaction": {
-          "title": "더 채워가면 좋을 영역들 (보완)",
-          "summary": "하위 영역들에 대한 통합 분석 및 위로 (한 문단)",
-          "coaching": "부담 갖지 않고 조금씩 개선하기 위한 구체적인 가이드"
-        },
-        "overall_review": "전체적인 생애 균형에 대한 총평 및 응원 메시지 (두괄식)"
+        "overall_review": "총평 한줄",
+        "high_satisfaction": { "title": "만족 영역", "summary": "내용", "coaching": "조언" },
+        "low_satisfaction": { "title": "보완 영역", "summary": "내용", "coaching": "조언" }
       }`;
 
       const parsed = await fetchGemini(prompt);
@@ -93,207 +69,93 @@ export default function LifeDesignApp({ onClose }) {
     });
   };
 
-  const handleDownload = () => saveAsPng(reportRef, `생애설계_진단결과`, showToast);
-  const handlePdfDownload = () => saveAsPdf(reportRef, `생애설계_진단결과`, showToast);
-
-  // [결과 화면용] 점수 내림차순 정렬 데이터 계산
-  const sortedAreas = [...areas].sort((a, b) => b.score - a.score);
-  const averageScore = (areas.reduce((acc, cur) => acc + cur.score, 0) / areas.length).toFixed(1);
-
+  // 렌더링 시작
   return (
-    <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
+    <div className="fixed inset-0 bg-white z-50 flex flex-col p-4 overflow-auto">
       {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
       
       {/* 헤더 */}
-      <header className="bg-amber-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
-        <div className="flex items-center gap-3">
-          <Target className="text-amber-400"/>
-          <h1 className="font-bold text-lg">인생 8대 영역 설계</h1>
-        </div>
-        <button onClick={onClose} className="flex items-center text-sm hover:text-amber-200 transition-colors">
-          <ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기
-        </button>
-      </header>
+      <div className="flex justify-between items-center mb-6 border-b pb-4">
+        <h1 className="text-xl font-bold text-black">📋 인생 8대 영역 진단 (텍스트 버전)</h1>
+        <button onClick={onClose} className="bg-gray-200 px-4 py-2 rounded font-bold">❌ 닫기</button>
+      </div>
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* --- [좌측] 입력창 --- */}
-        <aside className="w-[400px] bg-white border-r p-6 shrink-0 overflow-y-auto">
-          <div className="space-y-8">
-            <div className="bg-amber-50 p-4 rounded-lg border border-amber-100 text-sm text-amber-900">
-                <strong>💡 작성 가이드</strong><br/>
-                현재 나의 만족도 점수(1~10)를 선택하고,<br/>
-                관련된 고민이나 상태를 짧게 메모해주세요.
-            </div>
-
-            <div className="space-y-6">
-                {areas.map((area, index) => (
-                    <div key={area.id} className="relative animate-in fade-in slide-in-from-left-4" style={{animationDelay: `${index * 50}ms`}}>
-                        <div className="flex justify-between items-center mb-2">
-                            <label className="font-bold text-slate-700 flex items-center gap-2">
-                                {index < 8 ? <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-xs">{index+1}</span> : <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-500 flex items-center justify-center text-xs">+</span>}
-                                {area.label}
-                            </label>
-                            <span className={`font-bold text-lg ${area.score >= 8 ? 'text-amber-600' : area.score <= 4 ? 'text-slate-400' : 'text-slate-700'}`}>
-                                {area.score}점
-                            </span>
-                        </div>
-                        
-                        <input 
-                            type="range" min="1" max="10" value={area.score}
-                            onChange={(e) => handleScoreChange(index, e.target.value)}
-                            className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-amber-600 mb-3"
-                        />
-
-                        <textarea
-                            value={area.note}
-                            onChange={(e) => handleNoteChange(index, e.target.value)}
-                            placeholder={`${area.label} 관련 메모...`}
-                            className="w-full p-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none resize-none h-16 bg-slate-50 focus:bg-white transition-colors"
-                        />
-                    </div>
-                ))}
-            </div>
-
-            <button onClick={handleGenerate} disabled={loading} className="w-full bg-amber-700 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-amber-800 transition-all disabled:bg-slate-400 text-lg flex items-center justify-center gap-2">
-              {loading ? <Loader2 className="animate-spin"/> : "진단 결과 보기"}
-            </button>
+      <div className="flex flex-col md:flex-row gap-8">
+        {/* 입력창 */}
+        <div className="w-full md:w-1/3 space-y-4">
+          <div className="bg-blue-50 p-4 rounded text-sm text-blue-800">
+            점수와 메모를 입력하고 [진단하기] 버튼을 누르세요.
           </div>
-        </aside>
+          {areas.map((area, i) => (
+            <div key={i} className="border p-3 rounded">
+              <div className="flex justify-between font-bold mb-2">
+                <span>{area.label}</span>
+                <span className="text-blue-600">{area.score}점</span>
+              </div>
+              <input 
+                type="range" min="1" max="10" value={area.score} 
+                onChange={(e)=>handleScoreChange(i, e.target.value)}
+                className="w-full mb-2"
+              />
+              <input 
+                type="text" 
+                placeholder="간단 메모"
+                value={area.note}
+                onChange={(e)=>handleNoteChange(i, e.target.value)}
+                className="w-full border p-2 text-sm rounded"
+              />
+            </div>
+          ))}
+          <button 
+            onClick={handleGenerate} 
+            disabled={loading}
+            className="w-full bg-black text-white py-3 rounded font-bold text-lg"
+          >
+            {loading ? "분석중..." : "진단하기"}
+          </button>
+        </div>
 
-        {/* --- [우측] 결과 리포트 화면 --- */}
-        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
-            <div ref={reportRef} className="w-[210mm] min-h-[297mm] h-fit bg-white shadow-2xl p-12 flex flex-col animate-in fade-in zoom-in-95 duration-500">
+        {/* 결과창 */}
+        <div className="w-full md:w-2/3 bg-gray-50 p-8 rounded min-h-[500px]" ref={reportRef}>
+          {result ? (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-bold border-b pb-2">진단 결과 리포트</h2>
               
-              {/* 리포트 헤더 */}
-              <div className="border-b-4 border-amber-600 pb-6 mb-8 flex justify-between items-end">
-                <div>
-                    <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">LIFE BALANCE REPORT</span>
-                    <h1 className="text-4xl font-extrabold text-slate-900">인생 8대 영역 진단</h1>
-                </div>
-                <div className="text-right">
-                    <div className="text-xs text-slate-400 font-bold mb-1">AVERAGE SCORE</div>
-                    <div className="text-4xl font-black text-amber-600">{averageScore}<span className="text-2xl text-slate-300 font-light">/10</span></div>
-                </div>
+              <div className="bg-white p-4 rounded border">
+                <h3 className="font-bold text-lg mb-2">💡 총평</h3>
+                <EditableContent value={result.overall_review} onSave={(v)=>handleEdit('overall_review', null, v)} />
               </div>
 
-              {/* 1. 영역별 순위 테이블 */}
-              <section className="mb-10">
-                   <h3 className="text-xl font-bold text-slate-800 mb-4 pb-2 border-b border-slate-200 flex items-center">
-                       <BarChart3 size={24} className="mr-2 text-amber-600"/> 영역별 만족도 순위
-                   </h3>
-                   <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
-                     <table className="w-full text-sm text-left">
-                       <thead className="bg-slate-100 text-slate-600 font-bold uppercase text-xs">
-                         <tr>
-                           <th className="px-4 py-3 w-16 text-center">순위</th>
-                           <th className="px-4 py-3 w-32">영역</th>
-                           <th className="px-4 py-3 w-24 text-center">점수</th>
-                           <th className="px-4 py-3">메모 / 상태</th>
-                         </tr>
-                       </thead>
-                       <tbody className="divide-y divide-slate-100 bg-white">
-                         {sortedAreas.map((area, i) => (
-                           <tr key={area.id} className={i < 3 ? "bg-amber-50/30" : ""}>
-                             <td className="px-4 py-3 text-center">
-                                <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full font-bold text-xs ${i === 0 ? 'bg-amber-500 text-white' : i < 3 ? 'bg-amber-200 text-amber-800' : 'text-slate-400 bg-slate-100'}`}>
-                                    {i + 1}
-                                </span>
-                             </td>
-                             <td className={`px-4 py-3 font-bold ${i < 3 ? 'text-amber-700' : 'text-slate-700'}`}>
-                                {area.label} <span className="text-[10px] text-slate-400 font-normal ml-1">{area.eng}</span>
-                             </td>
-                             <td className="px-4 py-3 text-center">
-                                <div className="flex items-center justify-center gap-2">
-                                    <span className={`font-bold ${area.score >= 8 ? 'text-amber-600' : area.score <= 4 ? 'text-red-400' : 'text-slate-600'}`}>
-                                        {area.score}
-                                    </span>
-                                    {/* 미니 게이지 바 (CSS) */}
-                                    <div className="w-12 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                        <div className={`h-full ${area.score >= 8 ? 'bg-amber-500' : area.score >= 5 ? 'bg-amber-300' : 'bg-slate-300'}`} style={{width: `${area.score * 10}%`}}></div>
-                                    </div>
-                                </div>
-                             </td>
-                             <td className="px-4 py-3 text-slate-500 text-xs truncate max-w-xs">
-                                {area.note || <span className="text-slate-300 italic">-</span>}
-                             </td>
-                           </tr>
-                         ))}
-                       </tbody>
-                     </table>
-                   </div>
-                   
-                   {/* 총평 */}
-                   {result && (
-                      <div className="mt-6 bg-slate-50 p-5 rounded-xl border border-slate-200">
-                          <h4 className="font-bold text-slate-800 mb-2 text-sm flex items-center gap-2">💡 종합 분석</h4>
-                          <EditableContent className="text-slate-700 leading-relaxed text-sm" value={result.overall_review} onSave={(v)=>handleEdit('overall_review', null, v)} />
-                      </div>
-                   )}
-              </section>
-
-              {/* 2. AI 상세 코칭 결과 */}
-              {result ? (
-                <div className="space-y-8">
-                    {/* 만족 영역 */}
-                    <section className="bg-green-50 p-6 rounded-2xl border border-green-100">
-                        <h3 className="text-lg font-bold text-green-800 mb-4 flex items-center gap-2 border-b border-green-200 pb-3">
-                            <Smile size={20} className="text-green-600"/> {/* Smile 아이콘 사용 */}
-                            <EditableContent value={result.high_satisfaction.title} onSave={(v)=>handleEdit('high_satisfaction', 'title', v)} />
-                        </h3>
-                        <div className="space-y-4">
-                            <div>
-                                <strong className="text-xs text-green-700 block mb-1 uppercase tracking-wider">Analysis</strong>
-                                <EditableContent className="text-slate-700 text-sm leading-relaxed bg-white p-3 rounded-lg border border-green-100" value={result.high_satisfaction.summary} onSave={(v)=>handleEdit('high_satisfaction', 'summary', v)} />
-                            </div>
-                            <div>
-                                <strong className="text-xs text-green-700 block mb-1 uppercase tracking-wider">Coaching Advice</strong>
-                                <div className="flex gap-3 bg-white p-4 rounded-lg border border-green-100 shadow-sm">
-                                    <div className="shrink-0 pt-1"><FileText size={16} className="text-green-500"/></div>
-                                    <EditableContent className="text-slate-700 text-sm leading-relaxed" value={result.high_satisfaction.coaching} onSave={(v)=>handleEdit('high_satisfaction', 'coaching', v)} />
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-
-                    {/* 보완 영역 */}
-                    <section className="bg-red-50 p-6 rounded-2xl border border-red-100">
-                        <h3 className="text-lg font-bold text-red-800 mb-4 flex items-center gap-2 border-b border-red-200 pb-3">
-                            <Meh size={20} className="text-red-600"/> {/* Meh 아이콘 사용 */}
-                            <EditableContent value={result.low_satisfaction.title} onSave={(v)=>handleEdit('low_satisfaction', 'title', v)} />
-                        </h3>
-                        <div className="space-y-4">
-                            <div>
-                                <strong className="text-xs text-red-700 block mb-1 uppercase tracking-wider">Analysis</strong>
-                                <EditableContent className="text-slate-700 text-sm leading-relaxed bg-white p-3 rounded-lg border border-red-100" value={result.low_satisfaction.summary} onSave={(v)=>handleEdit('low_satisfaction', 'summary', v)} />
-                            </div>
-                            <div>
-                                <strong className="text-xs text-red-700 block mb-1 uppercase tracking-wider">Action Plan</strong>
-                                <div className="flex gap-3 bg-white p-4 rounded-lg border border-red-100 shadow-sm">
-                                    <div className="shrink-0 pt-1"><Briefcase size={16} className="text-red-500"/></div>
-                                    <EditableContent className="text-slate-700 text-sm leading-relaxed" value={result.low_satisfaction.coaching} onSave={(v)=>handleEdit('low_satisfaction', 'coaching', v)} />
-                                </div>
-                            </div>
-                        </div>
-                    </section>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-green-50 p-4 rounded border border-green-200">
+                  <h3 className="font-bold text-green-800 mb-2">✅ 만족 영역</h3>
+                  <EditableContent className="text-sm mb-2" value={result.high_satisfaction.summary} onSave={(v)=>handleEdit('high_satisfaction', 'summary', v)} />
+                  <div className="bg-white p-2 rounded text-sm font-bold text-green-700">
+                    <EditableContent value={result.high_satisfaction.coaching} onSave={(v)=>handleEdit('high_satisfaction', 'coaching', v)} />
+                  </div>
                 </div>
-              ) : (
-                <div className="flex-1 flex flex-col items-center justify-center text-slate-300 py-20">
-                    <ClipboardList size={64} className="mb-4 opacity-20"/>
-                    <p className="text-lg font-bold text-slate-400">좌측에서 점수를 입력하고 진단을 시작하세요.</p>
-                </div>
-              )}
 
+                <div className="bg-red-50 p-4 rounded border border-red-200">
+                  <h3 className="font-bold text-red-800 mb-2">⚠️ 보완 영역</h3>
+                  <EditableContent className="text-sm mb-2" value={result.low_satisfaction.summary} onSave={(v)=>handleEdit('low_satisfaction', 'summary', v)} />
+                  <div className="bg-white p-2 rounded text-sm font-bold text-red-700">
+                    <EditableContent value={result.low_satisfaction.coaching} onSave={(v)=>handleEdit('low_satisfaction', 'coaching', v)} />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-8 pt-4 border-t flex justify-end gap-2">
+                <button onClick={()=>saveAsPng(reportRef, 'result', showToast)} className="bg-blue-600 text-white px-4 py-2 rounded">이미지 저장</button>
+                <button onClick={()=>saveAsPdf(reportRef, 'result', showToast)} className="bg-red-600 text-white px-4 py-2 rounded">PDF 저장</button>
+              </div>
               <Footer />
             </div>
-        </main>
-
-        {/* 하단 다운로드 버튼 */}
-        {result && (
-          <div className="absolute bottom-8 right-8 flex gap-3 z-50">
-            <button onClick={handleDownload} className="bg-white text-slate-900 border border-slate-200 px-6 py-3 rounded-full font-bold shadow-xl hover:-translate-y-1 flex items-center transition-transform"><Download className="mr-2" size={20}/> 이미지 저장</button>
-            <button onClick={handlePdfDownload} className="bg-amber-800 text-white px-6 py-3 rounded-full font-bold shadow-xl hover:-translate-y-1 flex items-center transition-transform"><FileText className="mr-2" size={20}/> PDF 저장</button>
-          </div>
-        )}
+          ) : (
+            <div className="flex items-center justify-center h-full text-gray-400">
+              결과가 여기에 표시됩니다.
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

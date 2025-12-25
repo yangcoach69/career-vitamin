@@ -29,18 +29,19 @@ import {
 import { fetchGemini, saveAsPng, saveAsPdf, renderText } from './api';
 import { Toast, EditableContent, Footer } from './components/SharedUI';
 import JobFitScannerApp from './components/JobFitScanner';
-import HollandTestApp from './components/HollandTest';
+import HollandTestApp from './components/HollandTestApp'; // 파일명 확인 (HollandTestApp vs HollandTest)
 import CompanyAnalysisApp from './components/CompanyAnalysis';
 import InterviewPrepApp from './components/InterviewPrep';
-import ExperienceStructApp from './components/ExperienceStructApp';
+import ExperienceStructApp from './components/ExperienceStructApp'; // 파일명 확인 (ExperienceStructurer vs ExperienceStructApp)
 import PTInterviewPrepApp from './components/PTInterviewPrep';
 import CareerRoadmapApp from './components/CareerRoadmapApp';
 import RoleModelApp from './components/RoleModelApp';
 import SelfIntroApp from './components/SelfIntroApp';
 import Clinic from './components/Clinic';
-import LifeDesignApp from './components/LifeDesignApp.js'; // [NEW] 신규 앱 추가
+import LifeDesignApp from './components/LifeDesignApp.js';
+import LifeCurveApp from './components/LifeCurveApp.js'; // [NEW] 인생곡선 앱 추가
 
-// 아이콘 불러오기
+// 아이콘 불러오기 (최신화: Star, Percent, Sun, TrendingUp 등)
 import { 
   LayoutDashboard, Building2, LogOut, Trash2, 
   Settings, Loader2, Check, 
@@ -50,63 +51,15 @@ import {
   Globe, ThumbsUp, AlertCircle, ExternalLink,
   Info, PenTool, Lightbulb, Users, Lock, ClipboardList,
   FileSpreadsheet, FileText, Briefcase, GraduationCap, BrainCircuit, Key, Smile, Meh, Frown, Stethoscope, ArrowRight,
-  UploadCloud, FileCheck, Percent, Sun, PieChart, Star // 아이콘 추가
+  UploadCloud, FileCheck, Percent, Sun, PieChart, Star, Layout
 } from 'lucide-react';
 
 // [설정 구역]
 const OWNER_UID = "TN8orW7kwuTzAnFWNM8jCiixt3r2"; 
 const APP_ID = 'career-vitamin';
 
-// =============================================================================
-// [핵심 수정] SERVICES 객체에 'category' 속성을 추가하여 섹션을 구분합니다.
-// category: 'senior' -> 하단 [4050 중장년] 섹션
-// category 없음 or 'general' -> 상단 [기본] 섹션
-
-const SERVICES = {
-  // --- [섹션 1] 청년/공통 (기본) ---
-  holland_test: { name: "[AI] 홀랜드(Holland) 검사", desc: "RIASEC 결과 분석 및 관심직무 매칭", link: null, internal: true, icon: ClipboardList, color: "pink" },
-  gpt_guide: { name: "[AI] 직업탐색 가이드", desc: "관심 있는 직업/직무 완벽 분석", link: null, internal: true, icon: Compass, color: "emerald" },
-  company_analysis: { name: "[AI] 기업분석 리포트", desc: "기업 핵심가치/이슈/SWOT 분석 및 전략", link: null, internal: true, icon: BarChart3, color: "indigo" },
-  job_fit: { name: "[AI] 직무 적합도 진단", desc: "채용공고(JD)와 내 입사서류 매칭 분석", link: null, internal: true, icon: Percent, color: "rose" },
-  
-  // [이동] 커리어 로드맵을 다시 상단으로 복귀 (1분 자기소개 근처)
-  career_roadmap: { name: "[AI] 커리어 로드맵", desc: "입사 후 포부 및 성장 계획 수립", link: null, internal: true, icon: TrendingUp, color: "blue" },
-  self_intro: { name: "[AI] 1분 자기소개", desc: "직무/인성 컨셉 맞춤 가이드 스크립트", link: null, internal: true, icon: Mic, color: "purple" },
-  
-  role_model: { name: "[AI] 롤모델 분석", desc: "존경하는 인물 면접 활용 팁", link: null, internal: true, icon: Award, color: "orange" },
-  exp_structuring: { name: "[AI] 경험 구조화 (STAR)", desc: "경험 구조화 및 면접 스크립트", link: null, internal: true, icon: Star, color: "indigo" },
-  sit_interview: { name: "[AI] 상황면접 시뮬레이션", desc: "상황별 구조화된 면접 스크립트", link: null, internal: true, icon: Split, color: "teal" },
-  pt_interview: { name: "[AI] PT 면접 가이드", desc: "주제 추출 및 발표 스크립트", link: null, internal: true, icon: MonitorPlay, color: "rose" },
-  clinic: { name: "[AI] 자기소개서 클리닉", desc: "자기소개서 강평 및 수정", link: "/clinic", internal: true, icon: PenTool, color: "rose" },
-
-  // --- [섹션 2] 4050 중장년 컨설팅용 (category: 'senior' 추가) ---
-  life_design: { 
-    name: "[AI] 인생 8대 영역 설계", 
-    desc: "삶의 8가지 영역 밸런스 진단 및 코칭", 
-    link: null, 
-    internal: true, 
-    icon: Sun, // 혹은 PieChart
-    color: "amber",
-    category: 'senior' 
-  },
-};
-
-const COLOR_VARIANTS = {
-  emerald: "bg-emerald-100 text-emerald-600",
-  violet: "bg-violet-100 text-violet-600",
-  cyan: "bg-cyan-100 text-cyan-600",
-  indigo: "bg-indigo-100 text-indigo-600",
-  blue: "bg-blue-100 text-blue-600",
-  rose: "bg-rose-100 text-rose-600",
-  teal: "bg-teal-100 text-teal-600",
-  purple: "bg-purple-100 text-purple-600",
-  orange: "bg-orange-100 text-orange-600",
-  pink: "bg-pink-100 text-pink-600",
-  amber: "bg-amber-100 text-amber-600", // 중장년용 색상
-};
-
-
-// [NEW] 직업 탐색 가이드 앱 (기존 코드 유지)
+// [NEW] 직업 탐색 가이드 앱 (JobExplorerApp)
+// * 원래 App.js 내부에 있던 컴포넌트입니다.
 function JobExplorerApp({ onClose }) {
   const [inputs, setInputs] = useState({ job: '' });
   const [result, setResult] = useState(null);
@@ -367,6 +320,61 @@ function JobExplorerApp({ onClose }) {
   );
 }
 
+// =============================================================================
+// [핵심] SERVICES 객체에 'category' 속성을 추가하여 섹션을 구분합니다.
+// =============================================================================
+
+const SERVICES = {
+  // --- [섹션 1] 청년/공통 (기본) ---
+  holland_test: { name: "[AI] 홀랜드(Holland) 검사", desc: "나의 직업적 성격 유형(RIASEC) 탐색", link: null, internal: true, icon: ClipboardList, color: "pink" },
+  gpt_guide: { name: "[AI] 직업탐색 가이드", desc: "관심 있는 직업/직무 완벽 분석", link: null, internal: true, icon: Compass, color: "emerald" },
+  company_analysis: { name: "[AI] 기업분석 리포트", desc: "기업 핵심가치/이슈/SWOT 분석 및 전략", link: null, internal: true, icon: BarChart3, color: "indigo" },
+  job_fit: { name: "[AI] 직무 적합도 진단", desc: "채용공고(JD)와 내 입사서류 매칭 분석", link: null, internal: true, icon: Percent, color: "rose" }, // Percent 아이콘
+  
+  career_roadmap: { name: "[AI] 커리어 로드맵", desc: "입사 후 포부 및 성장 계획 수립", link: null, internal: true, icon: TrendingUp, color: "blue" },
+  self_intro: { name: "[AI] 1분 자기소개", desc: "직무/인성 컨셉 맞춤 가이드 스크립트", link: null, internal: true, icon: Mic, color: "purple" },
+  
+  role_model: { name: "[AI] 롤모델 분석", desc: "존경하는 인물 면접 활용 팁", link: null, internal: true, icon: Award, color: "orange" },
+  exp_structuring: { name: "[AI] 경험 구조화 (STAR)", desc: "경험 구조화 및 면접 스크립트", link: null, internal: true, icon: Star, color: "indigo" }, // Star 아이콘
+  sit_interview: { name: "[AI] 상황면접 시뮬레이션", desc: "상황별 구조화된 면접 스크립트", link: null, internal: true, icon: Split, color: "teal" },
+  pt_interview: { name: "[AI] PT 면접 가이드", desc: "주제 추출 및 발표 스크립트", link: null, internal: true, icon: MonitorPlay, color: "rose" },
+  clinic: { name: "[AI] 자기소개서 클리닉", desc: "자기소개서 강평 및 수정", link: "/clinic", internal: true, icon: PenTool, color: "rose" },
+
+  // --- [섹션 2] 4050 중장년 컨설팅용 (category: 'senior' 추가) ---
+  life_design: { 
+    name: "[AI] 인생 8대 영역 설계", 
+    desc: "삶의 8가지 영역 밸런스 진단 및 코칭", 
+    link: null, 
+    internal: true, 
+    icon: Sun, // Sun 아이콘
+    color: "amber",
+    category: 'senior' 
+  },
+  life_curve: { // [신규] 인생곡선 그리기 앱 추가
+    name: "[AI] 인생곡선 그리기",
+    desc: "삶의 희로애락 파동 시각화 및 의미 발견",
+    link: null,
+    internal: true,
+    icon: TrendingUp, // TrendingUp 아이콘
+    color: "indigo",
+    category: 'senior'
+  }
+};
+
+const COLOR_VARIANTS = {
+  emerald: "bg-emerald-100 text-emerald-600",
+  violet: "bg-violet-100 text-violet-600",
+  cyan: "bg-cyan-100 text-cyan-600",
+  indigo: "bg-indigo-100 text-indigo-600",
+  blue: "bg-blue-100 text-blue-600",
+  rose: "bg-rose-100 text-rose-600",
+  teal: "bg-teal-100 text-teal-600",
+  purple: "bg-purple-100 text-purple-600",
+  orange: "bg-orange-100 text-orange-600",
+  pink: "bg-pink-100 text-pink-600",
+  amber: "bg-amber-100 text-amber-600",
+};
+
 // --- Main App Component ---
 
 export default function App() {
@@ -512,13 +520,13 @@ export default function App() {
     </div>
   );
   
-  // [수정 포인트] 앱 목록을 카테고리별로 분리
+  // 앱 목록 분리
   const internalApps = Object.entries(SERVICES).filter(([_, svc]) => svc.internal);
   
-  // 1. 일반(Main) 앱: category가 없거나 'general'인 경우
+  // 1. 일반(Main) 앱
   const mainApps = internalApps.filter(([_, svc]) => !svc.category || svc.category === 'general');
   
-  // 2. 중장년(Senior) 앱: category가 'senior'인 경우
+  // 2. 중장년(Senior) 앱
   const seniorApps = internalApps.filter(([_, svc]) => svc.category === 'senior');
 
   return (
@@ -552,6 +560,7 @@ export default function App() {
       <main className="flex-1 p-8 overflow-y-auto">
         {activeTab === 'dashboard' ? (
            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
+             {/* AI 키 설정 영역 (기존 유지) */}
              <div className={`bg-white p-6 rounded-xl shadow-sm border-2 transition-all ${!hasPersonalKey ? 'border-red-400 ring-4 ring-red-50' : 'border-indigo-100'}`}>
                 <div className="flex justify-between items-start mb-4">
                     <div>
@@ -631,7 +640,7 @@ export default function App() {
 
                {/* 2. [신규] 4050 중장년 섹션 */}
                <div className="relative pt-6">
-                 {/* 구분선 및 타이틀 */}
+                 {/* 구분선 */}
                  <div className="absolute top-0 left-0 w-full border-t border-slate-200"></div>
                  <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
                     <Sun className="text-amber-500" size={20}/> 4050 중장년용 (Senior Bridge)
@@ -683,7 +692,6 @@ export default function App() {
                     입력되거나 생성된 데이터들은 서버에 저장되지 않으며, AI 학습에 활용되지 않습니다.
                   </p>  
                 </div>
-                {/* 3. 문의처 (Footer 컴포넌트 내부 로직과 별도로 대시보드 하단에 표시되는 부분) */}
                 <div className="mt-4">
                   <span className="text-xs font-medium text-slate-400">
                     Contact : yangcoach@gmail.com
@@ -694,7 +702,7 @@ export default function App() {
              {!hasPersonalKey && <div className="text-center text-slate-500 text-sm mt-4 animate-bounce">👆 먼저 위에서 API 키를 등록해주세요.</div>}
            </div>
         ) : (
-          /* 관리자 전용 탭 */
+          /* 관리자 전용 탭 (기존 유지) */
           <div className="space-y-8 max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4">
             <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
               <div className="flex justify-between items-center mb-6">
@@ -749,6 +757,8 @@ export default function App() {
           </div>
         )}
       </main>
+      
+      {/* 앱 렌더링 영역 (인생곡선 앱 추가) */}
       {currentApp === 'company_analysis' && <CompanyAnalysisApp onClose={()=>setCurrentApp('none')} />}
       {currentApp === 'career_roadmap' && <CareerRoadmapApp onClose={()=>setCurrentApp('none')} />}
       {currentApp === 'job_fit' && <JobFitScannerApp onClose={()=>setCurrentApp('none')} />}
@@ -760,7 +770,8 @@ export default function App() {
       {currentApp === 'gpt_guide' && <JobExplorerApp onClose={()=>setCurrentApp('none')} />}
       {currentApp === 'holland_test' && <HollandTestApp onClose={()=>setCurrentApp('none')} />}
       {currentApp === 'clinic' && <Clinic onClose={()=>setCurrentApp('none')} />}
-      {currentApp === 'life_design' && <LifeDesignApp onClose={()=>setCurrentApp('none')} />} {/* 신규 앱 렌더링 추가 */}
+      {currentApp === 'life_design' && <LifeDesignApp onClose={()=>setCurrentApp('none')} />} 
+      {currentApp === 'life_curve' && <LifeCurveApp onClose={()=>setCurrentApp('none')} />} {/* [NEW] */}
     </div>
   );
 }

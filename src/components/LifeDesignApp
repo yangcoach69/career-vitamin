@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react';
-// [최종 확인] App.js에 존재하는 아이콘만 사용 (Plus, Edit3 절대 사용 금지)
+// [핵심 수정] 선생님의 App.js에 "확실히 있는 아이콘"만 사용합니다.
+// (Plus, Edit3, Flag 등 없는 아이콘 절대 사용 금지)
 import { 
-  ChevronLeft, Loader2, Download, 
-  BarChart3, FileText, Check, AlertCircle, X, User
+  Sun, ChevronLeft, Loader2, Download, 
+  BarChart3, FileText, Check, AlertCircle, X, User, PenTool
 } from 'lucide-react';
 
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
@@ -169,7 +170,7 @@ export default function LifeDesignApp({ onClose }) {
                             className="w-full p-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none resize-none h-16 bg-slate-50 focus:bg-white transition-colors"
                         />
 
-                        {/* 자유 영역 삭제 버튼 (아이콘 대신 X 사용) */}
+                        {/* 자유 영역 삭제 버튼 (X 아이콘 사용) */}
                         {index >= 8 && (
                             <button onClick={() => removeCustomArea(index)} className="absolute -right-2 -top-2 bg-red-100 text-red-500 p-1 rounded-full hover:bg-red-200">
                                 <X size={12}/>
@@ -191,6 +192,7 @@ export default function LifeDesignApp({ onClose }) {
                             className="flex-1 p-2 border rounded-lg text-sm"
                             onKeyPress={(e) => e.key === 'Enter' && addCustomArea()}
                         />
+                        {/* Plus 아이콘 대신 텍스트 버튼 사용 (가장 안전) */}
                         <button onClick={addCustomArea} className="bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-700 font-bold text-xs">
                            추가
                         </button>

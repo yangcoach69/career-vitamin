@@ -634,7 +634,7 @@ export default function App() {
                  {/* 구분선 및 타이틀 */}
                  <div className="absolute top-0 left-0 w-full border-t border-slate-200"></div>
                  <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                    <Sun className="text-amber-500" size={20}/> 4050 중장년 컨설팅 (Senior Bridge)
+                    <Sun className="text-amber-500" size={20}/> 4050 중장년용 (Senior Bridge)
                  </h3>
                  
                  {seniorApps.length > 0 ? (

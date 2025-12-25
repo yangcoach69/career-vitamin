@@ -1,4 +1,5 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef } from 'react';
+// 아이콘이 없으면 에러가 나므로, lucide-react에서 확실히 있는 아이콘들만 가져옵니다.
 import { 
   Sun, ChevronLeft, Loader2, Download, 
   Plus, Trash2, PieChart, PenTool, CheckCircle2, AlertTriangle, Lightbulb
@@ -6,7 +7,8 @@ import {
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
 import { Toast, EditableContent, Footer } from './SharedUI';
 
-// [기본 8대 영역 설정 (시계 방향 순서)]
+// ----------------------------------------------------------------------
+// [중요 1] 기본 설정 데이터 (이 부분이 누락되면 에러가 납니다!)
 const DEFAULT_AREAS = [
   { id: 'work', label: '업(業)', eng: 'Work', score: 5, note: '' },
   { id: 'growth', label: '자기성장', eng: 'Self-Growth', score: 5, note: '' },
@@ -18,8 +20,11 @@ const DEFAULT_AREAS = [
   { id: 'leisure', label: '여가', eng: 'Leisure', score: 5, note: '' },
 ];
 
-// --- [순수 SVG 방사형 차트 컴포넌트] ---
+// ----------------------------------------------------------------------
+// [중요 2] 방사형 차트 컴포넌트 (이 함수도 반드시 있어야 합니다!)
 const RadarChart = ({ data, size = 300 }) => {
+  if (!data || data.length === 0) return null; // 데이터 보호
+
   const center = size / 2;
   const radius = (size / 2) - 40; // 라벨 공간 확보
   const total = data.length;
@@ -68,8 +73,8 @@ const RadarChart = ({ data, size = 300 }) => {
   });
 
   return (
-    <svg width={size} height={size} className="overflow-visible mx-auto font-sans">
-      {/* 배경 그리드 (거미줄) */}
+    <svg width={size} height={size} className="overflow-visible mx-auto font-sans" style={{ maxWidth: '100%' }}>
+      {/* 배경 그리드 */}
       {gridPaths.map((g, i) => (
         <polygon 
           key={i} 
@@ -92,15 +97,15 @@ const RadarChart = ({ data, size = 300 }) => {
         />
       ))}
 
-      {/* 데이터 영역 (폴리곤) */}
+      {/* 데이터 영역 */}
       <polygon 
         points={dataPoints} 
-        fill="rgba(245, 158, 11, 0.2)" // amber-500 with opacity
-        stroke="#d97706" // amber-600
+        fill="rgba(245, 158, 11, 0.2)" 
+        stroke="#d97706" 
         strokeWidth="2" 
       />
 
-      {/* 데이터 포인트 (점) */}
+      {/* 데이터 포인트 */}
       {data.map((d, i) => {
         const coords = getCoordinates(d.score, i);
         return (
@@ -139,12 +144,12 @@ const RadarChart = ({ data, size = 300 }) => {
     </svg>
   );
 };
-// ------------------------------------
 
+// ----------------------------------------------------------------------
+// [메인 컴포넌트]
 export default function LifeDesignApp({ onClose }) {
-  // 상태 관리
   const [areas, setAreas] = useState(DEFAULT_AREAS);
-  const [customAreaInput, setCustomAreaInput] = useState(''); // 커스텀 영역 입력값
+  const [customAreaInput, setCustomAreaInput] = useState('');
   
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -153,39 +158,25 @@ export default function LifeDesignApp({ onClose }) {
 
   const showToast = (msg) => setToastMsg(msg);
 
-  // 점수 변경 핸들러
   const handleScoreChange = (index, val) => {
     const newAreas = [...areas];
     newAreas[index].score = parseInt(val);
     setAreas(newAreas);
   };
 
-  // 메모 변경 핸들러
   const handleNoteChange = (index, val) => {
     const newAreas = [...areas];
     newAreas[index].note = val;
     setAreas(newAreas);
   };
 
-  // 커스텀 영역 추가
   const addCustomArea = () => {
     if (!customAreaInput.trim()) return showToast("추가할 영역 이름을 입력하세요.");
-    if (areas.length >= 10) return showToast("자유 영역은 최대 2개까지만 추가 가능합니다."); // 8기본 + 2자유 = 10
-    
-    setAreas([
-      ...areas, 
-      { 
-        id: `custom_${Date.now()}`, 
-        label: customAreaInput, 
-        eng: 'Custom', 
-        score: 5, 
-        note: '' 
-      }
-    ]);
+    if (areas.length >= 10) return showToast("자유 영역은 최대 2개까지만 추가 가능합니다."); 
+    setAreas([...areas, { id: `custom_${Date.now()}`, label: customAreaInput, eng: 'Custom', score: 5, note: '' }]);
     setCustomAreaInput('');
   };
 
-  // 커스텀 영역 삭제
   const removeCustomArea = (index) => {
     const newAreas = areas.filter((_, i) => i !== index);
     setAreas(newAreas);
@@ -194,11 +185,7 @@ export default function LifeDesignApp({ onClose }) {
   const handleGenerate = async () => {
     setLoading(true);
     try {
-      // 입력 데이터 정리
-      const inputSummary = areas.map(a => 
-        `- ${a.label}(${a.score}점): ${a.note || '특이사항 없음'}`
-      ).join('\n');
-
+      const inputSummary = areas.map(a => `- ${a.label}(${a.score}점): ${a.note || '특이사항 없음'}`).join('\n');
       const prompt = `
       당신은 4050 중장년 대상의 생애설계(Life Design) 전문 코치입니다.
       사용자가 입력한 '인생 8대 영역(+알파)'의 점수와 상태 메모를 분석하여 코칭 리포트를 작성해주세요.
@@ -228,11 +215,7 @@ export default function LifeDesignApp({ onClose }) {
 
       const parsed = await fetchGemini(prompt);
       setResult(parsed);
-    } catch (e) {
-      showToast(e.message);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { showToast(e.message); } finally { setLoading(false); }
   };
 
   const handleEdit = (section, key, value) => {
@@ -272,7 +255,6 @@ export default function LifeDesignApp({ onClose }) {
                 현재의 고민이나 상태를 짧게 메모해주세요.
             </div>
 
-            {/* 영역별 입력 루프 */}
             <div className="space-y-6">
                 {areas.map((area, index) => (
                     <div key={area.id} className="relative animate-in fade-in slide-in-from-left-4" style={{animationDelay: `${index * 50}ms`}}>
@@ -286,16 +268,12 @@ export default function LifeDesignApp({ onClose }) {
                             </span>
                         </div>
                         
-                        {/* 점수 슬라이더 */}
                         <input 
-                            type="range" 
-                            min="1" max="10" 
-                            value={area.score}
+                            type="range" min="1" max="10" value={area.score}
                             onChange={(e) => handleScoreChange(index, e.target.value)}
                             className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-amber-600 mb-3"
                         />
 
-                        {/* 메모장 */}
                         <textarea
                             value={area.note}
                             onChange={(e) => handleNoteChange(index, e.target.value)}
@@ -303,12 +281,8 @@ export default function LifeDesignApp({ onClose }) {
                             className="w-full p-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none resize-none h-16 bg-slate-50 focus:bg-white transition-colors"
                         />
 
-                        {/* 커스텀 영역 삭제 버튼 */}
                         {index >= 8 && (
-                            <button 
-                                onClick={() => removeCustomArea(index)}
-                                className="absolute -right-2 -top-2 bg-red-100 text-red-500 p-1 rounded-full hover:bg-red-200"
-                            >
+                            <button onClick={() => removeCustomArea(index)} className="absolute -right-2 -top-2 bg-red-100 text-red-500 p-1 rounded-full hover:bg-red-200">
                                 <Trash2 size={12}/>
                             </button>
                         )}
@@ -316,7 +290,6 @@ export default function LifeDesignApp({ onClose }) {
                 ))}
             </div>
 
-            {/* 커스텀 영역 추가 */}
             {areas.length < 10 && (
                 <div className="pt-4 border-t border-slate-200">
                     <label className="block text-xs font-bold text-slate-500 mb-2">자유 영역 추가 (선택, 최대 2개)</label>
@@ -328,21 +301,12 @@ export default function LifeDesignApp({ onClose }) {
                             className="flex-1 p-2 border rounded-lg text-sm"
                             onKeyPress={(e) => e.key === 'Enter' && addCustomArea()}
                         />
-                        <button 
-                            onClick={addCustomArea}
-                            className="bg-slate-800 text-white px-3 py-2 rounded-lg hover:bg-slate-700"
-                        >
-                            <Plus size={16}/>
-                        </button>
+                        <button onClick={addCustomArea} className="bg-slate-800 text-white px-3 py-2 rounded-lg hover:bg-slate-700"><Plus size={16}/></button>
                     </div>
                 </div>
             )}
 
-            <button 
-              onClick={handleGenerate} 
-              disabled={loading} 
-              className="w-full bg-amber-700 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-amber-800 transition-all disabled:bg-slate-400 text-lg flex items-center justify-center gap-2"
-            >
+            <button onClick={handleGenerate} disabled={loading} className="w-full bg-amber-700 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-amber-800 transition-all disabled:bg-slate-400 text-lg flex items-center justify-center gap-2">
               {loading ? <Loader2 className="animate-spin"/> : <><PieChart size={20}/> 밸런스 진단하기</>}
             </button>
           </div>
@@ -351,8 +315,6 @@ export default function LifeDesignApp({ onClose }) {
         {/* 결과 리포트 화면 */}
         <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
             <div ref={reportRef} className="w-[210mm] min-h-[297mm] h-fit bg-white shadow-2xl p-12 flex flex-col animate-in fade-in zoom-in-95 duration-500">
-              
-              {/* 리포트 헤더 */}
               <div className="border-b-4 border-amber-600 pb-6 mb-8 flex justify-between items-end">
                 <div>
                     <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">LIFE BALANCE REPORT</span>
@@ -364,14 +326,10 @@ export default function LifeDesignApp({ onClose }) {
                 </div>
               </div>
 
-              {/* 1. 상단: 방사형 차트 시각화 */}
               <div className="mb-10 flex flex-col items-center justify-center bg-slate-50 rounded-2xl p-8 border border-slate-100">
-                  <h3 className="text-lg font-bold text-slate-700 mb-6 flex items-center gap-2">
-                    <PieChart className="text-amber-500"/> 나의 생애 균형도
-                  </h3>
+                  <h3 className="text-lg font-bold text-slate-700 mb-6 flex items-center gap-2"><PieChart className="text-amber-500"/> 나의 생애 균형도</h3>
                   <RadarChart data={areas} size={360} />
                   
-                  {/* 총평 (차트 바로 아래) */}
                   {result && (
                       <div className="mt-8 text-center max-w-2xl bg-white p-6 rounded-xl border border-amber-100 shadow-sm">
                           <h4 className="font-bold text-amber-800 mb-2">💡 Overall Review</h4>
@@ -382,11 +340,9 @@ export default function LifeDesignApp({ onClose }) {
 
               {result ? (
                 <div className="space-y-8">
-                    {/* 2. 만족 영역 (High Satisfaction) */}
                     <section className="bg-green-50 p-6 rounded-2xl border border-green-100">
                         <h3 className="text-xl font-bold text-green-800 mb-4 flex items-center gap-2 border-b border-green-200 pb-3">
-                            <CheckCircle2 className="text-green-600"/> 
-                            <EditableContent value={result.high_satisfaction.title} onSave={(v)=>handleEdit('high_satisfaction', 'title', v)} />
+                            <CheckCircle2 className="text-green-600"/> <EditableContent value={result.high_satisfaction.title} onSave={(v)=>handleEdit('high_satisfaction', 'title', v)} />
                         </h3>
                         <div className="space-y-4">
                             <div>
@@ -403,11 +359,9 @@ export default function LifeDesignApp({ onClose }) {
                         </div>
                     </section>
 
-                    {/* 3. 보완 영역 (Low Satisfaction) */}
                     <section className="bg-red-50 p-6 rounded-2xl border border-red-100">
                         <h3 className="text-xl font-bold text-red-800 mb-4 flex items-center gap-2 border-b border-red-200 pb-3">
-                            <AlertTriangle className="text-red-600"/> 
-                            <EditableContent value={result.low_satisfaction.title} onSave={(v)=>handleEdit('low_satisfaction', 'title', v)} />
+                            <AlertTriangle className="text-red-600"/> <EditableContent value={result.low_satisfaction.title} onSave={(v)=>handleEdit('low_satisfaction', 'title', v)} />
                         </h3>
                         <div className="space-y-4">
                             <div>
@@ -426,8 +380,8 @@ export default function LifeDesignApp({ onClose }) {
                 </div>
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center text-slate-300 py-20">
+                    <PieChart size={64} className="mb-4 opacity-20"/>
                     <p className="text-lg font-bold text-slate-400">좌측에서 영역별 진단을 진행해주세요.</p>
-                    <p className="text-sm mt-2">입력한 점수와 메모를 바탕으로 AI 코칭 리포트가 생성됩니다.</p>
                 </div>
               )}
 

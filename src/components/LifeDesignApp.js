@@ -1,15 +1,15 @@
 import React, { useState, useRef } from 'react';
-// [안전 모드] 검증된 아이콘만 사용
+// [안전 모드] 검증된 아이콘만 사용 (충돌 방지)
 import { 
   BarChart3, ChevronLeft, Loader2, Download, 
-  FileText, Target, Check, AlertCircle, User, ClipboardList
+  FileText, Target, Check, AlertCircle, User, ClipboardList, X
 } from 'lucide-react';
 
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
 import { Toast, EditableContent, Footer } from './SharedUI';
 
 // ----------------------------------------------------------------------
-// 1. 방사형 차트 (SVG 구현)
+// 1. 방사형 차트 (SVG 구현 - 안전성 확보)
 const RadarChart = ({ data, size = 320 }) => {
   if (!data || data.length === 0) return null;
 
@@ -73,7 +73,7 @@ const RadarChart = ({ data, size = 320 }) => {
         {labels.map((l, i) => (
           <g key={i}>
             <text x={l.x} y={l.y} dy="0.3em" textAnchor="middle" className="text-[11px] font-bold fill-slate-700" style={{fontSize:'11px'}}>
-              {l.label}
+              {l.label.split('(')[0]} {/* 차트 라벨은 짧게 */}
             </text>
           </g>
         ))}
@@ -85,19 +85,20 @@ const RadarChart = ({ data, size = 320 }) => {
 // ----------------------------------------------------------------------
 // 2. 메인 앱 컴포넌트
 export default function LifeDesignApp({ onClose }) {
-  // 8대 영역 고정 데이터
+  // [수정 완료] 8대 영역 명칭 및 영문 업데이트
   const [areas, setAreas] = useState([
-    { id: 'work', label: '업(業)', score: 5, note: '' },
-    { id: 'growth', label: '자기성장', score: 5, note: '' },
-    { id: 'contribution', label: '사회공헌', score: 5, note: '' },
-    { id: 'family', label: '가족', score: 5, note: '' },
-    { id: 'relation', label: '사회적 관계', score: 5, note: '' },
-    { id: 'material', label: '물적소유', score: 5, note: '' },
-    { id: 'finance', label: '재무', score: 5, note: '' },
-    { id: 'leisure', label: '여가', score: 5, note: '' },
+    { id: 'work', label: '업(業)', eng: 'Work', score: 5, note: '' },
+    { id: 'growth', label: '자기성장 (일 이외의)', eng: 'Self-Growth', score: 5, note: '' },
+    { id: 'contribution', label: '사회공헌 (봉사 등)', eng: 'Contribution', score: 5, note: '' },
+    { id: 'family', label: '가족', eng: 'Family', score: 5, note: '' },
+    { id: 'relation', label: '사회적 관계', eng: 'Relationship', score: 5, note: '' },
+    { id: 'material', label: '물적소유 (주거 등)', eng: 'Possession', score: 5, note: '' },
+    { id: 'finance', label: '재무', eng: 'Finance', score: 5, note: '' },
+    { id: 'leisure', label: '여가와 시간', eng: 'Leisure & Time', score: 5, note: '' },
   ]);
 
   const [ageGroup, setAgeGroup] = useState('50'); // 연령대
+  
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [toastMsg, setToastMsg] = useState(null);
@@ -221,21 +222,24 @@ export default function LifeDesignApp({ onClose }) {
             <div className="space-y-6">
                 {areas.map((area, index) => (
                     <div key={area.id} className="relative">
-                        <div className="flex justify-between items-center mb-2">
+                        <div className="flex flex-col mb-2">
                             <label className="font-bold text-slate-700 flex items-center gap-2 text-sm">
                                 <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-xs">{index+1}</span>
-                                {area.label}
+                                {area.label} 
                             </label>
-                            <span className={`font-bold text-sm ${area.score >= 8 ? 'text-amber-600' : 'text-slate-600'}`}>
-                                {area.score} / 10
-                            </span>
+                            <span className="text-[10px] text-slate-400 pl-7 uppercase tracking-wider">{area.eng}</span>
                         </div>
                         
-                        <input 
-                            type="range" min="1" max="10" value={area.score}
-                            onChange={(e) => handleScoreChange(index, e.target.value)}
-                            className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-amber-600 mb-3"
-                        />
+                        <div className="flex justify-between items-center mb-2">
+                            <input 
+                                type="range" min="1" max="10" value={area.score}
+                                onChange={(e) => handleScoreChange(index, e.target.value)}
+                                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-amber-600 mr-3"
+                            />
+                            <span className={`font-bold text-sm w-12 text-right ${area.score >= 8 ? 'text-amber-600' : 'text-slate-600'}`}>
+                                {area.score}점
+                            </span>
+                        </div>
 
                         <textarea
                             value={area.note}
@@ -273,7 +277,7 @@ export default function LifeDesignApp({ onClose }) {
                     </p>
                 </div>
 
-                {/* (2) 방사형 차트 + 순위 표 */}
+                {/* (2) 방사형 차트 + 순위 테이블 */}
                 <div className="mb-10 bg-slate-50 rounded-2xl p-8 border border-slate-100">
                     <h3 className="text-lg font-bold text-slate-700 mb-6 flex items-center gap-2">
                         <Target className="text-amber-500"/> 나의 생애 균형도
@@ -299,7 +303,10 @@ export default function LifeDesignApp({ onClose }) {
                                 {sortedAreas.map((area, i) => (
                                     <tr key={area.id} className={i < 3 ? "bg-amber-50/30" : ""}>
                                         <td className="px-4 py-2 text-center font-bold text-slate-500">{i + 1}</td>
-                                        <td className="px-4 py-2 font-bold text-slate-700">{area.label}</td>
+                                        <td className="px-4 py-2">
+                                            <div className="font-bold text-slate-700">{area.label}</div>
+                                            <div className="text-[10px] text-slate-400 uppercase">{area.eng}</div>
+                                        </td>
                                         <td className="px-4 py-2 text-center font-bold text-amber-600">{area.score}</td>
                                         <td className="px-4 py-2 text-center">
                                             <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
@@ -341,10 +348,10 @@ export default function LifeDesignApp({ onClose }) {
                     </div>
                 </div>
 
-                {/* (4) 종합 총평 (하단 배치, 은유적 표현 & 응원) */}
+                {/* (4) 종합 총평 (수정됨: 전문가의 총평) */}
                 <div className="bg-slate-800 text-white p-8 rounded-xl shadow-lg mt-auto">
                     <h3 className="font-bold text-amber-400 mb-4 text-lg flex items-center gap-2">
-                        <ClipboardList className="text-amber-400"/> 전문 컨설턴트 총평
+                        <ClipboardList className="text-amber-400"/> 전문가의 총평
                     </h3>
                     <div className="leading-relaxed text-slate-200 text-justify text-base">
                         <EditableContent value={result.overall_review} onSave={(v)=>handleEdit('overall_review', null, v)} />

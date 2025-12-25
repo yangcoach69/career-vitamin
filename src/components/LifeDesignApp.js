@@ -1,15 +1,15 @@
 import React, { useState, useRef } from 'react';
-// [안전 모드] HollandTestApp 등에서 검증된 아이콘만 사용 (충돌 방지)
+// [안전 모드] 검증된 아이콘만 사용
 import { 
   BarChart3, ChevronLeft, Loader2, Download, 
-  FileText, Target, Check, AlertCircle, X, User, ClipboardList
+  FileText, Target, Check, AlertCircle, User, ClipboardList
 } from 'lucide-react';
 
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
 import { Toast, EditableContent, Footer } from './SharedUI';
 
 // ----------------------------------------------------------------------
-// 1. 방사형 차트 (SVG로 직접 구현 - 라이브러리 없이 안전하게)
+// 1. 방사형 차트 (SVG 구현)
 const RadarChart = ({ data, size = 320 }) => {
   if (!data || data.length === 0) return null;
 
@@ -18,7 +18,6 @@ const RadarChart = ({ data, size = 320 }) => {
   const total = data.length;
   const angleSlice = (Math.PI * 2) / total;
 
-  // 좌표 계산 함수
   const getCoordinates = (value, index) => {
     const safeValue = isNaN(value) ? 0 : Number(value);
     const angle = index * angleSlice - Math.PI / 2;
@@ -29,7 +28,6 @@ const RadarChart = ({ data, size = 320 }) => {
     };
   };
 
-  // 그리드(거미줄)
   const levels = [2, 4, 6, 8, 10];
   const gridPaths = levels.map(level => {
     const points = data.map((_, i) => {
@@ -39,20 +37,17 @@ const RadarChart = ({ data, size = 320 }) => {
     return { level, points };
   });
 
-  // 축(Axis)
   const axisLines = data.map((_, i) => {
     const start = { x: center, y: center };
     const end = getCoordinates(10, i);
     return { start, end };
   });
 
-  // 데이터 영역
   const dataPoints = data.map((d, i) => {
     const { x, y } = getCoordinates(d.score, i);
     return `${x},${y}`;
   }).join(' ');
 
-  // 라벨 위치
   const labels = data.map((d, i) => {
     const angle = i * angleSlice - Math.PI / 2;
     const r = radius + 25; 
@@ -64,22 +59,17 @@ const RadarChart = ({ data, size = 320 }) => {
   return (
     <div className="flex justify-center items-center py-6">
       <svg width={size} height={size} style={{ overflow: 'visible', maxWidth: '100%' }}>
-        {/* 배경 그리드 */}
         {gridPaths.map((g, i) => (
           <polygon key={i} points={g.points} fill="none" stroke="#e2e8f0" strokeWidth="1" strokeDasharray="4 4"/>
         ))}
-        {/* 축 */}
         {axisLines.map((l, i) => (
           <line key={i} x1={l.start.x} y1={l.start.y} x2={l.end.x} y2={l.end.y} stroke="#e2e8f0" strokeWidth="1"/>
         ))}
-        {/* 데이터 영역 (채우기) */}
         <polygon points={dataPoints} fill="rgba(217, 119, 6, 0.2)" stroke="#d97706" strokeWidth="2"/>
-        {/* 데이터 포인트 (점) */}
         {data.map((d, i) => {
           const coords = getCoordinates(d.score, i);
           return <circle key={i} cx={coords.x} cy={coords.y} r="4" fill="#d97706" stroke="white" strokeWidth="2"/>;
         })}
-        {/* 라벨 */}
         {labels.map((l, i) => (
           <g key={i}>
             <text x={l.x} y={l.y} dy="0.3em" textAnchor="middle" className="text-[11px] font-bold fill-slate-700" style={{fontSize:'11px'}}>
@@ -95,7 +85,7 @@ const RadarChart = ({ data, size = 320 }) => {
 // ----------------------------------------------------------------------
 // 2. 메인 앱 컴포넌트
 export default function LifeDesignApp({ onClose }) {
-  // 기본 데이터
+  // 8대 영역 고정 데이터
   const [areas, setAreas] = useState([
     { id: 'work', label: '업(業)', score: 5, note: '' },
     { id: 'growth', label: '자기성장', score: 5, note: '' },
@@ -107,9 +97,7 @@ export default function LifeDesignApp({ onClose }) {
     { id: 'leisure', label: '여가', score: 5, note: '' },
   ]);
 
-  const [ageGroup, setAgeGroup] = useState('50'); // 연령대 (40, 50, 60)
-  const [customAreaInput, setCustomAreaInput] = useState('');
-  
+  const [ageGroup, setAgeGroup] = useState('50'); // 연령대
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [toastMsg, setToastMsg] = useState(null);
@@ -130,48 +118,41 @@ export default function LifeDesignApp({ onClose }) {
     setAreas(newAreas);
   };
 
-  const addCustomArea = () => {
-    if (!customAreaInput.trim()) return showToast("영역 이름을 입력하세요.");
-    if (areas.length >= 10) return showToast("최대 2개까지만 추가 가능합니다."); 
-    setAreas([...areas, { id: `custom_${Date.now()}`, label: customAreaInput, score: 5, note: '' }]);
-    setCustomAreaInput('');
-  };
-
-  const removeCustomArea = (index) => {
-    const newAreas = areas.filter((_, i) => i !== index);
-    setAreas(newAreas);
-  };
-
   // AI 분석 요청
   const handleGenerate = async () => {
     setLoading(true);
     try {
-      const inputSummary = areas.map(a => `${a.label}(${a.score}점): ${a.note || '특이사항 없음'}`).join('\n');
+      const sortedAreas = [...areas].sort((a, b) => b.score - a.score);
+      const inputSummary = sortedAreas.map((a, i) => 
+        `${i+1}위. ${a.label}(${a.score}점): ${a.note || '특이사항 없음'}`
+      ).join('\n');
+
       const prompt = `
-      당신은 ${ageGroup}대 중장년층을 위한 생애설계 전문 컨설턴트입니다.
+      당신은 ${ageGroup}대 중장년층을 위한 생애설계(Life Design) 전문 코치입니다.
       사용자가 입력한 '8대 영역 밸런스'를 분석하여 리포트를 작성해주세요.
 
       [사용자 정보]
       - 연령대: ${ageGroup}대
-      - 영역별 점수(10점 만점) 및 메모:
+      - 영역별 점수(높은 순):
       ${inputSummary}
 
       [요청사항]
       1. '만족 영역(High Satisfaction)'은 현재의 강점이므로 칭찬하고 유지 전략을 제시하세요.
       2. '보완 영역(Low Satisfaction)'은 균형을 위해 당장 실천할 수 있는 구체적인 액션플랜을 제안하세요.
-      3. 마지막 '종합 총평(Overall Review)'에서는 ${ageGroup}대의 생애 주기 특성을 반영하여, 따뜻하고 깊이 있는 조언을 3~4문장으로 충실하게 작성해주세요.
+      3. **중요:** 마지막 '종합 총평(Overall Review)'은 인생을 여행, 건축, 예술 작품, 계절 등에 비유하는 **은유적 수사법**을 사용하여 감동적으로 작성해주세요.
+      4. 총평 끝에는 ${ageGroup}대의 도전을 응원하는 따뜻하고 힘찬 격려의 메시지를 담아주세요.
 
       [JSON 출력 형식]
       {
         "high_satisfaction": {
-          "title": "삶의 활력소 (만족 영역)",
-          "content": "분석 및 조언 내용"
+          "title": "삶의 든든한 버팀목 (강점 영역)",
+          "content": "분석 및 유지 전략 내용"
         },
         "low_satisfaction": {
-          "title": "더 채워갈 곳 (보완 영역)",
-          "content": "분석 및 액션플랜"
+          "title": "새로운 기회의 씨앗 (보완 영역)",
+          "content": "분석 및 구체적 액션플랜"
         },
-        "overall_review": "전체적인 총평 및 ${ageGroup}대 맞춤 조언 (풍성하게)"
+        "overall_review": "은유적 표현이 담긴 감동적인 총평 및 격려 메시지"
       }`;
 
       const parsed = await fetchGemini(prompt);
@@ -191,11 +172,15 @@ export default function LifeDesignApp({ onClose }) {
   const handleDownload = () => saveAsPng(reportRef, `생애설계_진단결과`, showToast);
   const handlePdfDownload = () => saveAsPdf(reportRef, `생애설계_진단결과`, showToast);
 
+  // [결과 화면용] 계산
+  const sortedAreas = [...areas].sort((a, b) => b.score - a.score);
+  const averageScore = (areas.reduce((acc, cur) => acc + cur.score, 0) / areas.length).toFixed(1);
+
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
       {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
       
-      {/* 1. 헤더 (다른 앱과 동일한 인터페이스) */}
+      {/* 1. 헤더 */}
       <header className="bg-amber-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
         <div className="flex items-center gap-3">
           <Target className="text-amber-400"/>
@@ -257,34 +242,11 @@ export default function LifeDesignApp({ onClose }) {
                             onChange={(e) => handleNoteChange(index, e.target.value)}
                             placeholder="관련된 현재 상태나 고민 (선택)"
                             className="w-full p-2 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none resize-none bg-slate-50 focus:bg-white transition-colors"
-                            rows={2} // [수정] 2줄로 키움
+                            rows={2}
                         />
-
-                        {/* 커스텀 영역 삭제 버튼 */}
-                        {index >= 8 && (
-                            <button onClick={() => removeCustomArea(index)} className="absolute right-0 top-0 text-red-400 hover:text-red-600 p-1">
-                                <X size={14}/>
-                            </button>
-                        )}
                     </div>
                 ))}
             </div>
-
-            {/* 영역 추가 */}
-            {areas.length < 10 && (
-                <div className="pt-4 border-t border-slate-200 flex gap-2">
-                    <input 
-                        value={customAreaInput}
-                        onChange={(e) => setCustomAreaInput(e.target.value)}
-                        placeholder="예: 종교, 봉사 등"
-                        className="flex-1 p-2 border rounded-lg text-sm"
-                        onKeyPress={(e) => e.key === 'Enter' && addCustomArea()}
-                    />
-                    <button onClick={addCustomArea} className="bg-slate-700 text-white px-3 py-2 rounded-lg text-xs font-bold">
-                       추가
-                    </button>
-                </div>
-            )}
 
             <button onClick={handleGenerate} disabled={loading} className="w-full bg-amber-700 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-amber-800 transition-all disabled:bg-slate-400 text-lg flex items-center justify-center gap-2">
               {loading ? <Loader2 className="animate-spin"/> : "진단 결과 보기"}
@@ -311,23 +273,58 @@ export default function LifeDesignApp({ onClose }) {
                     </p>
                 </div>
 
-                {/* (2) 방사형 차트 (상단 배치) */}
-                <div className="mb-10 flex flex-col items-center justify-center bg-slate-50 rounded-2xl p-8 border border-slate-100">
+                {/* (2) 방사형 차트 + 순위 표 */}
+                <div className="mb-10 bg-slate-50 rounded-2xl p-8 border border-slate-100">
                     <h3 className="text-lg font-bold text-slate-700 mb-6 flex items-center gap-2">
-                        <BarChart3 className="text-amber-500"/> 나의 생애 균형도
+                        <Target className="text-amber-500"/> 나의 생애 균형도
                     </h3>
-                    <RadarChart data={areas} size={360} />
+                    
+                    {/* 차트 */}
+                    <div className="mb-8">
+                      <RadarChart data={areas} size={360} />
+                    </div>
+
+                    {/* [NEW] 순위 테이블 */}
+                    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-slate-100 text-slate-600 font-bold uppercase text-xs">
+                                <tr>
+                                    <th className="px-4 py-3 text-center w-16">순위</th>
+                                    <th className="px-4 py-3">영역</th>
+                                    <th className="px-4 py-3 text-center w-24">점수</th>
+                                    <th className="px-4 py-3 text-center w-24">상태</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {sortedAreas.map((area, i) => (
+                                    <tr key={area.id} className={i < 3 ? "bg-amber-50/30" : ""}>
+                                        <td className="px-4 py-2 text-center font-bold text-slate-500">{i + 1}</td>
+                                        <td className="px-4 py-2 font-bold text-slate-700">{area.label}</td>
+                                        <td className="px-4 py-2 text-center font-bold text-amber-600">{area.score}</td>
+                                        <td className="px-4 py-2 text-center">
+                                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                                                area.score >= 8 ? 'bg-green-100 text-green-700' : 
+                                                area.score <= 4 ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'
+                                            }`}>
+                                                {area.score >= 8 ? '만족' : area.score <= 4 ? '부족' : '보통'}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
-                {/* (3) 만족/보완 영역 분석 (중간 배치) */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+                {/* (3) 만족/보완 영역 분석 (상하 배치) */}
+                <div className="space-y-6 mb-10">
                     {/* 만족 영역 */}
                     <div className="bg-green-50 p-6 rounded-xl border border-green-100">
                         <h3 className="font-bold text-green-800 mb-3 flex items-center gap-2 text-lg">
                             <Check className="text-green-600" size={20}/> 
                             <EditableContent value={result.high_satisfaction.title} onSave={(v)=>handleEdit('high_satisfaction', 'title', v)} />
                         </h3>
-                        <div className="bg-white p-4 rounded-lg border border-green-100 text-slate-700 text-sm leading-relaxed shadow-sm min-h-[100px]">
+                        <div className="bg-white p-5 rounded-lg border border-green-100 text-slate-700 text-sm leading-relaxed shadow-sm">
                             <EditableContent value={result.high_satisfaction.content} onSave={(v)=>handleEdit('high_satisfaction', 'content', v)} />
                         </div>
                     </div>
@@ -338,16 +335,16 @@ export default function LifeDesignApp({ onClose }) {
                             <AlertCircle className="text-red-600" size={20}/> 
                             <EditableContent value={result.low_satisfaction.title} onSave={(v)=>handleEdit('low_satisfaction', 'title', v)} />
                         </h3>
-                        <div className="bg-white p-4 rounded-lg border border-red-100 text-slate-700 text-sm leading-relaxed shadow-sm min-h-[100px]">
+                        <div className="bg-white p-5 rounded-lg border border-red-100 text-slate-700 text-sm leading-relaxed shadow-sm">
                             <EditableContent value={result.low_satisfaction.content} onSave={(v)=>handleEdit('low_satisfaction', 'content', v)} />
                         </div>
                     </div>
                 </div>
 
-                {/* (4) 종합 총평 (하단 배치, 충실한 내용) */}
+                {/* (4) 종합 총평 (하단 배치, 은유적 표현 & 응원) */}
                 <div className="bg-slate-800 text-white p-8 rounded-xl shadow-lg mt-auto">
                     <h3 className="font-bold text-amber-400 mb-4 text-lg flex items-center gap-2">
-                        <ClipboardList/> 전문 컨설턴트 총평
+                        <ClipboardList className="text-amber-400"/> 전문 컨설턴트 총평
                     </h3>
                     <div className="leading-relaxed text-slate-200 text-justify text-base">
                         <EditableContent value={result.overall_review} onSave={(v)=>handleEdit('overall_review', null, v)} />

@@ -29,7 +29,7 @@ import {
 import { fetchGemini, saveAsPng, saveAsPdf, renderText } from './api';
 import { Toast, EditableContent, Footer } from './components/SharedUI';
 import JobFitScannerApp from './components/JobFitScanner';
-import HollandTestApp from './components/HollandTestApp'; // 파일명 확인 (HollandTestApp vs HollandTest)
+import HollandTestApp from './components/HollandTest'; // 파일명 확인 (HollandTestApp vs HollandTest)
 import CompanyAnalysisApp from './components/CompanyAnalysis';
 import InterviewPrepApp from './components/InterviewPrep';
 import ExperienceStructApp from './components/ExperienceStructApp'; // 파일명 확인 (ExperienceStructurer vs ExperienceStructApp)
@@ -768,7 +768,7 @@ export default function App() {
       {currentApp === 'exp_structuring' && <ExperienceStructApp onClose={()=>setCurrentApp('none')} />}
       {currentApp === 'role_model' && <RoleModelApp onClose={()=>setCurrentApp('none')} />}
       {currentApp === 'gpt_guide' && <JobExplorerApp onClose={()=>setCurrentApp('none')} />}
-      {currentApp === 'holland_test' && <HollandTestApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'holland_test' && <HollandTest onClose={()=>setCurrentApp('none')} />}
       {currentApp === 'clinic' && <Clinic onClose={()=>setCurrentApp('none')} />}
       {currentApp === 'life_design' && <LifeDesignApp onClose={()=>setCurrentApp('none')} />} 
       {currentApp === 'life_curve' && <LifeCurveApp onClose={()=>setCurrentApp('none')} />} {/* [NEW] */}

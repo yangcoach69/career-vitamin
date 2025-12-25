@@ -1,14 +1,16 @@
 import React, { useState, useRef } from 'react';
-// 아이콘이 없으면 에러가 나므로, lucide-react에서 확실히 있는 아이콘들만 가져옵니다.
+// [수정] PieChart 제거 -> Target으로 대체 (버전 충돌 방지)
 import { 
   Sun, ChevronLeft, Loader2, Download, 
-  Plus, Trash2, PieChart, PenTool, CheckCircle2, AlertTriangle, Lightbulb
+  Plus, Trash2, Target, PenTool, Check, AlertCircle, Lightbulb
 } from 'lucide-react';
+
+// [경로 확인] 같은 폴더(components) 내에 SharedUI가 있어야 합니다.
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
 import { Toast, EditableContent, Footer } from './SharedUI';
 
 // ----------------------------------------------------------------------
-// [중요 1] 기본 설정 데이터 (이 부분이 누락되면 에러가 납니다!)
+// [기본 설정 데이터]
 const DEFAULT_AREAS = [
   { id: 'work', label: '업(業)', eng: 'Work', score: 5, note: '' },
   { id: 'growth', label: '자기성장', eng: 'Self-Growth', score: 5, note: '' },
@@ -21,26 +23,28 @@ const DEFAULT_AREAS = [
 ];
 
 // ----------------------------------------------------------------------
-// [중요 2] 방사형 차트 컴포넌트 (이 함수도 반드시 있어야 합니다!)
+// [방사형 차트 컴포넌트] (안전성 강화)
 const RadarChart = ({ data, size = 300 }) => {
-  if (!data || data.length === 0) return null; // 데이터 보호
+  if (!data || data.length === 0) return null;
 
   const center = size / 2;
-  const radius = (size / 2) - 40; // 라벨 공간 확보
+  const radius = (size / 2) - 40; 
   const total = data.length;
   const angleSlice = (Math.PI * 2) / total;
 
   // 좌표 계산 함수
   const getCoordinates = (value, index) => {
-    const angle = index * angleSlice - Math.PI / 2; // -90도(12시 방향)부터 시작
-    const r = (value / 10) * radius; // 10점 만점 기준
+    // 안전장치: 값이 숫자가 아니면 0으로 처리
+    const safeValue = isNaN(value) ? 0 : value;
+    const angle = index * angleSlice - Math.PI / 2;
+    const r = (safeValue / 10) * radius;
     return {
       x: center + r * Math.cos(angle),
       y: center + r * Math.sin(angle)
     };
   };
 
-  // 1. 그리드(거미줄) 좌표 계산
+  // 1. 그리드(거미줄)
   const levels = [2, 4, 6, 8, 10];
   const gridPaths = levels.map(level => {
     const points = data.map((_, i) => {
@@ -50,23 +54,23 @@ const RadarChart = ({ data, size = 300 }) => {
     return { level, points };
   });
 
-  // 2. 축(Axis) 선 좌표
+  // 2. 축(Axis)
   const axisLines = data.map((_, i) => {
     const start = { x: center, y: center };
     const end = getCoordinates(10, i);
     return { start, end };
   });
 
-  // 3. 실제 데이터 영역 좌표
+  // 3. 데이터 영역
   const dataPoints = data.map((d, i) => {
     const { x, y } = getCoordinates(d.score, i);
     return `${x},${y}`;
   }).join(' ');
 
-  // 4. 라벨 위치
+  // 4. 라벨
   const labels = data.map((d, i) => {
     const angle = i * angleSlice - Math.PI / 2;
-    const r = radius + 25; // 차트 바깥쪽
+    const r = radius + 25; 
     const x = center + r * Math.cos(angle);
     const y = center + r * Math.sin(angle);
     return { ...d, x, y };
@@ -74,71 +78,21 @@ const RadarChart = ({ data, size = 300 }) => {
 
   return (
     <svg width={size} height={size} className="overflow-visible mx-auto font-sans" style={{ maxWidth: '100%' }}>
-      {/* 배경 그리드 */}
       {gridPaths.map((g, i) => (
-        <polygon 
-          key={i} 
-          points={g.points} 
-          fill="none" 
-          stroke="#e2e8f0" 
-          strokeWidth="1" 
-          strokeDasharray="4 4"
-        />
+        <polygon key={i} points={g.points} fill="none" stroke="#e2e8f0" strokeWidth="1" strokeDasharray="4 4"/>
       ))}
-      
-      {/* 중심 축 선 */}
       {axisLines.map((l, i) => (
-        <line 
-          key={i} 
-          x1={l.start.x} y1={l.start.y} 
-          x2={l.end.x} y2={l.end.y} 
-          stroke="#e2e8f0" 
-          strokeWidth="1" 
-        />
+        <line key={i} x1={l.start.x} y1={l.start.y} x2={l.end.x} y2={l.end.y} stroke="#e2e8f0" strokeWidth="1"/>
       ))}
-
-      {/* 데이터 영역 */}
-      <polygon 
-        points={dataPoints} 
-        fill="rgba(245, 158, 11, 0.2)" 
-        stroke="#d97706" 
-        strokeWidth="2" 
-      />
-
-      {/* 데이터 포인트 */}
+      <polygon points={dataPoints} fill="rgba(245, 158, 11, 0.2)" stroke="#d97706" strokeWidth="2"/>
       {data.map((d, i) => {
         const coords = getCoordinates(d.score, i);
-        return (
-          <circle 
-            key={i} 
-            cx={coords.x} cy={coords.y} 
-            r="4" 
-            fill="#d97706" 
-            stroke="white" 
-            strokeWidth="2"
-          />
-        );
+        return <circle key={i} cx={coords.x} cy={coords.y} r="4" fill="#d97706" stroke="white" strokeWidth="2"/>;
       })}
-
-      {/* 라벨 */}
       {labels.map((l, i) => (
         <g key={i}>
-            <text 
-            x={l.x} y={l.y} 
-            textAnchor="middle" 
-            dominantBaseline="middle" 
-            className="text-[10px] font-bold fill-slate-600"
-            >
-            {l.label}
-            </text>
-            <text 
-            x={l.x} y={l.y + 12} 
-            textAnchor="middle" 
-            dominantBaseline="middle" 
-            className="text-[8px] fill-slate-400 uppercase"
-            >
-            {l.eng}
-            </text>
+            <text x={l.x} y={l.y} textAnchor="middle" dominantBaseline="middle" className="text-[10px] font-bold fill-slate-600">{l.label}</text>
+            <text x={l.x} y={l.y + 12} textAnchor="middle" dominantBaseline="middle" className="text-[8px] fill-slate-400 uppercase">{l.eng}</text>
         </g>
       ))}
     </svg>
@@ -146,7 +100,7 @@ const RadarChart = ({ data, size = 300 }) => {
 };
 
 // ----------------------------------------------------------------------
-// [메인 컴포넌트]
+// [메인 앱 컴포넌트]
 export default function LifeDesignApp({ onClose }) {
   const [areas, setAreas] = useState(DEFAULT_AREAS);
   const [customAreaInput, setCustomAreaInput] = useState('');
@@ -160,7 +114,7 @@ export default function LifeDesignApp({ onClose }) {
 
   const handleScoreChange = (index, val) => {
     const newAreas = [...areas];
-    newAreas[index].score = parseInt(val);
+    newAreas[index].score = parseInt(val, 10);
     setAreas(newAreas);
   };
 
@@ -307,7 +261,7 @@ export default function LifeDesignApp({ onClose }) {
             )}
 
             <button onClick={handleGenerate} disabled={loading} className="w-full bg-amber-700 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-amber-800 transition-all disabled:bg-slate-400 text-lg flex items-center justify-center gap-2">
-              {loading ? <Loader2 className="animate-spin"/> : <><PieChart size={20}/> 밸런스 진단하기</>}
+              {loading ? <Loader2 className="animate-spin"/> : <><Target size={20}/> 밸런스 진단하기</>}
             </button>
           </div>
         </aside>
@@ -327,7 +281,7 @@ export default function LifeDesignApp({ onClose }) {
               </div>
 
               <div className="mb-10 flex flex-col items-center justify-center bg-slate-50 rounded-2xl p-8 border border-slate-100">
-                  <h3 className="text-lg font-bold text-slate-700 mb-6 flex items-center gap-2"><PieChart className="text-amber-500"/> 나의 생애 균형도</h3>
+                  <h3 className="text-lg font-bold text-slate-700 mb-6 flex items-center gap-2"><Target className="text-amber-500"/> 나의 생애 균형도</h3>
                   <RadarChart data={areas} size={360} />
                   
                   {result && (
@@ -342,7 +296,7 @@ export default function LifeDesignApp({ onClose }) {
                 <div className="space-y-8">
                     <section className="bg-green-50 p-6 rounded-2xl border border-green-100">
                         <h3 className="text-xl font-bold text-green-800 mb-4 flex items-center gap-2 border-b border-green-200 pb-3">
-                            <CheckCircle2 className="text-green-600"/> <EditableContent value={result.high_satisfaction.title} onSave={(v)=>handleEdit('high_satisfaction', 'title', v)} />
+                            <Check className="text-green-600"/> <EditableContent value={result.high_satisfaction.title} onSave={(v)=>handleEdit('high_satisfaction', 'title', v)} />
                         </h3>
                         <div className="space-y-4">
                             <div>
@@ -361,7 +315,7 @@ export default function LifeDesignApp({ onClose }) {
 
                     <section className="bg-red-50 p-6 rounded-2xl border border-red-100">
                         <h3 className="text-xl font-bold text-red-800 mb-4 flex items-center gap-2 border-b border-red-200 pb-3">
-                            <AlertTriangle className="text-red-600"/> <EditableContent value={result.low_satisfaction.title} onSave={(v)=>handleEdit('low_satisfaction', 'title', v)} />
+                            <AlertCircle className="text-red-600"/> <EditableContent value={result.low_satisfaction.title} onSave={(v)=>handleEdit('low_satisfaction', 'title', v)} />
                         </h3>
                         <div className="space-y-4">
                             <div>
@@ -380,7 +334,7 @@ export default function LifeDesignApp({ onClose }) {
                 </div>
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center text-slate-300 py-20">
-                    <PieChart size={64} className="mb-4 opacity-20"/>
+                    <Target size={64} className="mb-4 opacity-20"/>
                     <p className="text-lg font-bold text-slate-400">좌측에서 영역별 진단을 진행해주세요.</p>
                 </div>
               )}

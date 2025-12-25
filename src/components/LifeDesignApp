@@ -1,9 +1,8 @@
 import React, { useState, useRef } from 'react';
-// [핵심 수정] 선생님의 App.js에 "확실히 있는 아이콘"만 사용합니다.
-// (Plus, Edit3, Flag 등 없는 아이콘 절대 사용 금지)
+// [핵심] HollandTest.js와 CareerRoadmapApp.js에서 '이미 작동 중인 아이콘'만 사용합니다.
 import { 
-  Sun, ChevronLeft, Loader2, Download, 
-  BarChart3, FileText, Check, AlertCircle, X, User, PenTool
+  BarChart3, ChevronLeft, Loader2, Download, 
+  FileText, Target, Briefcase, ClipboardList
 } from 'lucide-react';
 
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
@@ -22,11 +21,9 @@ const DEFAULT_AREAS = [
   { id: 'leisure', label: '여가', eng: 'Leisure', score: 5, note: '' },
 ];
 
-// ----------------------------------------------------------------------
-// 2. 메인 앱 컴포넌트
 export default function LifeDesignApp({ onClose }) {
-  // 데이터 초기화
-  const [areas, setAreas] = useState(() => JSON.parse(JSON.stringify(DEFAULT_AREAS)));
+  // [수정] 복잡한 초기화 로직 제거하고 단순화
+  const [areas, setAreas] = useState(DEFAULT_AREAS);
   const [customAreaInput, setCustomAreaInput] = useState('');
   
   const [result, setResult] = useState(null);
@@ -38,21 +35,32 @@ export default function LifeDesignApp({ onClose }) {
 
   // --- 입력 핸들러 ---
   const handleScoreChange = (index, val) => {
-    const newAreas = [...areas];
-    newAreas[index].score = parseInt(val, 10);
+    // 깊은 복사 대신 안전한 맵핑 사용
+    const newAreas = areas.map((item, i) => 
+      i === index ? { ...item, score: parseInt(val, 10) } : item
+    );
     setAreas(newAreas);
   };
 
   const handleNoteChange = (index, val) => {
-    const newAreas = [...areas];
-    newAreas[index].note = val;
+    const newAreas = areas.map((item, i) => 
+      i === index ? { ...item, note: val } : item
+    );
     setAreas(newAreas);
   };
 
   const addCustomArea = () => {
     if (!customAreaInput.trim()) return showToast("추가할 영역 이름을 입력하세요.");
     if (areas.length >= 10) return showToast("자유 영역은 최대 2개까지만 추가 가능합니다."); 
-    setAreas([...areas, { id: `custom_${Date.now()}`, label: customAreaInput, eng: 'Custom', score: 5, note: '' }]);
+    
+    const newArea = { 
+      id: `custom_${Date.now()}`, 
+      label: customAreaInput, 
+      eng: 'Custom', 
+      score: 5, 
+      note: '' 
+    };
+    setAreas([...areas, newArea]);
     setCustomAreaInput('');
   };
 
@@ -115,7 +123,7 @@ export default function LifeDesignApp({ onClose }) {
   const handleDownload = () => saveAsPng(reportRef, `생애설계_진단결과`, showToast);
   const handlePdfDownload = () => saveAsPdf(reportRef, `생애설계_진단결과`, showToast);
 
-  // [결과 화면용] 점수 내림차순 정렬 데이터 계산
+  // [결과 화면용] 계산
   const sortedAreas = [...areas].sort((a, b) => b.score - a.score);
   const averageScore = (areas.reduce((acc, cur) => acc + cur.score, 0) / areas.length).toFixed(1);
 
@@ -170,10 +178,10 @@ export default function LifeDesignApp({ onClose }) {
                             className="w-full p-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none resize-none h-16 bg-slate-50 focus:bg-white transition-colors"
                         />
 
-                        {/* 자유 영역 삭제 버튼 (X 아이콘 사용) */}
+                        {/* 아이콘 없이 텍스트 버튼 사용 (안전) */}
                         {index >= 8 && (
-                            <button onClick={() => removeCustomArea(index)} className="absolute -right-2 -top-2 bg-red-100 text-red-500 p-1 rounded-full hover:bg-red-200">
-                                <X size={12}/>
+                            <button onClick={() => removeCustomArea(index)} className="absolute -right-2 -top-2 bg-red-100 text-red-500 px-2 py-0.5 rounded text-xs font-bold hover:bg-red-200">
+                                삭제
                             </button>
                         )}
                     </div>
@@ -192,7 +200,6 @@ export default function LifeDesignApp({ onClose }) {
                             className="flex-1 p-2 border rounded-lg text-sm"
                             onKeyPress={(e) => e.key === 'Enter' && addCustomArea()}
                         />
-                        {/* Plus 아이콘 대신 텍스트 버튼 사용 (가장 안전) */}
                         <button onClick={addCustomArea} className="bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-700 font-bold text-xs">
                            추가
                         </button>
@@ -225,7 +232,7 @@ export default function LifeDesignApp({ onClose }) {
               {/* 1. 영역별 순위 테이블 (그래프 대체) */}
               <section className="mb-10">
                    <h3 className="text-xl font-bold text-slate-800 mb-4 pb-2 border-b border-slate-200 flex items-center">
-                       <BarChart3 size={24} className="mr-2 text-amber-600"/> 영역별 만족도 순위
+                       <ClipboardList size={24} className="mr-2 text-amber-600"/> 영역별 만족도 순위
                    </h3>
                    <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
                      <table className="w-full text-sm text-left">
@@ -268,7 +275,7 @@ export default function LifeDesignApp({ onClose }) {
                      </table>
                    </div>
                    
-                   {/* 총평 (테이블 바로 아래) */}
+                   {/* 총평 */}
                    {result && (
                       <div className="mt-6 bg-slate-50 p-5 rounded-xl border border-slate-200">
                           <h4 className="font-bold text-slate-800 mb-2 text-sm flex items-center gap-2">💡 종합 분석</h4>
@@ -283,7 +290,7 @@ export default function LifeDesignApp({ onClose }) {
                     {/* 만족 영역 (Green Theme) */}
                     <section className="bg-green-50 p-6 rounded-2xl border border-green-100">
                         <h3 className="text-lg font-bold text-green-800 mb-4 flex items-center gap-2 border-b border-green-200 pb-3">
-                            <Check size={20} className="text-green-600"/> 
+                            <Target size={20} className="text-green-600"/> 
                             <EditableContent value={result.high_satisfaction.title} onSave={(v)=>handleEdit('high_satisfaction', 'title', v)} />
                         </h3>
                         <div className="space-y-4">
@@ -304,7 +311,7 @@ export default function LifeDesignApp({ onClose }) {
                     {/* 보완 영역 (Red Theme) */}
                     <section className="bg-red-50 p-6 rounded-2xl border border-red-100">
                         <h3 className="text-lg font-bold text-red-800 mb-4 flex items-center gap-2 border-b border-red-200 pb-3">
-                            <AlertCircle size={20} className="text-red-600"/> 
+                            <Briefcase size={20} className="text-red-600"/> 
                             <EditableContent value={result.low_satisfaction.title} onSave={(v)=>handleEdit('low_satisfaction', 'title', v)} />
                         </h3>
                         <div className="space-y-4">
@@ -315,7 +322,7 @@ export default function LifeDesignApp({ onClose }) {
                             <div>
                                 <strong className="text-xs text-red-700 block mb-1 uppercase tracking-wider">Action Plan</strong>
                                 <div className="flex gap-3 bg-white p-4 rounded-lg border border-red-100 shadow-sm">
-                                    <div className="shrink-0 pt-1"><User size={16} className="text-red-500"/></div>
+                                    <div className="shrink-0 pt-1"><Target size={16} className="text-red-500"/></div>
                                     <EditableContent className="text-slate-700 text-sm leading-relaxed" value={result.low_satisfaction.coaching} onSave={(v)=>handleEdit('low_satisfaction', 'coaching', v)} />
                                 </div>
                             </div>

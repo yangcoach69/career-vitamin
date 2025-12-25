@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 // [안전 모드] 검증된 아이콘만 사용 (충돌 방지)
 import { 
   BarChart3, ChevronLeft, Loader2, Download, 
-  FileText, Target, Check, AlertCircle, User, ClipboardList, X
+  FileText, Target, Check, AlertCircle, ClipboardList
 } from 'lucide-react';
 
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
@@ -73,7 +73,7 @@ const RadarChart = ({ data, size = 320 }) => {
         {labels.map((l, i) => (
           <g key={i}>
             <text x={l.x} y={l.y} dy="0.3em" textAnchor="middle" className="text-[11px] font-bold fill-slate-700" style={{fontSize:'11px'}}>
-              {l.label.split('(')[0]} {/* 차트 라벨은 짧게 */}
+              {l.label.split('(')[0]}
             </text>
           </g>
         ))}
@@ -129,7 +129,7 @@ export default function LifeDesignApp({ onClose }) {
       ).join('\n');
 
       const prompt = `
-      당신은 ${ageGroup}대 중장년층을 위한 생애설계(Life Design) 전문 코치입니다.
+      당신은 ${ageGroup}대 중장년층을 위한 생애설계(Life Design) 전문 컨설턴트입니다.
       사용자가 입력한 '8대 영역 밸런스'를 분석하여 리포트를 작성해주세요.
 
       [사용자 정보]
@@ -140,7 +140,7 @@ export default function LifeDesignApp({ onClose }) {
       [요청사항]
       1. '만족 영역(High Satisfaction)'은 현재의 강점이므로 칭찬하고 유지 전략을 제시하세요.
       2. '보완 영역(Low Satisfaction)'은 균형을 위해 당장 실천할 수 있는 구체적인 액션플랜을 제안하세요.
-      3. **중요:** 마지막 '종합 총평(Overall Review)'은 인생을 여행, 건축, 예술 작품, 계절 등에 비유하는 **은유적 수사법**을 사용하여 감동적으로 작성해주세요.
+      3. **중요:** 마지막 '전문가의 총평(Overall Review)'은 인생을 여행, 건축, 예술 작품, 계절 등에 비유하는 **은유적 수사법**을 사용하여 감동적으로 작성해주세요.
       4. 총평 끝에는 ${ageGroup}대의 도전을 응원하는 따뜻하고 힘찬 격려의 메시지를 담아주세요.
 
       [JSON 출력 형식]
@@ -213,39 +213,49 @@ export default function LifeDesignApp({ onClose }) {
               </div>
             </div>
 
-            <div className="text-xs text-slate-500 bg-amber-50 p-3 rounded border border-amber-100">
-               각 영역의 만족도를 <strong>10점 만점</strong> 기준으로 평가하고,<br/>
-               간단한 메모를 남겨주세요.
+            <div className="text-xs text-slate-500 bg-amber-50 p-3 rounded border border-amber-100 leading-relaxed">
+               각 영역의 만족도를 슬라이더로 조절하고,<br/>
+               관련된 상태나 고민을 간단히 메모해주세요.
             </div>
 
-            {/* 영역별 입력 루프 */}
+            {/* 영역별 입력 루프 (슬라이더 개선) */}
             <div className="space-y-6">
                 {areas.map((area, index) => (
-                    <div key={area.id} className="relative">
-                        <div className="flex flex-col mb-2">
-                            <label className="font-bold text-slate-700 flex items-center gap-2 text-sm">
-                                <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-xs">{index+1}</span>
-                                {area.label} 
-                            </label>
-                            <span className="text-[10px] text-slate-400 pl-7 uppercase tracking-wider">{area.eng}</span>
+                    <div key={area.id} className="relative p-2 rounded-lg hover:bg-slate-50 transition-colors">
+                        {/* 라벨 & 점수 표시 */}
+                        <div className="flex justify-between items-end mb-2">
+                            <div className="flex flex-col">
+                                <label className="font-bold text-slate-700 flex items-center gap-2 text-sm">
+                                    <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-xs font-bold">{index+1}</span>
+                                    {area.label} 
+                                </label>
+                                <span className="text-[10px] text-slate-400 pl-7 uppercase tracking-wider font-medium">{area.eng}</span>
+                            </div>
+                            <div className="text-right">
+                                <span className={`font-bold text-base ${area.score >= 8 ? 'text-amber-600' : area.score <= 4 ? 'text-slate-400' : 'text-slate-700'}`}>
+                                    {area.score}
+                                </span>
+                                <span className="text-xs text-slate-400 font-medium"> / 10</span>
+                            </div>
                         </div>
                         
-                        <div className="flex justify-between items-center mb-2">
+                        {/* [개선] 슬라이더 (0 ~ 10 명시) */}
+                        <div className="flex items-center gap-3 mb-3 px-1">
+                            <span className="text-xs font-bold text-slate-300">0</span>
                             <input 
-                                type="range" min="1" max="10" value={area.score}
+                                type="range" min="0" max="10" value={area.score}
                                 onChange={(e) => handleScoreChange(index, e.target.value)}
-                                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-amber-600 mr-3"
+                                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-amber-600"
                             />
-                            <span className={`font-bold text-sm w-12 text-right ${area.score >= 8 ? 'text-amber-600' : 'text-slate-600'}`}>
-                                {area.score}점
-                            </span>
+                            <span className="text-xs font-bold text-slate-300">10</span>
                         </div>
 
+                        {/* 메모 입력창 */}
                         <textarea
                             value={area.note}
                             onChange={(e) => handleNoteChange(index, e.target.value)}
                             placeholder="관련된 현재 상태나 고민 (선택)"
-                            className="w-full p-2 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none resize-none bg-slate-50 focus:bg-white transition-colors"
+                            className="w-full p-2.5 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none resize-none bg-white transition-all shadow-sm"
                             rows={2}
                         />
                     </div>
@@ -288,7 +298,7 @@ export default function LifeDesignApp({ onClose }) {
                       <RadarChart data={areas} size={360} />
                     </div>
 
-                    {/* [NEW] 순위 테이블 */}
+                    {/* 순위 테이블 */}
                     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
                         <table className="w-full text-sm text-left">
                             <thead className="bg-slate-100 text-slate-600 font-bold uppercase text-xs">
@@ -348,7 +358,7 @@ export default function LifeDesignApp({ onClose }) {
                     </div>
                 </div>
 
-                {/* (4) 종합 총평 (수정됨: 전문가의 총평) */}
+                {/* (4) 전문가의 총평 (하단 배치, 은유적 표현 & 응원) */}
                 <div className="bg-slate-800 text-white p-8 rounded-xl shadow-lg mt-auto">
                     <h3 className="font-bold text-amber-400 mb-4 text-lg flex items-center gap-2">
                         <ClipboardList className="text-amber-400"/> 전문가의 총평

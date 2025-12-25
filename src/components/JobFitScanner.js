@@ -117,9 +117,15 @@ export default function JobFitScannerApp({ onClose }) {
   return (
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
       {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
-      <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
-        <div className="flex items-center gap-3"><FileText className="text-rose-400"/><h1 className="font-bold text-lg">직무 적합도 진단 리포트</h1></div>
-        <button onClick={onClose} className="flex items-center text-sm hover:text-rose-200 transition-colors"><ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기</button>
+      <header className="bg-rose-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
+        <div className="flex items-center gap-3">
+          {/* 여기 아이콘을 Percent로 변경 */}
+          <Percent className="text-rose-400" /> 
+          <h1 className="font-bold text-lg">직무 적합도 진단</h1>
+        </div>
+        <button onClick={onClose} className="flex items-center text-sm hover:text-rose-200 transition-colors">
+          <ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기
+        </button>
       </header>
       <div className="flex flex-1 overflow-hidden">
         <aside className="w-80 bg-white border-r p-6 shrink-0 overflow-y-auto">

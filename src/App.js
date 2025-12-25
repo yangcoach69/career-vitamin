@@ -38,7 +38,7 @@ import CareerRoadmapApp from './components/CareerRoadmapApp';
 import RoleModelApp from './components/RoleModelApp';
 import SelfIntroApp from './components/SelfIntroApp';
 import Clinic from './components/Clinic';
-import LifeDesignApp from './components/LifeDesignApp'; // [NEW] 신규 앱 추가
+import LifeDesignApp from './components/LifeDesignApp.js'; // [NEW] 신규 앱 추가
 
 // 아이콘 불러오기
 import { 
@@ -50,7 +50,7 @@ import {
   Globe, ThumbsUp, AlertCircle, ExternalLink,
   Info, PenTool, Lightbulb, Users, Lock, ClipboardList,
   FileSpreadsheet, FileText, Briefcase, GraduationCap, BrainCircuit, Key, Smile, Meh, Frown, Stethoscope, ArrowRight,
-  UploadCloud, FileCheck, Percent, Sun, PieChart // PieChart 아이콘 추가
+  UploadCloud, FileCheck, Percent, Sun, PieChart, Star // 아이콘 추가
 } from 'lucide-react';
 
 // [설정 구역]
@@ -74,7 +74,7 @@ const SERVICES = {
   self_intro: { name: "[AI] 1분 자기소개", desc: "직무/인성 컨셉 맞춤 가이드 스크립트", link: null, internal: true, icon: Mic, color: "purple" },
   
   role_model: { name: "[AI] 롤모델 분석", desc: "존경하는 인물 면접 활용 팁", link: null, internal: true, icon: Award, color: "orange" },
-  exp_structuring: { name: "[AI] 경험 구조화 (STAR)", desc: "경험 구조화 및 면접 스크립트", link: null, internal: true, icon: LayoutList, color: "indigo" },
+  exp_structuring: { name: "[AI] 경험 구조화 (STAR)", desc: "경험 구조화 및 면접 스크립트", link: null, internal: true, icon: Star, color: "indigo" },
   sit_interview: { name: "[AI] 상황면접 가이드", desc: "상황별 구조화된 면접 스크립트", link: null, internal: true, icon: Split, color: "teal" },
   pt_interview: { name: "[AI] PT 면접 가이드", desc: "주제 추출 및 발표 스크립트", link: null, internal: true, icon: MonitorPlay, color: "rose" },
   clinic: { name: "[AI] 자기소개서 클리닉", desc: "자기소개서 강평 및 수정", link: "/clinic", internal: true, icon: PenTool, color: "rose" },

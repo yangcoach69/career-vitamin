@@ -1,9 +1,6 @@
 import React, { useState, useRef } from 'react';
-// [안전 모드] CareerRoadmapApp, App.js 에서 이미 100% 작동 검증된 아이콘만 사용
-import { 
-  Sun, ChevronLeft, Loader2, Download, 
-  Target, FileText, Flag, TrendingUp, Check, User, X
-} from 'lucide-react';
+// [긴급 수정] 아이콘 라이브러리 충돌 방지를 위해 import를 제거했습니다.
+// 대신 이모지(Emoji)를 사용하여 100% 실행을 보장합니다.
 
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
 import { Toast, EditableContent, Footer } from './SharedUI';
@@ -118,11 +115,11 @@ export default function LifeDesignApp({ onClose }) {
       {/* 헤더 */}
       <header className="bg-amber-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
         <div className="flex items-center gap-3">
-          <Sun className="text-amber-400"/>
+          <span className="text-2xl">☀️</span>
           <h1 className="font-bold text-lg">인생 8대 영역 설계 (Life Balance)</h1>
         </div>
         <button onClick={onClose} className="flex items-center text-sm hover:text-amber-200 transition-colors">
-          <ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기
+          <span className="mr-1 text-lg">◀</span> 돌아가기
         </button>
       </header>
 
@@ -165,7 +162,7 @@ export default function LifeDesignApp({ onClose }) {
                         {/* 자유 영역 삭제 버튼 */}
                         {index >= 8 && (
                             <button onClick={() => removeCustomArea(index)} className="absolute -right-2 -top-2 bg-red-100 text-red-500 p-1 rounded-full hover:bg-red-200">
-                                <X size={14}/>
+                                <span className="text-xs font-bold">✖</span>
                             </button>
                         )}
                     </div>
@@ -192,7 +189,7 @@ export default function LifeDesignApp({ onClose }) {
             )}
 
             <button onClick={handleGenerate} disabled={loading} className="w-full bg-amber-700 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-amber-800 transition-all disabled:bg-slate-400 text-lg flex items-center justify-center gap-2">
-              {loading ? <Loader2 className="animate-spin"/> : <><Target size={20}/> 밸런스 진단하기</>}
+              {loading ? <span className="animate-spin">⏳</span> : <>🎯 밸런스 진단하기</>}
             </button>
           </div>
         </aside>
@@ -213,10 +210,10 @@ export default function LifeDesignApp({ onClose }) {
                 </div>
               </div>
 
-              {/* [NEW] 게이지 차트 영역 (안전성 100%) */}
+              {/* [NEW] 게이지 차트 영역 (SVG 제거, 순수 CSS 막대) */}
               <div className="mb-10 bg-slate-50 rounded-2xl p-8 border border-slate-100">
                   <h3 className="text-lg font-bold text-slate-700 mb-6 flex items-center gap-2">
-                    <Target className="text-amber-500"/> 나의 생애 균형도 (Gauge View)
+                    <span className="text-amber-500 text-xl">🎯</span> 나의 생애 균형도
                   </h3>
                   
                   <div className="grid grid-cols-2 gap-x-12 gap-y-6">
@@ -230,7 +227,7 @@ export default function LifeDesignApp({ onClose }) {
                             {area.score}점
                           </span>
                         </div>
-                        {/* 게이지 바 */}
+                        {/* 게이지 바 (CSS Width) */}
                         <div className="w-full bg-white rounded-full h-3 border border-slate-200 overflow-hidden">
                           <div 
                             className={`h-full rounded-full transition-all duration-1000 ${
@@ -258,7 +255,7 @@ export default function LifeDesignApp({ onClose }) {
                     {/* 만족 영역 */}
                     <section className="bg-green-50 p-6 rounded-2xl border border-green-100">
                         <h3 className="text-xl font-bold text-green-800 mb-4 flex items-center gap-2 border-b border-green-200 pb-3">
-                            <Flag className="text-green-600"/> 
+                            <span>✅</span> 
                             <EditableContent value={result.high_satisfaction.title} onSave={(v)=>handleEdit('high_satisfaction', 'title', v)} />
                         </h3>
                         <div className="space-y-4">
@@ -269,7 +266,7 @@ export default function LifeDesignApp({ onClose }) {
                             <div>
                                 <strong className="text-sm text-green-700 block mb-1">Coaching Message</strong>
                                 <div className="flex gap-3 bg-white p-4 rounded-lg border border-green-100 shadow-sm">
-                                    <div className="shrink-0 pt-1"><Check size={16} className="text-green-500"/></div>
+                                    <div className="shrink-0 pt-1"><span>📝</span></div>
                                     <EditableContent className="text-slate-700 text-sm leading-relaxed" value={result.high_satisfaction.coaching} onSave={(v)=>handleEdit('high_satisfaction', 'coaching', v)} />
                                 </div>
                             </div>
@@ -279,7 +276,7 @@ export default function LifeDesignApp({ onClose }) {
                     {/* 보완 영역 */}
                     <section className="bg-red-50 p-6 rounded-2xl border border-red-100">
                         <h3 className="text-xl font-bold text-red-800 mb-4 flex items-center gap-2 border-b border-red-200 pb-3">
-                            <TrendingUp className="text-red-600"/> 
+                            <span>📈</span> 
                             <EditableContent value={result.low_satisfaction.title} onSave={(v)=>handleEdit('low_satisfaction', 'title', v)} />
                         </h3>
                         <div className="space-y-4">
@@ -290,7 +287,7 @@ export default function LifeDesignApp({ onClose }) {
                             <div>
                                 <strong className="text-sm text-red-700 block mb-1">Coaching Message (Action Plan)</strong>
                                 <div className="flex gap-3 bg-white p-4 rounded-lg border border-red-100 shadow-sm">
-                                    <div className="shrink-0 pt-1"><User size={16} className="text-red-500"/></div>
+                                    <div className="shrink-0 pt-1"><span>👤</span></div>
                                     <EditableContent className="text-slate-700 text-sm leading-relaxed" value={result.low_satisfaction.coaching} onSave={(v)=>handleEdit('low_satisfaction', 'coaching', v)} />
                                 </div>
                             </div>
@@ -299,7 +296,7 @@ export default function LifeDesignApp({ onClose }) {
                 </div>
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center text-slate-300 py-20">
-                    <Target size={64} className="mb-4 opacity-20"/>
+                    <span className="text-6xl mb-4 opacity-20">🎯</span>
                     <p className="text-lg font-bold text-slate-400">좌측에서 영역별 진단을 진행해주세요.</p>
                 </div>
               )}
@@ -310,8 +307,12 @@ export default function LifeDesignApp({ onClose }) {
 
         {result && (
           <div className="absolute bottom-8 right-8 flex gap-3 z-50">
-            <button onClick={handleDownload} className="bg-white text-slate-900 border border-slate-200 px-6 py-3 rounded-full font-bold shadow-xl hover:-translate-y-1 flex items-center transition-transform"><Download className="mr-2" size={20}/> 이미지 저장</button>
-            <button onClick={handlePdfDownload} className="bg-amber-800 text-white px-6 py-3 rounded-full font-bold shadow-xl hover:-translate-y-1 flex items-center transition-transform"><FileText className="mr-2" size={20}/> PDF 저장</button>
+            <button onClick={handleDownload} className="bg-white text-slate-900 border border-slate-200 px-6 py-3 rounded-full font-bold shadow-xl hover:-translate-y-1 flex items-center transition-transform">
+                <span className="mr-2">💾</span> 이미지 저장
+            </button>
+            <button onClick={handlePdfDownload} className="bg-amber-800 text-white px-6 py-3 rounded-full font-bold shadow-xl hover:-translate-y-1 flex items-center transition-transform">
+                <span className="mr-2">📄</span> PDF 저장
+            </button>
           </div>
         )}
       </div>

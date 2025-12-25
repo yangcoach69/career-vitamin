@@ -768,7 +768,7 @@ export default function App() {
       {currentApp === 'exp_structuring' && <ExperienceStructApp onClose={()=>setCurrentApp('none')} />}
       {currentApp === 'role_model' && <RoleModelApp onClose={()=>setCurrentApp('none')} />}
       {currentApp === 'gpt_guide' && <JobExplorerApp onClose={()=>setCurrentApp('none')} />}
-      {currentApp === 'holland_test' && <HollandTest onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'holland_test' && <HollandTestApp onClose={()=>setCurrentApp('none')} />}
       {currentApp === 'clinic' && <Clinic onClose={()=>setCurrentApp('none')} />}
       {currentApp === 'life_design' && <LifeDesignApp onClose={()=>setCurrentApp('none')} />} 
       {currentApp === 'life_curve' && <LifeCurveApp onClose={()=>setCurrentApp('none')} />} {/* [NEW] */}

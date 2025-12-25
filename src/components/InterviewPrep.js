@@ -84,12 +84,13 @@ export default function InterviewPrepApp({ onClose }) {
       {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
       
       {/* 헤더 */}
-      <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
+      <header className="bg-indigo-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
         <div className="flex items-center gap-3">
-          <MessageSquare className="text-emerald-400"/>
-          <h1 className="font-bold text-lg">상황면접 가이드 스크립트</h1>
+          {/* 여기를 Split 아이콘으로 변경 */}
+          <Split className="text-indigo-400" /> 
+          <h1 className="font-bold text-lg">상황면접 시뮬레이션</h1>
         </div>
-        <button onClick={onClose} className="flex items-center text-sm hover:text-emerald-200 transition-colors">
+        <button onClick={onClose} className="flex items-center text-sm hover:text-indigo-200 transition-colors">
           <ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기
         </button>
       </header>

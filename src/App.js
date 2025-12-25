@@ -75,7 +75,7 @@ const SERVICES = {
   
   role_model: { name: "[AI] 롤모델 분석", desc: "존경하는 인물 면접 활용 팁", link: null, internal: true, icon: Award, color: "orange" },
   exp_structuring: { name: "[AI] 경험 구조화 (STAR)", desc: "경험 구조화 및 면접 스크립트", link: null, internal: true, icon: Star, color: "indigo" },
-  sit_interview: { name: "[AI] 상황면접 가이드", desc: "상황별 구조화된 면접 스크립트", link: null, internal: true, icon: Split, color: "teal" },
+  sit_interview: { name: "[AI] 상황면접 시뮬레이션", desc: "상황별 구조화된 면접 스크립트", link: null, internal: true, icon: Split, color: "teal" },
   pt_interview: { name: "[AI] PT 면접 가이드", desc: "주제 추출 및 발표 스크립트", link: null, internal: true, icon: MonitorPlay, color: "rose" },
   clinic: { name: "[AI] 자기소개서 클리닉", desc: "자기소개서 강평 및 수정", link: "/clinic", internal: true, icon: PenTool, color: "rose" },
 

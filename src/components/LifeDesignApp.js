@@ -182,10 +182,11 @@ export default function LifeDesignApp({ onClose }) {
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
       {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
       
-      {/* 1. 헤더 */}
+      {/* 헤더 */}
       <header className="bg-amber-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
         <div className="flex items-center gap-3">
-          <Target className="text-amber-400"/>
+          {/* 여기를 Sun 아이콘으로 변경 */}
+          <Sun className="text-amber-400"/>
           <h1 className="font-bold text-lg">인생 8대 영역 설계</h1>
         </div>
         <button onClick={onClose} className="flex items-center text-sm hover:text-amber-200 transition-colors">

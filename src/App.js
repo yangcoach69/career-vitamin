@@ -651,7 +651,7 @@ export default function App() {
                           <h3 className="font-bold text-lg mb-2 text-slate-800 group-hover:text-amber-600 transition-colors">{svc.name}</h3>
                           <p className="text-sm text-slate-500 mb-4 h-10 line-clamp-2">{svc.desc}</p>
                           <div className="text-xs font-bold text-amber-600 flex items-center">
-                            컨설팅 시작 <ChevronLeft className="rotate-180 ml-1 w-4 h-4"/>
+                            앱 실행하기 <ChevronLeft className="rotate-180 ml-1 w-4 h-4"/>
                           </div>
                         </div>
                       ))}

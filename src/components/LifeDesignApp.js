@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 // [안전 모드] 검증된 아이콘만 사용 (충돌 방지)
 import { 
-  BarChart3, ChevronLeft, Loader2, Download, 
+  BarChart3, ChevronLeft, Loader2, Download, Sun,
   FileText, Target, Check, AlertCircle, User, ClipboardList, X
 } from 'lucide-react';
 

@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 // [안전 모드] 검증된 아이콘만 사용 (충돌 방지)
 import { 
   BarChart3, ChevronLeft, Loader2, Download, 
-  FileText, Target, Check, AlertCircle, ClipboardList
+  FileText, Target, Check, AlertCircle, User, ClipboardList, X
 } from 'lucide-react';
 
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
@@ -85,7 +85,7 @@ const RadarChart = ({ data, size = 320 }) => {
 // ----------------------------------------------------------------------
 // 2. 메인 앱 컴포넌트
 export default function LifeDesignApp({ onClose }) {
-  // [수정 완료] 8대 영역 명칭 및 영문 업데이트
+  // 8대 영역 고정 데이터
   const [areas, setAreas] = useState([
     { id: 'work', label: '업(業)', eng: 'Work', score: 5, note: '' },
     { id: 'growth', label: '자기성장 (일 이외의)', eng: 'Self-Growth', score: 5, note: '' },
@@ -138,20 +138,21 @@ export default function LifeDesignApp({ onClose }) {
       ${inputSummary}
 
       [요청사항]
-      1. '만족 영역(High Satisfaction)'은 현재의 강점이므로 칭찬하고 유지 전략을 제시하세요.
-      2. '보완 영역(Low Satisfaction)'은 균형을 위해 당장 실천할 수 있는 구체적인 액션플랜을 제안하세요.
-      3. **중요:** 마지막 '전문가의 총평(Overall Review)'은 인생을 여행, 건축, 예술 작품, 계절 등에 비유하는 **은유적 수사법**을 사용하여 감동적으로 작성해주세요.
-      4. 총평 끝에는 ${ageGroup}대의 도전을 응원하는 따뜻하고 힘찬 격려의 메시지를 담아주세요.
+      1. '만족 영역(High Satisfaction)'은 현재의 강점입니다. 현 상태에 대한 분석(Analysis)과 이를 더 잘 활용하기 위한 구체적인 유지 전략(Action Plan)을 분리해서 작성하세요.
+      2. '보완 영역(Low Satisfaction)'은 개선이 필요합니다. 현 상태에 대한 위로와 분석(Analysis)을 먼저 쓰고, 당장 실천할 수 있는 작고 구체적인 액션플랜(Action Plan)을 분리해서 제안하세요.
+      3. **중요:** 마지막 '전문가의 총평(Overall Review)'은 인생을 여행, 건축, 예술 작품, 계절 등에 비유하는 **은유적 수사법**을 사용하여 감동적으로 작성하고, ${ageGroup}대를 위한 응원의 메시지를 담아주세요.
 
-      [JSON 출력 형식]
+      [JSON 출력 형식 준수]
       {
         "high_satisfaction": {
           "title": "삶의 든든한 버팀목 (강점 영역)",
-          "content": "분석 및 유지 전략 내용"
+          "analysis": "현재 강점에 대한 분석 및 칭찬 멘트",
+          "action_plan": "강점을 유지하고 강화하기 위한 구체적인 전략 3가지 (개조식)"
         },
         "low_satisfaction": {
           "title": "새로운 기회의 씨앗 (보완 영역)",
-          "content": "분석 및 구체적 액션플랜"
+          "analysis": "현재 부족한 부분에 대한 분석 및 따뜻한 조언",
+          "action_plan": "부담 없이 시작할 수 있는 작은 실천 가이드 3가지 (개조식)"
         },
         "overall_review": "은유적 표현이 담긴 감동적인 총평 및 격려 메시지"
       }`;
@@ -218,11 +219,10 @@ export default function LifeDesignApp({ onClose }) {
                관련된 상태나 고민을 간단히 메모해주세요.
             </div>
 
-            {/* 영역별 입력 루프 (슬라이더 개선) */}
+            {/* 영역별 입력 루프 */}
             <div className="space-y-6">
                 {areas.map((area, index) => (
                     <div key={area.id} className="relative p-2 rounded-lg hover:bg-slate-50 transition-colors">
-                        {/* 라벨 & 점수 표시 */}
                         <div className="flex justify-between items-end mb-2">
                             <div className="flex flex-col">
                                 <label className="font-bold text-slate-700 flex items-center gap-2 text-sm">
@@ -239,7 +239,7 @@ export default function LifeDesignApp({ onClose }) {
                             </div>
                         </div>
                         
-                        {/* [개선] 슬라이더 (0 ~ 10 명시) */}
+                        {/* 슬라이더 */}
                         <div className="flex items-center gap-3 mb-3 px-1">
                             <span className="text-xs font-bold text-slate-300">0</span>
                             <input 
@@ -250,7 +250,7 @@ export default function LifeDesignApp({ onClose }) {
                             <span className="text-xs font-bold text-slate-300">10</span>
                         </div>
 
-                        {/* 메모 입력창 */}
+                        {/* 메모 입력 */}
                         <textarea
                             value={area.note}
                             onChange={(e) => handleNoteChange(index, e.target.value)}
@@ -293,12 +293,10 @@ export default function LifeDesignApp({ onClose }) {
                         <Target className="text-amber-500"/> 나의 생애 균형도
                     </h3>
                     
-                    {/* 차트 */}
                     <div className="mb-8">
                       <RadarChart data={areas} size={360} />
                     </div>
 
-                    {/* 순위 테이블 */}
                     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
                         <table className="w-full text-sm text-left">
                             <thead className="bg-slate-100 text-slate-600 font-bold uppercase text-xs">
@@ -333,16 +331,28 @@ export default function LifeDesignApp({ onClose }) {
                     </div>
                 </div>
 
-                {/* (3) 만족/보완 영역 분석 (상하 배치) */}
+                {/* (3) 만족/보완 영역 분석 (Action Plan 분리) */}
                 <div className="space-y-6 mb-10">
+                    
                     {/* 만족 영역 */}
                     <div className="bg-green-50 p-6 rounded-xl border border-green-100">
                         <h3 className="font-bold text-green-800 mb-3 flex items-center gap-2 text-lg">
                             <Check className="text-green-600" size={20}/> 
                             <EditableContent value={result.high_satisfaction.title} onSave={(v)=>handleEdit('high_satisfaction', 'title', v)} />
                         </h3>
-                        <div className="bg-white p-5 rounded-lg border border-green-100 text-slate-700 text-sm leading-relaxed shadow-sm">
-                            <EditableContent value={result.high_satisfaction.content} onSave={(v)=>handleEdit('high_satisfaction', 'content', v)} />
+                        {/* 분석 내용 */}
+                        <div className="mb-4">
+                            <h4 className="text-xs font-bold text-green-700 uppercase mb-1 tracking-wider">Analysis</h4>
+                            <div className="bg-white p-4 rounded-lg border border-green-100 text-slate-700 text-sm leading-relaxed shadow-sm">
+                                <EditableContent value={result.high_satisfaction.analysis} onSave={(v)=>handleEdit('high_satisfaction', 'analysis', v)} />
+                            </div>
+                        </div>
+                        {/* 액션 플랜 (분리됨) */}
+                        <div>
+                            <h4 className="text-xs font-bold text-green-700 uppercase mb-1 tracking-wider flex items-center gap-1">Action Plan <FileText size={12}/></h4>
+                            <div className="bg-green-100/50 p-4 rounded-lg border border-green-200 text-green-900 text-sm font-medium leading-relaxed">
+                                <EditableContent value={result.high_satisfaction.action_plan} onSave={(v)=>handleEdit('high_satisfaction', 'action_plan', v)} />
+                            </div>
                         </div>
                     </div>
 
@@ -352,13 +362,24 @@ export default function LifeDesignApp({ onClose }) {
                             <AlertCircle className="text-red-600" size={20}/> 
                             <EditableContent value={result.low_satisfaction.title} onSave={(v)=>handleEdit('low_satisfaction', 'title', v)} />
                         </h3>
-                        <div className="bg-white p-5 rounded-lg border border-red-100 text-slate-700 text-sm leading-relaxed shadow-sm">
-                            <EditableContent value={result.low_satisfaction.content} onSave={(v)=>handleEdit('low_satisfaction', 'content', v)} />
+                        {/* 분석 내용 */}
+                        <div className="mb-4">
+                            <h4 className="text-xs font-bold text-red-700 uppercase mb-1 tracking-wider">Analysis</h4>
+                            <div className="bg-white p-4 rounded-lg border border-red-100 text-slate-700 text-sm leading-relaxed shadow-sm">
+                                <EditableContent value={result.low_satisfaction.analysis} onSave={(v)=>handleEdit('low_satisfaction', 'analysis', v)} />
+                            </div>
+                        </div>
+                        {/* 액션 플랜 (분리됨) */}
+                        <div>
+                            <h4 className="text-xs font-bold text-red-700 uppercase mb-1 tracking-wider flex items-center gap-1">Action Plan <FileText size={12}/></h4>
+                            <div className="bg-red-100/50 p-4 rounded-lg border border-red-200 text-red-900 text-sm font-medium leading-relaxed">
+                                <EditableContent value={result.low_satisfaction.action_plan} onSave={(v)=>handleEdit('low_satisfaction', 'action_plan', v)} />
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* (4) 전문가의 총평 (하단 배치, 은유적 표현 & 응원) */}
+                {/* (4) 전문가의 총평 */}
                 <div className="bg-slate-800 text-white p-8 rounded-xl shadow-lg mt-auto">
                     <h3 className="font-bold text-amber-400 mb-4 text-lg flex items-center gap-2">
                         <ClipboardList className="text-amber-400"/> 전문가의 총평

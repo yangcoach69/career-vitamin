@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 // [수정 포인트 1] 설정 파일(firebase.js)에서는 초기화된 'auth'와 'db' 객체만 가져옵니다.
 import { auth, db } from './firebase';
 
-// [수정 포인트 2] 인증 함수들은 'firebase/auth' 라이브러리에서 직접 가져옵니다. (에러 해결 핵심!)
+// [수정 포인트 2] 인증 함수들은 'firebase/auth' 라이브러리에서 직접 가져옵니다.
 import { 
   signInWithPopup, 
   GoogleAuthProvider, 
@@ -39,7 +39,7 @@ import RoleModelApp from './components/RoleModelApp';
 import SelfIntroApp from './components/SelfIntroApp';
 import Clinic from './components/Clinic';
 
-// 아이콘 불러오기 (기존 코드 그대로 유지)
+// 아이콘 불러오기
 import { 
   LayoutDashboard, Building2, LogOut, Trash2, 
   Settings, Loader2, Check, 
@@ -49,38 +49,42 @@ import {
   Globe, ThumbsUp, AlertCircle, ExternalLink,
   Info, PenTool, Lightbulb, Users, Lock, ClipboardList,
   FileSpreadsheet, FileText, Briefcase, GraduationCap, BrainCircuit, Key, Smile, Meh, Frown, Stethoscope, ArrowRight,
-  UploadCloud, FileCheck, Percent
+  UploadCloud, FileCheck, Percent, Sun // Sun 아이콘 추가 (중장년용)
 } from 'lucide-react';
 
-// [설정 구역] -> 이 아래부터는 기존 코드가 이어지면 됩니다.
+// [설정 구역]
 const OWNER_UID = "TN8orW7kwuTzAnFWNM8jCiixt3r2"; 
 const APP_ID = 'career-vitamin';
 
 // =============================================================================
-// 여기 바로 아래에 const SERVICES = { ... 가 시작되면 됩니다.
+// [핵심 수정] SERVICES 객체에 'category' 속성을 추가하여 섹션을 구분합니다.
+// category: 'senior' 라고 적으면 하단 [4050 중장년] 섹션에 뜹니다.
+// category가 없거나 'general'이면 상단 [기본] 섹션에 뜹니다.
 
-// --- Constants ---
 const SERVICES = {
-  // [전용 앱]
-  holland_test: { name: "[AI] 홀랜드(Holland) 검사 리포트", desc: "RIASEC 결과 분석 및 관심직무 매칭", link: null, internal: true, icon: ClipboardList, color: "pink" },
+  // --- [섹션 1] 청년/공통 (기본) ---
+  holland_test: { name: "[AI] 홀랜드(Holland) 검사", desc: "RIASEC 결과 분석 및 관심직무 매칭", link: null, internal: true, icon: ClipboardList, color: "pink" },
   gpt_guide: { name: "[AI] 직업탐색 가이드", desc: "관심 있는 직업/직무 완벽 분석", link: null, internal: true, icon: Compass, color: "emerald" },
   company_analysis: { name: "[AI] 기업분석 리포트", desc: "기업 핵심가치/이슈/SWOT 분석 및 전략", link: null, internal: true, icon: BarChart3, color: "indigo" },
-  job_fit: { name: "[AI] 직무 적합도 진단", desc: "채용공고(JD)와 내 입사서류 매칭 분석", link: null, internal: true, icon: Percent, color: "rose" }, // NEW
+  job_fit: { name: "[AI] 직무 적합도 진단", desc: "채용공고(JD)와 내 입사서류 매칭 분석", link: null, internal: true, icon: Percent, color: "rose" },
   self_intro: { name: "[AI] 1분 자기소개", desc: "직무/인성 컨셉 맞춤 가이드 스크립트", link: null, internal: true, icon: Mic, color: "purple" },
-  career_roadmap: { name: "[AI] 커리어 로드맵", desc: "경력목표, 실행계획 및 입사 후 포부", link: null, internal: true, icon: TrendingUp, color: "blue" }, 
   role_model: { name: "[AI] 롤모델 분석", desc: "존경하는 인물 면접 활용 팁", link: null, internal: true, icon: Award, color: "orange" },
   exp_structuring: { name: "[AI] 경험 구조화 (STAR)", desc: "경험 구조화 및 면접 스크립트", link: null, internal: true, icon: LayoutList, color: "indigo" },
   sit_interview: { name: "[AI] 상황면접 가이드", desc: "상황별 구조화된 면접 스크립트", link: null, internal: true, icon: Split, color: "teal" },
   pt_interview: { name: "[AI] PT 면접 가이드", desc: "주제 추출 및 발표 스크립트", link: null, internal: true, icon: MonitorPlay, color: "rose" },
-  clinic: { 
-  name: "[AI] 자기소개서 클리닉", 
-  desc: "자기소개서 강평 및 수정", 
-  link: "/clinic",  // 👈 [수정] null을 주소로 변경
-  internal: true, 
-  icon: PenTool,          // 👈 [수정] MonitorPlay -> PenTool (펜)
-  color: "rose" 
-}, 
-  
+  clinic: { name: "[AI] 자기소개서 클리닉", desc: "자기소개서 강평 및 수정", link: "/clinic", internal: true, icon: PenTool, color: "rose" },
+
+  // --- [섹션 2] 4050 중장년 컨설팅용 (category: 'senior' 추가) ---
+  // (예시) 커리어 로드맵을 여기로 분류해 보았습니다. 필요 시 'category'를 지우면 위로 올라갑니다.
+  career_roadmap: { 
+    name: "[AI] 커리어 로드맵 (생애설계)", 
+    desc: "인생 2막 경력목표 및 실행계획 수립", 
+    link: null, 
+    internal: true, 
+    icon: TrendingUp, 
+    color: "blue",
+    category: 'senior' // 👈 이 줄이 있으면 하단 섹션으로 이동합니다.
+  }, 
 };
 
 const COLOR_VARIANTS = {
@@ -94,11 +98,11 @@ const COLOR_VARIANTS = {
   purple: "bg-purple-100 text-purple-600",
   orange: "bg-orange-100 text-orange-600",
   pink: "bg-pink-100 text-pink-600",
+  amber: "bg-amber-100 text-amber-600", // 중장년용 색상 추가
 };
 
 
-// ... (Other Sub Apps: JobExplorerApp, etc. should be included here) ...
-// [NEW] 직업 탐색 가이드 앱
+// [NEW] 직업 탐색 가이드 앱 (기존 코드 유지)
 function JobExplorerApp({ onClose }) {
   const [inputs, setInputs] = useState({ job: '' });
   const [result, setResult] = useState(null);
@@ -367,10 +371,9 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [expertName, setExpertName] = useState(''); 
   const [experts, setExperts] = useState([]);
-  // 사용자 등록 필드 (이름, 이메일, 기관명)
   const [newExpertEmail, setNewExpertEmail] = useState('');
   const [newExpertName, setNewExpertName] = useState(''); 
-  const [newExpertOrg, setNewExpertOrg] = useState(''); // NEW: 기관명 상태 추가
+  const [newExpertOrg, setNewExpertOrg] = useState(''); 
 
   const [currentApp, setCurrentApp] = useState('none');
   const [customKey, setCustomKey] = useState(localStorage.getItem("custom_gemini_key") || "");
@@ -378,9 +381,7 @@ export default function App() {
   const [toastMsg, setToastMsg] = useState(null);
 
   const showToast = (msg) => setToastMsg(msg);
-
-  // 기존 state들 옆에 추가
-const [userOrg, setUserOrg] = useState(''); // 👈 기관명 저장용
+  const [userOrg, setUserOrg] = useState(''); 
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
@@ -388,9 +389,8 @@ const [userOrg, setUserOrg] = useState(''); // 👈 기관명 저장용
         setUser(u);
         if (u.uid === OWNER_UID) {
             setRole('owner');
-            setUserOrg(''); // 주인은 기관명 없음 (혹은 'Career Vitamin' 등 설정 가능)
+            setUserOrg(''); 
         } else {
-          // 사용자(고객) 목록에서 조회
           const q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts'), where('email', '==', u.email));
           const s = await getDocs(q);
           
@@ -399,32 +399,26 @@ const [userOrg, setUserOrg] = useState(''); // 👈 기관명 저장용
             const expertDoc = s.docs[0];
             const expertData = expertDoc.data();
             
-            // 👇 [기존 코드] 이름 세팅
             if (expertData.displayName) setExpertName(expertData.displayName);
-
-            // ✨ [추가할 코드] 기관명 세팅! 
-            // DB에 'organization' 필드가 있다면 가져오고, 없으면 빈칸
             if (expertData.organization) {
                 setUserOrg(expertData.organization); 
             } else {
                 setUserOrg('');
             }
 
-            // (아래 uid 업데이트 로직은 그대로 유지...)
-            s.docs.forEach(async (docSnapshot) => {
-               // ... (기존 로직 유지)
-            });
+            const expertRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts', expertDoc.id);
+            updateDoc(expertRef, { lastLogin: new Date().toISOString() });
           } else {
             setRole('guest');
             setExpertName('');
-            setUserOrg(''); // 👈 게스트는 기관명 초기화
+            setUserOrg(''); 
           }
         }
       } else { 
         setUser(null); 
         setRole('guest'); 
         setExpertName('');
-        setUserOrg(''); // 👈 로그아웃 시 초기화
+        setUserOrg(''); 
       }
     });
     return () => unsubscribe();
@@ -437,7 +431,6 @@ const [userOrg, setUserOrg] = useState(''); // 👈 기관명 저장용
     return () => unsub();
   }, [role]);
 
-  // 개인 키 저장
   const handleSavePersonalKey = () => {
     if (!customKey.startsWith("AIza")) {
       showToast("올바른 Google API Key 형식이 아닙니다.");
@@ -455,19 +448,18 @@ const [userOrg, setUserOrg] = useState(''); // 👈 기관명 저장용
       showToast("개인 API 키가 삭제되었습니다.");
   }
 
-  // 사용자 추가 (기관명 포함)
   const handleAddExpert = async (e) => {
     e.preventDefault();
     if(!newExpertEmail || !newExpertName) return;
     await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts'), {
       email: newExpertEmail, 
       displayName: newExpertName, 
-      organization: newExpertOrg, // 기관명 저장
+      organization: newExpertOrg, 
       addedAt: new Date().toISOString()
     });
     setNewExpertEmail(''); 
     setNewExpertName('');
-    setNewExpertOrg(''); // 초기화
+    setNewExpertOrg(''); 
     showToast("사용자가 추가되었습니다.");
   };
 
@@ -478,11 +470,9 @@ const [userOrg, setUserOrg] = useState(''); // 👈 기관명 저장용
     }
   };
 
-  // CSV 다운로드 (구글 시트 호환)
   const handleExportCSV = () => {
     if(experts.length === 0) return showToast("내보낼 데이터가 없습니다.");
 
-    // BOM for Excel/Sheet UTF-8 compatibility
     const BOM = "\uFEFF"; 
     const headers = ['이름,이메일,소속기관,등록일,최근접속'];
     const rows = experts.map(ex => [
@@ -518,8 +508,14 @@ const [userOrg, setUserOrg] = useState(''); // 👈 기관명 저장용
     </div>
   );
   
+  // [수정 포인트] 앱 목록을 카테고리별로 분리
   const internalApps = Object.entries(SERVICES).filter(([_, svc]) => svc.internal);
-  const externalApps = Object.entries(SERVICES).filter(([_, svc]) => !svc.internal);
+  
+  // 1. 일반(Main) 앱: category가 없거나 'general'인 경우
+  const mainApps = internalApps.filter(([_, svc]) => !svc.category || svc.category === 'general');
+  
+  // 2. 중장년(Senior) 앱: category가 'senior'인 경우
+  const seniorApps = internalApps.filter(([_, svc]) => svc.category === 'senior');
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans text-slate-800">
@@ -545,7 +541,7 @@ const [userOrg, setUserOrg] = useState(''); // 👈 기관명 저장용
             ({role === 'owner' ? '관리자' : '사용자'})
           </div>
           <button onClick={()=>signOut(auth)} className="w-full border border-slate-600 text-slate-400 py-2 rounded hover:bg-slate-800 hover:text-white transition-colors flex items-center justify-center gap-2"><LogOut size={16}/> 로그아웃</button>
-          <div className="mt-4 text-xs text-center text-slate-600 opacity-50">v9.5 (Stable 2.5)</div>
+          <div className="mt-4 text-xs text-center text-slate-600 opacity-50">v9.6 (Extended)</div>
         </div>
       </aside>
       
@@ -606,11 +602,12 @@ const [userOrg, setUserOrg] = useState(''); // 👈 기관명 저장용
              </div>
 
              <div className={`transition-all duration-500 ${!hasPersonalKey ? 'opacity-40 pointer-events-none grayscale' : ''}`}>
+               {/* 1. 기본 앱 섹션 */}
                <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
                  <Sparkles className="text-indigo-600" size={20}/> 커리어 AI 대시보드 올인원 (CADA)
                </h3>
-               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                 {internalApps.map(([key, svc]) => (
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+                 {mainApps.map(([key, svc]) => (
                    <div key={key} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md border border-slate-200 transition-all group cursor-pointer h-full relative" onClick={() => {
                        if(!hasPersonalKey) return;
                        setCurrentApp(key);
@@ -627,19 +624,51 @@ const [userOrg, setUserOrg] = useState(''); // 👈 기관명 저장용
                    </div>
                  ))}
                </div>
+
+               {/* 2. [신규] 4050 중장년 섹션 */}
+               <div className="relative pt-6">
+                 {/* 구분선 및 타이틀 */}
+                 <div className="absolute top-0 left-0 w-full border-t border-slate-200"></div>
+                 <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <Sun className="text-amber-500" size={20}/> 4050 중장년 컨설팅 (Senior Bridge)
+                 </h3>
+                 
+                 {seniorApps.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {seniorApps.map(([key, svc]) => (
+                        <div key={key} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md border border-amber-200 ring-1 ring-amber-50 transition-all group cursor-pointer h-full relative" onClick={() => {
+                            if(!hasPersonalKey) return;
+                            setCurrentApp(key);
+                          }}>
+                          {!hasPersonalKey && <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/10"><Lock className="text-slate-500 w-8 h-8"/></div>}
+                          <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${COLOR_VARIANTS[svc.color || 'amber']} group-hover:scale-110 transition-transform`}>
+                            <svc.icon size={24} /> 
+                          </div>
+                          <h3 className="font-bold text-lg mb-2 text-slate-800 group-hover:text-amber-600 transition-colors">{svc.name}</h3>
+                          <p className="text-sm text-slate-500 mb-4 h-10 line-clamp-2">{svc.desc}</p>
+                          <div className="text-xs font-bold text-amber-600 flex items-center">
+                            컨설팅 시작 <ChevronLeft className="rotate-180 ml-1 w-4 h-4"/>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                 ) : (
+                   <div className="bg-slate-100 rounded-lg p-8 text-center text-slate-400 border border-dashed border-slate-300">
+                     <Sun className="mx-auto mb-2 opacity-30" size={32}/>
+                     <p>현재 등록된 4050 전용 앱이 없습니다.</p>
+                   </div>
+                 )}
+               </div>
+
              </div>
 
              {hasPersonalKey && <div className="border-t border-slate-200 my-2"></div>}
 
-             {/* --- [대시보드 하단 저작권 섹션 (기관 메시지 포함)] --- */}
+             {/* --- [대시보드 하단 저작권 섹션] --- */}
               <div className="mt-12 py-8 border-t border-slate-200 text-center">
-                
-                {/* 1. 저작권 표시 */}
                 <p className="text-sm font-bold text-slate-500 mb-2">
                   © 2025 Career Vitamin. All Rights Reserved.
                 </p>
-                
-                {/* 2. 서비스 운영 정책 및 AI 면책 조항 */}
                 <div className="text-xs text-slate-400 space-y-1 leading-relaxed">
                   <p>
                     본 서비스(CADA)는 커리어비타민의 자체 개발 솔루션이며, 
@@ -650,8 +679,7 @@ const [userOrg, setUserOrg] = useState(''); // 👈 기관명 저장용
                     입력되거나 생성된 데이터들은 서버에 저장되지 않으며, AI 학습에 활용되지 않습니다.
                   </p>  
                 </div>
-
-                {/* 3. 문의처 (링크 제거, 이메일 텍스트만 표시) */}
+                {/* 3. 문의처 (Footer 컴포넌트 내부 로직과 별도로 대시보드 하단에 표시되는 부분) */}
                 <div className="mt-4">
                   <span className="text-xs font-medium text-slate-400">
                     Contact : yangcoach@gmail.com
@@ -730,4 +758,4 @@ const [userOrg, setUserOrg] = useState(''); // 👈 기관명 저장용
       {currentApp === 'clinic' && <Clinic onClose={()=>setCurrentApp('none')} />}
     </div>
   );
-} 
+}

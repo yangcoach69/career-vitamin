@@ -38,6 +38,7 @@ import CareerRoadmapApp from './components/CareerRoadmapApp';
 import RoleModelApp from './components/RoleModelApp';
 import SelfIntroApp from './components/SelfIntroApp';
 import Clinic from './components/Clinic';
+import LifeDesignApp from './components/LifeDesignApp'; // [NEW] 신규 앱 추가
 
 // 아이콘 불러오기
 import { 
@@ -49,7 +50,7 @@ import {
   Globe, ThumbsUp, AlertCircle, ExternalLink,
   Info, PenTool, Lightbulb, Users, Lock, ClipboardList,
   FileSpreadsheet, FileText, Briefcase, GraduationCap, BrainCircuit, Key, Smile, Meh, Frown, Stethoscope, ArrowRight,
-  UploadCloud, FileCheck, Percent, Sun // Sun 아이콘 추가 (중장년용)
+  UploadCloud, FileCheck, Percent, Sun, PieChart // PieChart 아이콘 추가
 } from 'lucide-react';
 
 // [설정 구역]
@@ -58,8 +59,8 @@ const APP_ID = 'career-vitamin';
 
 // =============================================================================
 // [핵심 수정] SERVICES 객체에 'category' 속성을 추가하여 섹션을 구분합니다.
-// category: 'senior' 라고 적으면 하단 [4050 중장년] 섹션에 뜹니다.
-// category가 없거나 'general'이면 상단 [기본] 섹션에 뜹니다.
+// category: 'senior' -> 하단 [4050 중장년] 섹션
+// category 없음 or 'general' -> 상단 [기본] 섹션
 
 const SERVICES = {
   // --- [섹션 1] 청년/공통 (기본) ---
@@ -67,7 +68,11 @@ const SERVICES = {
   gpt_guide: { name: "[AI] 직업탐색 가이드", desc: "관심 있는 직업/직무 완벽 분석", link: null, internal: true, icon: Compass, color: "emerald" },
   company_analysis: { name: "[AI] 기업분석 리포트", desc: "기업 핵심가치/이슈/SWOT 분석 및 전략", link: null, internal: true, icon: BarChart3, color: "indigo" },
   job_fit: { name: "[AI] 직무 적합도 진단", desc: "채용공고(JD)와 내 입사서류 매칭 분석", link: null, internal: true, icon: Percent, color: "rose" },
+  
+  // [이동] 커리어 로드맵을 다시 상단으로 복귀 (1분 자기소개 근처)
+  career_roadmap: { name: "[AI] 커리어 로드맵", desc: "입사 후 포부 및 성장 계획 수립", link: null, internal: true, icon: TrendingUp, color: "blue" },
   self_intro: { name: "[AI] 1분 자기소개", desc: "직무/인성 컨셉 맞춤 가이드 스크립트", link: null, internal: true, icon: Mic, color: "purple" },
+  
   role_model: { name: "[AI] 롤모델 분석", desc: "존경하는 인물 면접 활용 팁", link: null, internal: true, icon: Award, color: "orange" },
   exp_structuring: { name: "[AI] 경험 구조화 (STAR)", desc: "경험 구조화 및 면접 스크립트", link: null, internal: true, icon: LayoutList, color: "indigo" },
   sit_interview: { name: "[AI] 상황면접 가이드", desc: "상황별 구조화된 면접 스크립트", link: null, internal: true, icon: Split, color: "teal" },
@@ -75,16 +80,15 @@ const SERVICES = {
   clinic: { name: "[AI] 자기소개서 클리닉", desc: "자기소개서 강평 및 수정", link: "/clinic", internal: true, icon: PenTool, color: "rose" },
 
   // --- [섹션 2] 4050 중장년 컨설팅용 (category: 'senior' 추가) ---
-  // (예시) 커리어 로드맵을 여기로 분류해 보았습니다. 필요 시 'category'를 지우면 위로 올라갑니다.
-  career_roadmap: { 
-    name: "[AI] 커리어 로드맵 (생애설계)", 
-    desc: "인생 2막 경력목표 및 실행계획 수립", 
+  life_design: { 
+    name: "[AI] 인생 8대 영역 설계", 
+    desc: "삶의 8가지 영역 밸런스 진단 및 코칭", 
     link: null, 
     internal: true, 
-    icon: TrendingUp, 
-    color: "blue",
-    category: 'senior' // 👈 이 줄이 있으면 하단 섹션으로 이동합니다.
-  }, 
+    icon: Sun, // 혹은 PieChart
+    color: "amber",
+    category: 'senior' 
+  },
 };
 
 const COLOR_VARIANTS = {
@@ -98,7 +102,7 @@ const COLOR_VARIANTS = {
   purple: "bg-purple-100 text-purple-600",
   orange: "bg-orange-100 text-orange-600",
   pink: "bg-pink-100 text-pink-600",
-  amber: "bg-amber-100 text-amber-600", // 중장년용 색상 추가
+  amber: "bg-amber-100 text-amber-600", // 중장년용 색상
 };
 
 
@@ -756,6 +760,7 @@ export default function App() {
       {currentApp === 'gpt_guide' && <JobExplorerApp onClose={()=>setCurrentApp('none')} />}
       {currentApp === 'holland_test' && <HollandTestApp onClose={()=>setCurrentApp('none')} />}
       {currentApp === 'clinic' && <Clinic onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'life_design' && <LifeDesignApp onClose={()=>setCurrentApp('none')} />} {/* 신규 앱 렌더링 추가 */}
     </div>
   );
 }

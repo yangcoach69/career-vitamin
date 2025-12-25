@@ -1,0 +1,447 @@
+import React, { useState, useRef, useMemo } from 'react';
+import { 
+  Sun, ChevronLeft, Loader2, Download, 
+  Plus, Trash2, PieChart, PenTool, CheckCircle2, AlertTriangle, Lightbulb
+} from 'lucide-react';
+import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
+import { Toast, EditableContent, Footer } from './SharedUI';
+
+// [기본 8대 영역 설정 (시계 방향 순서)]
+const DEFAULT_AREAS = [
+  { id: 'work', label: '업(業)', eng: 'Work', score: 5, note: '' },
+  { id: 'growth', label: '자기성장', eng: 'Self-Growth', score: 5, note: '' },
+  { id: 'contribution', label: '사회공헌', eng: 'Contribution', score: 5, note: '' },
+  { id: 'family', label: '가족', eng: 'Family', score: 5, note: '' },
+  { id: 'relation', label: '사회적 관계', eng: 'Relationship', score: 5, note: '' },
+  { id: 'material', label: '물적소유', eng: 'Possession', score: 5, note: '' },
+  { id: 'finance', label: '재무', eng: 'Finance', score: 5, note: '' },
+  { id: 'leisure', label: '여가', eng: 'Leisure', score: 5, note: '' },
+];
+
+// --- [순수 SVG 방사형 차트 컴포넌트] ---
+const RadarChart = ({ data, size = 300 }) => {
+  const center = size / 2;
+  const radius = (size / 2) - 40; // 라벨 공간 확보
+  const total = data.length;
+  const angleSlice = (Math.PI * 2) / total;
+
+  // 좌표 계산 함수
+  const getCoordinates = (value, index) => {
+    const angle = index * angleSlice - Math.PI / 2; // -90도(12시 방향)부터 시작
+    const r = (value / 10) * radius; // 10점 만점 기준
+    return {
+      x: center + r * Math.cos(angle),
+      y: center + r * Math.sin(angle)
+    };
+  };
+
+  // 1. 그리드(거미줄) 좌표 계산
+  const levels = [2, 4, 6, 8, 10];
+  const gridPaths = levels.map(level => {
+    const points = data.map((_, i) => {
+      const { x, y } = getCoordinates(level, i);
+      return `${x},${y}`;
+    }).join(' ');
+    return { level, points };
+  });
+
+  // 2. 축(Axis) 선 좌표
+  const axisLines = data.map((_, i) => {
+    const start = { x: center, y: center };
+    const end = getCoordinates(10, i);
+    return { start, end };
+  });
+
+  // 3. 실제 데이터 영역 좌표
+  const dataPoints = data.map((d, i) => {
+    const { x, y } = getCoordinates(d.score, i);
+    return `${x},${y}`;
+  }).join(' ');
+
+  // 4. 라벨 위치
+  const labels = data.map((d, i) => {
+    const angle = i * angleSlice - Math.PI / 2;
+    const r = radius + 25; // 차트 바깥쪽
+    const x = center + r * Math.cos(angle);
+    const y = center + r * Math.sin(angle);
+    return { ...d, x, y };
+  });
+
+  return (
+    <svg width={size} height={size} className="overflow-visible mx-auto font-sans">
+      {/* 배경 그리드 (거미줄) */}
+      {gridPaths.map((g, i) => (
+        <polygon 
+          key={i} 
+          points={g.points} 
+          fill="none" 
+          stroke="#e2e8f0" 
+          strokeWidth="1" 
+          strokeDasharray="4 4"
+        />
+      ))}
+      
+      {/* 중심 축 선 */}
+      {axisLines.map((l, i) => (
+        <line 
+          key={i} 
+          x1={l.start.x} y1={l.start.y} 
+          x2={l.end.x} y2={l.end.y} 
+          stroke="#e2e8f0" 
+          strokeWidth="1" 
+        />
+      ))}
+
+      {/* 데이터 영역 (폴리곤) */}
+      <polygon 
+        points={dataPoints} 
+        fill="rgba(245, 158, 11, 0.2)" // amber-500 with opacity
+        stroke="#d97706" // amber-600
+        strokeWidth="2" 
+      />
+
+      {/* 데이터 포인트 (점) */}
+      {data.map((d, i) => {
+        const coords = getCoordinates(d.score, i);
+        return (
+          <circle 
+            key={i} 
+            cx={coords.x} cy={coords.y} 
+            r="4" 
+            fill="#d97706" 
+            stroke="white" 
+            strokeWidth="2"
+          />
+        );
+      })}
+
+      {/* 라벨 */}
+      {labels.map((l, i) => (
+        <g key={i}>
+            <text 
+            x={l.x} y={l.y} 
+            textAnchor="middle" 
+            dominantBaseline="middle" 
+            className="text-[10px] font-bold fill-slate-600"
+            >
+            {l.label}
+            </text>
+            <text 
+            x={l.x} y={l.y + 12} 
+            textAnchor="middle" 
+            dominantBaseline="middle" 
+            className="text-[8px] fill-slate-400 uppercase"
+            >
+            {l.eng}
+            </text>
+        </g>
+      ))}
+    </svg>
+  );
+};
+// ------------------------------------
+
+export default function LifeDesignApp({ onClose }) {
+  // 상태 관리
+  const [areas, setAreas] = useState(DEFAULT_AREAS);
+  const [customAreaInput, setCustomAreaInput] = useState(''); // 커스텀 영역 입력값
+  
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [toastMsg, setToastMsg] = useState(null);
+  const reportRef = useRef(null);
+
+  const showToast = (msg) => setToastMsg(msg);
+
+  // 점수 변경 핸들러
+  const handleScoreChange = (index, val) => {
+    const newAreas = [...areas];
+    newAreas[index].score = parseInt(val);
+    setAreas(newAreas);
+  };
+
+  // 메모 변경 핸들러
+  const handleNoteChange = (index, val) => {
+    const newAreas = [...areas];
+    newAreas[index].note = val;
+    setAreas(newAreas);
+  };
+
+  // 커스텀 영역 추가
+  const addCustomArea = () => {
+    if (!customAreaInput.trim()) return showToast("추가할 영역 이름을 입력하세요.");
+    if (areas.length >= 10) return showToast("자유 영역은 최대 2개까지만 추가 가능합니다."); // 8기본 + 2자유 = 10
+    
+    setAreas([
+      ...areas, 
+      { 
+        id: `custom_${Date.now()}`, 
+        label: customAreaInput, 
+        eng: 'Custom', 
+        score: 5, 
+        note: '' 
+      }
+    ]);
+    setCustomAreaInput('');
+  };
+
+  // 커스텀 영역 삭제
+  const removeCustomArea = (index) => {
+    const newAreas = areas.filter((_, i) => i !== index);
+    setAreas(newAreas);
+  };
+
+  const handleGenerate = async () => {
+    setLoading(true);
+    try {
+      // 입력 데이터 정리
+      const inputSummary = areas.map(a => 
+        `- ${a.label}(${a.score}점): ${a.note || '특이사항 없음'}`
+      ).join('\n');
+
+      const prompt = `
+      당신은 4050 중장년 대상의 생애설계(Life Design) 전문 코치입니다.
+      사용자가 입력한 '인생 8대 영역(+알파)'의 점수와 상태 메모를 분석하여 코칭 리포트를 작성해주세요.
+
+      [사용자 입력 데이터]
+      ${inputSummary}
+
+      [분석 요청사항]
+      1. 점수가 높은 영역(상위 3개 내외)을 묶어서 칭찬하고, 현재의 만족감을 유지/강화하기 위한 조언을 해주세요.
+      2. 점수가 낮은 영역(하위 3개 내외)을 묶어서 위로하고, 균형을 맞추기 위해 당장 시작할 수 있는 작은 액션 플랜을 제안하세요.
+      3. 전반적인 삶의 균형 상태(Balance)에 대한 총평을 남겨주세요.
+
+      [JSON 출력 형식 준수]
+      {
+        "high_satisfaction": {
+          "title": "삶의 활력소가 되는 영역들 (강점)",
+          "summary": "높은 점수를 받은 영역들에 대한 요약 분석 (한 문단)",
+          "coaching": "이 만족감을 계속 유지하고 삶의 에너지로 삼기 위한 코칭 메시지"
+        },
+        "low_satisfaction": {
+          "title": "더 채워가면 좋을 영역들 (보완)",
+          "summary": "낮은 점수를 받은 영역들에 대한 요약 분석 (한 문단)",
+          "coaching": "부담 갖지 않고 조금씩 개선하기 위한 구체적인 가이드 및 격려 메시지"
+        },
+        "overall_review": "전체적인 생애 균형에 대한 총평 및 응원 메시지 (두괄식)"
+      }`;
+
+      const parsed = await fetchGemini(prompt);
+      setResult(parsed);
+    } catch (e) {
+      showToast(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEdit = (section, key, value) => {
+    setResult(prev => {
+      const newData = { ...prev };
+      if (key) newData[section][key] = value;
+      else newData[section] = value;
+      return newData;
+    });
+  };
+
+  const handleDownload = () => saveAsPng(reportRef, `생애설계_8대영역_진단`, showToast);
+  const handlePdfDownload = () => saveAsPdf(reportRef, `생애설계_8대영역_진단`, showToast);
+
+  return (
+    <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
+      {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
+      
+      {/* 헤더 */}
+      <header className="bg-amber-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
+        <div className="flex items-center gap-3">
+          <Sun className="text-amber-400"/>
+          <h1 className="font-bold text-lg">인생 8대 영역 설계 (Life Balance)</h1>
+        </div>
+        <button onClick={onClose} className="flex items-center text-sm hover:text-amber-200 transition-colors">
+          <ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기
+        </button>
+      </header>
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* 사이드바: 입력창 */}
+        <aside className="w-[400px] bg-white border-r p-6 shrink-0 overflow-y-auto">
+          <div className="space-y-8">
+            <div className="bg-amber-50 p-4 rounded-lg border border-amber-100 text-sm text-amber-900">
+                <strong>💡 작성 가이드</strong><br/>
+                각 영역의 현재 만족도(1~10점)를 선택하고, 
+                현재의 고민이나 상태를 짧게 메모해주세요.
+            </div>
+
+            {/* 영역별 입력 루프 */}
+            <div className="space-y-6">
+                {areas.map((area, index) => (
+                    <div key={area.id} className="relative animate-in fade-in slide-in-from-left-4" style={{animationDelay: `${index * 50}ms`}}>
+                        <div className="flex justify-between items-center mb-2">
+                            <label className="font-bold text-slate-700 flex items-center gap-2">
+                                {index < 8 ? <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-xs">{index+1}</span> : <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-500 flex items-center justify-center text-xs">+</span>}
+                                {area.label} <span className="text-xs text-slate-400 font-normal uppercase ml-1">{area.eng}</span>
+                            </label>
+                            <span className={`font-bold text-lg ${area.score >= 8 ? 'text-amber-600' : area.score <= 4 ? 'text-slate-400' : 'text-slate-700'}`}>
+                                {area.score}점
+                            </span>
+                        </div>
+                        
+                        {/* 점수 슬라이더 */}
+                        <input 
+                            type="range" 
+                            min="1" max="10" 
+                            value={area.score}
+                            onChange={(e) => handleScoreChange(index, e.target.value)}
+                            className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-amber-600 mb-3"
+                        />
+
+                        {/* 메모장 */}
+                        <textarea
+                            value={area.note}
+                            onChange={(e) => handleNoteChange(index, e.target.value)}
+                            placeholder={`${area.label} 관련 현재 상태나 고민은?`}
+                            className="w-full p-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none resize-none h-16 bg-slate-50 focus:bg-white transition-colors"
+                        />
+
+                        {/* 커스텀 영역 삭제 버튼 */}
+                        {index >= 8 && (
+                            <button 
+                                onClick={() => removeCustomArea(index)}
+                                className="absolute -right-2 -top-2 bg-red-100 text-red-500 p-1 rounded-full hover:bg-red-200"
+                            >
+                                <Trash2 size={12}/>
+                            </button>
+                        )}
+                    </div>
+                ))}
+            </div>
+
+            {/* 커스텀 영역 추가 */}
+            {areas.length < 10 && (
+                <div className="pt-4 border-t border-slate-200">
+                    <label className="block text-xs font-bold text-slate-500 mb-2">자유 영역 추가 (선택, 최대 2개)</label>
+                    <div className="flex gap-2">
+                        <input 
+                            value={customAreaInput}
+                            onChange={(e) => setCustomAreaInput(e.target.value)}
+                            placeholder="예: 종교, 봉사활동"
+                            className="flex-1 p-2 border rounded-lg text-sm"
+                            onKeyPress={(e) => e.key === 'Enter' && addCustomArea()}
+                        />
+                        <button 
+                            onClick={addCustomArea}
+                            className="bg-slate-800 text-white px-3 py-2 rounded-lg hover:bg-slate-700"
+                        >
+                            <Plus size={16}/>
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            <button 
+              onClick={handleGenerate} 
+              disabled={loading} 
+              className="w-full bg-amber-700 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-amber-800 transition-all disabled:bg-slate-400 text-lg flex items-center justify-center gap-2"
+            >
+              {loading ? <Loader2 className="animate-spin"/> : <><PieChart size={20}/> 밸런스 진단하기</>}
+            </button>
+          </div>
+        </aside>
+
+        {/* 결과 리포트 화면 */}
+        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
+            <div ref={reportRef} className="w-[210mm] min-h-[297mm] h-fit bg-white shadow-2xl p-12 flex flex-col animate-in fade-in zoom-in-95 duration-500">
+              
+              {/* 리포트 헤더 */}
+              <div className="border-b-4 border-amber-600 pb-6 mb-8 flex justify-between items-end">
+                <div>
+                    <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">LIFE BALANCE REPORT</span>
+                    <h1 className="text-4xl font-extrabold text-slate-900">인생 8대 영역 밸런스</h1>
+                </div>
+                <div className="text-right">
+                    <div className="text-xs text-slate-400 font-bold mb-1">DATE</div>
+                    <div className="text-lg font-bold text-slate-700">{new Date().toLocaleDateString()}</div>
+                </div>
+              </div>
+
+              {/* 1. 상단: 방사형 차트 시각화 */}
+              <div className="mb-10 flex flex-col items-center justify-center bg-slate-50 rounded-2xl p-8 border border-slate-100">
+                  <h3 className="text-lg font-bold text-slate-700 mb-6 flex items-center gap-2">
+                    <PieChart className="text-amber-500"/> 나의 생애 균형도
+                  </h3>
+                  <RadarChart data={areas} size={360} />
+                  
+                  {/* 총평 (차트 바로 아래) */}
+                  {result && (
+                      <div className="mt-8 text-center max-w-2xl bg-white p-6 rounded-xl border border-amber-100 shadow-sm">
+                          <h4 className="font-bold text-amber-800 mb-2">💡 Overall Review</h4>
+                          <EditableContent className="text-slate-700 leading-relaxed font-medium" value={result.overall_review} onSave={(v)=>handleEdit('overall_review', null, v)} />
+                      </div>
+                  )}
+              </div>
+
+              {result ? (
+                <div className="space-y-8">
+                    {/* 2. 만족 영역 (High Satisfaction) */}
+                    <section className="bg-green-50 p-6 rounded-2xl border border-green-100">
+                        <h3 className="text-xl font-bold text-green-800 mb-4 flex items-center gap-2 border-b border-green-200 pb-3">
+                            <CheckCircle2 className="text-green-600"/> 
+                            <EditableContent value={result.high_satisfaction.title} onSave={(v)=>handleEdit('high_satisfaction', 'title', v)} />
+                        </h3>
+                        <div className="space-y-4">
+                            <div>
+                                <strong className="text-sm text-green-700 block mb-1">Status Summary</strong>
+                                <EditableContent className="text-slate-700 text-sm leading-relaxed bg-white p-3 rounded-lg border border-green-100" value={result.high_satisfaction.summary} onSave={(v)=>handleEdit('high_satisfaction', 'summary', v)} />
+                            </div>
+                            <div>
+                                <strong className="text-sm text-green-700 block mb-1">Coaching Message</strong>
+                                <div className="flex gap-3 bg-white p-4 rounded-lg border border-green-100 shadow-sm">
+                                    <div className="shrink-0 pt-1"><PenTool size={16} className="text-green-500"/></div>
+                                    <EditableContent className="text-slate-700 text-sm leading-relaxed" value={result.high_satisfaction.coaching} onSave={(v)=>handleEdit('high_satisfaction', 'coaching', v)} />
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* 3. 보완 영역 (Low Satisfaction) */}
+                    <section className="bg-red-50 p-6 rounded-2xl border border-red-100">
+                        <h3 className="text-xl font-bold text-red-800 mb-4 flex items-center gap-2 border-b border-red-200 pb-3">
+                            <AlertTriangle className="text-red-600"/> 
+                            <EditableContent value={result.low_satisfaction.title} onSave={(v)=>handleEdit('low_satisfaction', 'title', v)} />
+                        </h3>
+                        <div className="space-y-4">
+                            <div>
+                                <strong className="text-sm text-red-700 block mb-1">Status Summary</strong>
+                                <EditableContent className="text-slate-700 text-sm leading-relaxed bg-white p-3 rounded-lg border border-red-100" value={result.low_satisfaction.summary} onSave={(v)=>handleEdit('low_satisfaction', 'summary', v)} />
+                            </div>
+                            <div>
+                                <strong className="text-sm text-red-700 block mb-1">Coaching Message (Action Plan)</strong>
+                                <div className="flex gap-3 bg-white p-4 rounded-lg border border-red-100 shadow-sm">
+                                    <div className="shrink-0 pt-1"><Lightbulb size={16} className="text-red-500"/></div>
+                                    <EditableContent className="text-slate-700 text-sm leading-relaxed" value={result.low_satisfaction.coaching} onSave={(v)=>handleEdit('low_satisfaction', 'coaching', v)} />
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center text-slate-300 py-20">
+                    <p className="text-lg font-bold text-slate-400">좌측에서 영역별 진단을 진행해주세요.</p>
+                    <p className="text-sm mt-2">입력한 점수와 메모를 바탕으로 AI 코칭 리포트가 생성됩니다.</p>
+                </div>
+              )}
+
+              <Footer />
+            </div>
+        </main>
+
+        {result && (
+          <div className="absolute bottom-8 right-8 flex gap-3 z-50">
+            <button onClick={handleDownload} className="bg-white text-slate-900 border border-slate-200 px-6 py-3 rounded-full font-bold shadow-xl hover:-translate-y-1 flex items-center transition-transform"><Download className="mr-2" size={20}/> 이미지 저장</button>
+            <button onClick={handlePdfDownload} className="bg-amber-800 text-white px-6 py-3 rounded-full font-bold shadow-xl hover:-translate-y-1 flex items-center transition-transform"><Download className="mr-2" size={20}/> PDF 저장</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -32,7 +32,7 @@ export default function HollandTestApp({ onClose }) {
       const top3 = sortedScores.slice(0, 3).map(s => s.code).join('');
       const scoreText = sortedScores.map(s => `${s.code}=${s.score}`).join(', ');
       
-      const prompt = `당신은 진로 상담 전문가입니다. 내담자의 홀랜드(RIASEC) 검사 결과와 관심 직업을 바탕으로 상세 분석 리포트를 작성해주세요.
+      const prompt = `당신은 진로 상담 전문가입니다. 내담자의 직업흥미 표준화검사 결과와 관심 직업을 바탕으로 상세 분석 리포트를 작성해주세요.
       [검사 결과]
       - 표준점수: ${scoreText}
       - 1순위 유형: ${getTypeFullName(sortedScores[0].code)} (${sortedScores[0].code})

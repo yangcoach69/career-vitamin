@@ -211,16 +211,23 @@ function JobExplorerApp({ onClose }) {
                        </div>
                     </div>
                     <div className="bg-blue-50 p-4 rounded-xl">
-                       <h4 className="font-bold text-blue-800 text-sm mb-3 text-center">Big 5 성격요인</h4>
-                       <div className="space-y-2 text-xs">
-                         {result.big5?.map((b, i) => (
-                           <div key={i} className="flex justify-between items-start border-b border-blue-100 last:border-0 pb-1">
-                             <span className="font-bold text-slate-700 w-20">{b.trait}</span>
-                             <span className="font-bold text-blue-600 w-10">{b.level}</span>
-                             <span className="flex-1 text-slate-500 text-[10px]"><EditableContent value={b.reason} onSave={(v)=>handleEdit('big5', 'reason', v, i)} /></span>
-                           </div>
-                         ))}
-                       </div>
+                      <h4 className="font-bold text-blue-800 text-sm mb-3 text-center">Big 5 성격요인</h4>
+                      <div className="space-y-2 text-xs">
+                        {result.big5?.map((b, i) => (
+                          /* [수정] flex-row(기본) 대신 flex-col(세로 배치) 적용하여 영역 분리 */
+                          <div key={i} className="flex flex-col border-b border-blue-100 last:border-0 pb-2">
+                            {/* 1. 윗줄: 특성 명칭과 수준 (좌우 배치) */}
+                            <div className="flex justify-between items-center w-full mb-1">
+                              <span className="font-bold text-slate-700">{b.trait}</span>
+                              <span className="font-bold text-blue-600">{b.level}</span>
+                            </div>
+                            {/* 2. 아랫줄: 설명 (전체 너비 사용 + 줄바꿈 허용) */}
+                            <div className="text-slate-500 text-[10px] whitespace-pre-wrap leading-relaxed">
+                              <EditableContent value={b.reason} onSave={(v)=>handleEdit('big5', 'reason', v, i)} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                     <div className="bg-orange-50 p-4 rounded-xl">
                        <h4 className="font-bold text-orange-800 text-sm mb-3 text-center">직업 가치</h4>

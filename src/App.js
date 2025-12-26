@@ -200,7 +200,7 @@ function JobExplorerApp({ onClose }) {
                   <h3 className="text-xl font-bold text-slate-800 mb-4 pb-2 border-b border-slate-200 flex items-center"><User size={20} className="mr-2 text-emerald-600"/> 적합한 인재 특성</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-emerald-50 p-4 rounded-xl">
-                       <h4 className="font-bold text-emerald-800 text-sm mb-3 text-center">Holland 유형</h4>
+                       <h4 className="font-bold text-emerald-800 text-sm mb-3 text-center">직업흥미 유형</h4>
                        <div className="space-y-2">
                          {result.holland?.map((h, i) => (
                            <div key={i} className="bg-white p-2 rounded border border-emerald-100 text-sm">
@@ -211,7 +211,7 @@ function JobExplorerApp({ onClose }) {
                        </div>
                     </div>
                     <div className="bg-blue-50 p-4 rounded-xl">
-                       <h4 className="font-bold text-blue-800 text-sm mb-3 text-center">Big 5 성격</h4>
+                       <h4 className="font-bold text-blue-800 text-sm mb-3 text-center">Big 5 요인</h4>
                        <div className="space-y-2 text-xs">
                          {result.big5?.map((b, i) => (
                            <div key={i} className="flex justify-between items-start border-b border-blue-100 last:border-0 pb-1">

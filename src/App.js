@@ -25,7 +25,7 @@ import {
 import { fetchGemini, saveAsPng, saveAsPdf, renderText } from './api';
 import { Toast, EditableContent, Footer } from './components/SharedUI';
 
-// [앱 컴포넌트]
+// [앱 컴포넌트 임포트]
 import JobFitScannerApp from './components/JobFitScanner';
 import HollandTestApp from './components/HollandTest'; 
 import CompanyAnalysisApp from './components/CompanyAnalysis';
@@ -36,10 +36,10 @@ import CareerRoadmapApp from './components/CareerRoadmapApp';
 import RoleModelApp from './components/RoleModelApp';
 import SelfIntroApp from './components/SelfIntroApp';
 import Clinic from './components/Clinic';
-import LifeDesignApp from './components/LifeDesignApp.js';
-import LifeCurveApp from './components/LifeCurveApp.js';
+import LifeDesignApp from './components/LifeDesignApp';
+import LifeCurveApp from './components/LifeCurveApp'; 
 
-// [아이콘]
+// [아이콘 라이브러리 - Menu 추가됨]
 import { 
   LayoutDashboard, Building2, LogOut, Trash2, 
   Settings, Loader2, Check, 
@@ -48,16 +48,20 @@ import {
   MonitorPlay, LayoutList, Split, Mic, BarChart3, 
   Globe, ThumbsUp, AlertCircle, ExternalLink, 
   Info, PenTool, Lightbulb, Users, Lock, ClipboardList,
-  FileSpreadsheet, FileText, Briefcase, GraduationCap, BrainCircuit, Key, Smile, Meh, Frown, Stethoscope, ArrowRight,
-  UploadCloud, FileCheck, Percent, Sun, PieChart, Star, Layout, MapPin, Menu
+  FileSpreadsheet, FileText, Briefcase, GraduationCap, BrainCircuit, Key, 
+  Sun, Star, Layout, MapPin, Percent, Menu
 } from 'lucide-react';
 
+// ============================================================================
 // [설정 구역]
+// ============================================================================
 const OWNER_UID = "TN8orW7kwuTzAnFWNM8jCiixt3r2"; 
-const OWNER_EMAIL = "yangcoach@gmail.com"; 
+const OWNER_EMAIL = "yangcoach@gmail.com"; // [필수] 개발자 이메일 (UID 달라도 접속 가능)
 const APP_ID = 'career-vitamin';
 
-// [NEW] 직업 탐색 가이드 앱 (JobExplorerApp)
+// -----------------------------------------------------------------------------
+// 1. 내부 앱: 직업 탐색 가이드 (JobExplorerApp)
+// -----------------------------------------------------------------------------
 function JobExplorerApp({ onClose }) {
   const [inputs, setInputs] = useState({ job: '' });
   const [result, setResult] = useState(null);
@@ -169,7 +173,6 @@ function JobExplorerApp({ onClose }) {
               </div>
 
               <div className="space-y-8">
-                {/* 1. 업무 & 고객 & 스트레스 */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    <div className="bg-slate-50 p-5 rounded-xl border border-slate-200">
                       <h3 className="font-bold text-slate-800 mb-3 flex items-center"><Briefcase size={18} className="mr-2 text-emerald-600"/> 주요 업무</h3>
@@ -282,8 +285,17 @@ function JobExplorerApp({ onClose }) {
 }
 
 // =============================================================================
-// [핵심] SERVICES 객체
+// [핵심: APPS 및 SERVICES 정의 위치 수정 - App 컴포넌트보다 위에 정의]
 // =============================================================================
+
+const APPS = [
+  { id: 'holland', title: '홀랜드 유형 검사', desc: '나의 직업적 성격 유형(RIASEC) 탐색', icon: <ClipboardList size={24} />, color: 'bg-blue-600', component: HollandTestApp },
+  { id: 'roadmap', title: '커리어 로드맵', desc: '과거-현재-미래를 잇는 커리어 여정 설계', icon: <MapPin size={24} />, color: 'bg-purple-600', component: CareerRoadmapApp },
+  { id: 'jobfit', title: '직무 적합도 진단', desc: '희망 직무와 나의 역량 일치도 분석', icon: <Percent size={24} />, color: 'bg-rose-600', component: JobFitScannerApp },
+  { id: 'lifedesign', title: '인생 8대 영역 설계', desc: '삶의 균형과 미래 비전 수립', icon: <Sun size={24} />, color: 'bg-amber-600', component: LifeDesignApp },
+  { id: 'lifecurve', title: '인생곡선 그리기', desc: '삶의 희로애락 파동 시각화 및 의미 발견', icon: <TrendingUp size={24} />, color: 'bg-indigo-600', component: LifeCurveApp },
+  { id: 'experience', title: '경험 구조화 (STAR)', desc: '성공 경험을 STAR 기법으로 정리', icon: <Star size={24} />, color: 'bg-violet-600', component: ExperienceStructApp }
+];
 
 const SERVICES = {
   holland_test: { name: "[AI] 홀랜드(Holland) 검사", desc: "나의 직업적 성격 유형(RIASEC) 탐색", link: null, internal: true, icon: ClipboardList, color: "pink" },
@@ -335,8 +347,9 @@ const COLOR_VARIANTS = {
   amber: "bg-amber-100 text-amber-600",
 };
 
-// --- Main App Component ---
-
+// -----------------------------------------------------------------------------
+// 3. 메인 App 컴포넌트
+// -----------------------------------------------------------------------------
 export default function App() {
   const [user, setUser] = useState(null);
   const [role, setRole] = useState('guest'); 
@@ -356,20 +369,23 @@ export default function App() {
   const [hasPersonalKey, setHasPersonalKey] = useState(!!localStorage.getItem("custom_gemini_key")); 
   const [toastMsg, setToastMsg] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isAuthChecking, setIsAuthChecking] = useState(true); // [추가] 로딩 상태
+  const [isAuthChecking, setIsAuthChecking] = useState(true); // [로딩 상태]
 
   const showToast = (msg) => setToastMsg(msg);
   const [userOrg, setUserOrg] = useState(''); 
 
+  // [인증 체크 로직]
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       setIsAuthChecking(true); // 체크 시작
       if (u) {
         setUser(u);
+        // 1. 관리자 프리패스: 이메일 일치 시 무조건 관리자
         if (u.uid === OWNER_UID || u.email === OWNER_EMAIL) {
             setRole('owner');
             setUserOrg('관리자'); 
         } else {
+          // 2. 일반 사용자 체크
           const q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts'), where('email', '==', u.email));
           const s = await getDocs(q);
           
@@ -381,7 +397,7 @@ export default function App() {
             const expirationDate = expertData.expirationDate;
             const today = new Date().toISOString().split('T')[0];
             
-            // 만료일이 없거나(기존 사용자) '9999-12-31'이면 영구 사용자로 처리
+            // 만료일이 없거나 '9999-12-31'이면 영구 사용자로 간주
             const isPermanent = !expirationDate || expirationDate === '9999-12-31';
             
             if (!isPermanent && expirationDate < today) {
@@ -391,15 +407,12 @@ export default function App() {
             } else {
                 setRole('expert');
                 if (expertData.displayName) setExpertName(expertData.displayName);
-                if (expertData.organization) {
-                    setUserOrg(expertData.organization); 
-                } else {
-                    setUserOrg('');
-                }
+                setUserOrg(expertData.organization || '');
                 const expertRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts', expertDoc.id);
                 updateDoc(expertRef, { lastLogin: new Date().toISOString() });
             }
           } else {
+            // DB에 없으면 게스트
             setRole('guest');
             setExpertName('');
             setUserOrg(''); 
@@ -416,9 +429,11 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
+  // [관리자용 데이터 로드]
   useEffect(() => {
     if (role !== 'owner') return;
     const q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts'));
+    
     const unsub = onSnapshot(q, (s) => {
         const expertList = s.docs.map(d => ({ id: d.id, ...d.data() }));
         // 정렬: 만료일 빠른 순, 영구는 맨 뒤로
@@ -449,11 +464,12 @@ export default function App() {
       showToast("개인 API 키가 삭제되었습니다.");
   }
 
+  // [사용자 추가]
   const handleAddExpert = async (e) => {
     e.preventDefault();
     if(!newExpertEmail || !newExpertName) return;
 
-    let expirationDate = '9999-12-31'; 
+    let expirationDate = '9999-12-31'; // 기본: 영구
     if (newExpertDuration !== 'permanent') {
         const today = new Date();
         const durationDays = parseInt(newExpertDuration, 10);
@@ -509,14 +525,14 @@ export default function App() {
     showToast("파일이 다운로드되었습니다. 구글 드라이브에 업로드하여 여세요.");
   };
 
-  // [수정: 로딩 화면 추가]
+  // [로딩 화면 추가]
   if (isAuthChecking) return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
        <Loader2 className="animate-spin text-indigo-600" size={48}/>
     </div>
   );
 
-  // [수정: 로그인 화면 에러 조건 변경]
+  // [로그인 화면] - 로직 수정: 로그인되어 있고 게스트일 때만 에러 표시
   if (!user || role === 'guest' || role === 'expired') return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
       {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
@@ -530,7 +546,7 @@ export default function App() {
              </div>
         )}
         
-        {/* [중요 수정] 오직 (로그인됨 AND 게스트) 일 때만 에러 표시 */}
+        {/* [중요] 오직 로그인된 상태에서 게스트일 때만 에러 표시 */}
         {user && role === 'guest' && (
             <div className="bg-red-50 text-red-600 p-3 rounded mb-4 text-sm flex items-center gap-2 justify-center">
                 <AlertCircle size={16}/>접근 권한이 없습니다. 관리자에게 문의하세요.
@@ -588,56 +604,21 @@ export default function App() {
                 <div className="flex justify-between items-start mb-4">
                     <div>
                         <h2 className={`text-lg font-bold flex items-center gap-2 ${!hasPersonalKey ? 'text-red-600' : 'text-indigo-900'}`}>
-                            <Key className={!hasPersonalKey ? 'text-red-500' : 'text-indigo-500'} size={20}/> 
-                            AI 모델 설정 (API Key)
+                            <Key className={!hasPersonalKey ? 'text-red-500' : 'text-indigo-500'} size={20}/> AI 모델 설정 (API Key)
                         </h2>
-                        <p className="text-sm text-slate-500 mt-1">
-                            서비스 이용을 위해 본인의 Google AI 키가 반드시 필요합니다.
-                        </p>
+                        <p className="text-sm text-slate-500 mt-1">서비스 이용을 위해 본인의 Google AI 키가 반드시 필요합니다.</p>
                     </div>
                     <div className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${hasPersonalKey ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700 animate-pulse'}`}>
-                        {hasPersonalKey ? <Check size={12}/> : <Lock size={12}/>}
-                        {hasPersonalKey ? "등록 완료" : "등록 필수"}
+                        {hasPersonalKey ? <Check size={12}/> : <Lock size={12}/>} {hasPersonalKey ? "등록 완료" : "등록 필수"}
                     </div>
                 </div>
-
-                <div className="bg-slate-50 p-5 rounded-lg mb-6 text-sm text-slate-700 leading-relaxed border border-slate-200">
-                    <h4 className="font-bold text-slate-900 mb-2 flex items-center gap-2">
-                        <Lightbulb size={16} className="text-yellow-500"/> 왜 내 키를 등록해야 하나요?
-                    </h4>
-                    <ul className="list-disc list-inside space-y-1 ml-1 text-slate-600 mb-3">
-                        <li><strong>무료 & 무제한:</strong> Google Gemini API는 개인 계정에 대해 충분한 무료 사용량을 제공합니다.</li>
-                        <li><strong>안정성:</strong> 나만의 키를 사용하므로 다른 사용자의 영향 없이 빠르고 안정적입니다.</li>
-                        <li><strong>보안:</strong> 키는 서버에 저장되지 않고, 오직 <strong>현재 브라우저에만 저장</strong>되어 안전합니다.</li>
-                    </ul>
-                    <a 
-                        href="https://aistudio.google.com/app/apikey" 
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-md text-sm"
-                    >
-                        🔑 Google AI Studio에서 무료 키 발급받기 <ExternalLink size={14}/>
-                    </a>
-                </div>
-
                 <div className="flex gap-2">
-                  <input 
-                    type="password" 
-                    value={customKey} 
-                    onChange={e=>setCustomKey(e.target.value)} 
-                    className={`flex-1 p-3 border rounded-lg focus:ring-2 outline-none transition-all ${hasPersonalKey ? 'border-green-300 bg-green-50 text-green-800' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'}`}
-                    placeholder={hasPersonalKey ? "API 키가 안전하게 등록되어 있습니다." : "AIza로 시작하는 키를 여기에 붙여넣으세요"} 
-                    disabled={hasPersonalKey}
-                  />
-                  {!hasPersonalKey ? (
-                    <button onClick={handleSavePersonalKey} className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors shadow-md shrink-0">등록하기</button>
-                  ) : (
-                    <button onClick={handleRemovePersonalKey} className="bg-red-100 text-red-600 border border-red-200 px-6 py-3 rounded-lg font-bold hover:bg-red-200 transition-colors shrink-0">재설정</button>
-                  )}
+                  <input type="password" value={customKey} onChange={e=>setCustomKey(e.target.value)} className="flex-1 p-3 border rounded-lg focus:ring-2 outline-none" placeholder={hasPersonalKey ? "API 키가 안전하게 등록되어 있습니다." : "AIza로 시작하는 키를 여기에 붙여넣으세요"} disabled={hasPersonalKey}/>
+                  {!hasPersonalKey ? <button onClick={handleSavePersonalKey} className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-bold">등록하기</button> : <button onClick={handleRemovePersonalKey} className="bg-red-100 text-red-600 border border-red-200 px-6 py-3 rounded-lg font-bold">재설정</button>}
                 </div>
-             </div>
+              </div>
 
-             <div className={`transition-all duration-500 ${!hasPersonalKey ? 'opacity-40 pointer-events-none grayscale' : ''}`}>
+              <div className={`transition-all duration-500 ${!hasPersonalKey ? 'opacity-40 pointer-events-none grayscale' : ''}`}>
                {/* 1. 기본 앱 섹션 */}
                <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
                  <Sparkles className="text-indigo-600" size={20}/> 커리어 AI 대시보드 올인원 (CADA)
@@ -808,6 +789,21 @@ export default function App() {
           </div>
         )}
       </main>
+      
+      {/* 앱 렌더링 영역 */}
+      {currentApp === 'company_analysis' && <CompanyAnalysisApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'career_roadmap' && <CareerRoadmapApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'job_fit' && <JobFitScannerApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'pt_interview' && <PTInterviewPrepApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'sit_interview' && <InterviewPrepApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'self_intro' && <SelfIntroApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'exp_structuring' && <ExperienceStructApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'role_model' && <RoleModelApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'gpt_guide' && <JobExplorerApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'holland_test' && <HollandTestApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'clinic' && <Clinic onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'life_design' && <LifeDesignApp onClose={()=>setCurrentApp('none')} />} 
+      {currentApp === 'life_curve' && <LifeCurveApp onClose={()=>setCurrentApp('none')} />} 
     </div>
   );
 }

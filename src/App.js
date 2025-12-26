@@ -596,27 +596,34 @@ export default function App() {
         </div>
       </aside>
       
-      <main className="flex-1 p-8 overflow-y-auto">
-        {activeTab === 'dashboard' ? (
-           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
-             <div className="bg-slate-50 p-5 rounded-lg mb-6 text-sm text-slate-700 leading-relaxed border border-slate-200">
-                    <h4 className="font-bold text-slate-900 mb-2 flex items-center gap-2">
-                        <Lightbulb size={16} className="text-yellow-500"/> 왜 내 키를 등록해야 하나요?
-                    </h4>
-                    <ul className="list-disc list-inside space-y-1 ml-1 text-slate-600 mb-3">
-                        <li><strong>무료 & 무제한:</strong> Google Gemini API는 개인 계정에 대해 충분한 무료 사용량을 제공합니다.</li>
-                        <li><strong>안정성:</strong> 나만의 키를 사용하므로 다른 사용자의 영향 없이 빠르고 안정적입니다.</li>
-                        <li><strong>보안:</strong> 키는 서버에 저장되지 않고, 오직 <strong>현재 브라우저에만 저장</strong>되어 안전합니다.</li>
-                    </ul>
-                    <a 
-                        href="https://aistudio.google.com/app/apikey" 
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-md text-sm"
-                    >
-                        🔑 Google AI Studio에서 무료 키 발급받기 <ExternalLink size={14}/>
-                    </a>
-                </div>
+                <div className={`bg-white p-6 rounded-xl shadow-sm border-2 ...`}>
+                  <div className="flex justify-between items-start mb-4">
+                      {/* 헤더 부분 ... */}
+                  </div>
+                <div className="bg-slate-50 p-5 rounded-lg mb-6 text-sm text-slate-700 leading-relaxed border border-slate-200">
+                                  <h4 className="font-bold text-slate-900 mb-2 flex items-center gap-2">
+                                      <Lightbulb size={16} className="text-yellow-500"/> 왜 내 키를 등록해야 하나요?
+                                  </h4>
+                                  <ul className="list-disc list-inside space-y-1 ml-1 text-slate-600 mb-3">
+                                      <li><strong>무료 & 무제한:</strong> Google Gemini API는 개인 계정에 대해 충분한 무료 사용량을 제공합니다.</li>
+                                      <li><strong>안정성:</strong> 나만의 키를 사용하므로 다른 사용자의 영향 없이 빠르고 안정적입니다.</li>
+                                      <li><strong>보안:</strong> 키는 서버에 저장되지 않고, 오직 <strong>현재 브라우저에만 저장</strong>되어 안전합니다.</li>
+                                  </ul>
+                                  <a 
+                                      href="https://aistudio.google.com/app/apikey" 
+                                      target="_blank" 
+                                      rel="noreferrer"
+                                      className="inline-flex items-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-md text-sm"
+                                  >
+                                      🔑 Google AI Studio에서 무료 키 발급받기 <ExternalLink size={14}/>
+                                  </a>
+                              </div>
+                  <div className="flex gap-2">
+                      <input type="password" ... /> {/* API 키 입력창 */}
+                      <button ...>등록하기</button>
+                  </div>
+              </div>
+
 
               <div className={`transition-all duration-500 ${!hasPersonalKey ? 'opacity-40 pointer-events-none grayscale' : ''}`}>
                {/* 1. 기본 앱 섹션 */}

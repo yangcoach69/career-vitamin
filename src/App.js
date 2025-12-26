@@ -56,6 +56,7 @@ import {
 
 // [설정 구역]
 const OWNER_UID = "TN8orW7kwuTzAnFWNM8jCiixt3r2"; 
+const OWNER_EMAIL = "yangcoach@gmail.com"; // [필수 수정] 개발자 이메일 추가
 const APP_ID = 'career-vitamin';
 
 // [NEW] 직업 탐색 가이드 앱 (JobExplorerApp)
@@ -396,14 +397,17 @@ export default function App() {
   const showToast = (msg) => setToastMsg(msg);
   const [userOrg, setUserOrg] = useState(''); 
 
+  // [수정 포인트: 인증 체크 로직 완전 개선]
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (u) {
         setUser(u);
-        if (u.uid === OWNER_UID) {
+        // 1. 관리자 프리패스: 이메일이 일치하면 무조건 관리자 (UID 달라도 OK)
+        if (u.uid === OWNER_UID || u.email === OWNER_EMAIL) {
             setRole('owner');
-            setUserOrg(''); 
+            setUserOrg('관리자'); 
         } else {
+          // 2. 일반 사용자 체크
           const q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts'), where('email', '==', u.email));
           const s = await getDocs(q);
           
@@ -411,16 +415,20 @@ export default function App() {
             const expertDoc = s.docs[0];
             const expertData = expertDoc.data();
             
-            // 만료일 체크 로직
+            // [중요] 만료일 체크 로직
             const expirationDate = expertData.expirationDate;
             const today = new Date().toISOString().split('T')[0];
             
-            // 만료일이 있고('영구'가 아니고), 오늘 날짜보다 이전이면 (만료됨)
-            if (expirationDate && expirationDate !== '9999-12-31' && expirationDate < today) {
-                setRole('expired'); // 역할 상태를 'expired'로 설정
+            // 만료일 데이터가 없거나(기존 사용자), '9999-12-31'이면 '영구'로 간주하여 통과
+            const isPermanent = !expirationDate || expirationDate === '9999-12-31';
+            
+            if (!isPermanent && expirationDate < today) {
+                // 만료일이 있고, 오늘 날짜보다 전이면 '만료됨'
+                setRole('expired'); 
                 setExpertName(expertData.displayName);
                 showToast("사용 기간이 만료되었습니다. 관리자에게 문의하세요.");
             } else {
+                // 그 외(영구 또는 기간 남음)는 '접속 허용'
                 setRole('expert');
                 if (expertData.displayName) setExpertName(expertData.displayName);
                 if (expertData.organization) {
@@ -432,6 +440,7 @@ export default function App() {
                 updateDoc(expertRef, { lastLogin: new Date().toISOString() });
             }
           } else {
+            // DB에 없으면 게스트
             setRole('guest');
             setExpertName('');
             setUserOrg(''); 
@@ -450,10 +459,9 @@ export default function App() {
   useEffect(() => {
     if (role !== 'owner') return;
     const q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts'));
-    
     const unsub = onSnapshot(q, (s) => {
         const expertList = s.docs.map(d => ({ id: d.id, ...d.data() }));
-        // 만료일 가까운 순으로 정렬 (오름차순), 영구(9999-12-31)는 맨 뒤로
+        // [추가] 만료일 가까운 순으로 정렬 (오름차순), 영구는 맨 뒤로
         expertList.sort((a, b) => {
             const dateA = a.expirationDate || '9999-12-31';
             const dateB = b.expirationDate || '9999-12-31';
@@ -481,6 +489,7 @@ export default function App() {
       showToast("개인 API 키가 삭제되었습니다.");
   }
 
+  // [수정] 사용자 추가 시 만료일 자동 계산
   const handleAddExpert = async (e) => {
     e.preventDefault();
     if(!newExpertEmail || !newExpertName) return;
@@ -500,7 +509,7 @@ export default function App() {
       displayName: newExpertName, 
       organization: newExpertOrg, 
       addedAt: new Date().toISOString(),
-      expirationDate: expirationDate // [추가] 만료일 저장
+      expirationDate: expirationDate // [추가] 만료일 필드 저장
     });
     setNewExpertEmail(''); 
     setNewExpertName('');
@@ -771,6 +780,7 @@ export default function App() {
                     <label className="block text-xs font-bold text-slate-500 mb-1">소속</label>
                     <input value={newExpertOrg} onChange={e=>setNewExpertOrg(e.target.value)} className="border p-2.5 rounded-lg w-full focus:outline-none focus:border-indigo-500" placeholder="소속 기관" />
                 </div>
+                {/* [추가] 사용기간 드롭다운 */}
                 <div className="w-full md:w-1/6">
                      <label className="block text-xs font-bold text-slate-500 mb-1">사용 기간</label>
                      <select value={newExpertDuration} onChange={e=>setNewExpertDuration(e.target.value)} className="border p-2.5 rounded-lg w-full focus:outline-none focus:border-indigo-500 bg-white">
@@ -813,8 +823,9 @@ export default function App() {
                               ) : <span className="text-slate-300">-</span>}
                             </td>
                             <td className="px-4 py-4 text-slate-400 text-xs">{ex.addedAt ? ex.addedAt.split('T')[0] : '-'}</td>
+                            {/* [추가] 만료일 표시 */}
                             <td className={`px-4 py-4 text-xs font-bold ${isExpired ? 'text-red-500' : 'text-slate-500'}`}>
-                                {ex.expirationDate === '9999-12-31' ? <span className="text-green-600">무제한</span> : (ex.expirationDate || '-')}
+                                {(!ex.expirationDate || ex.expirationDate === '9999-12-31') ? <span className="text-green-600">무제한</span> : ex.expirationDate}
                                 {isExpired && <span className="ml-1 text-[10px] bg-red-100 text-red-600 px-1 rounded">만료</span>}
                             </td>
                             <td className="px-4 py-4 text-right">

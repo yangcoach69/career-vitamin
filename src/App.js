@@ -385,7 +385,8 @@ export default function App() {
   const [experts, setExperts] = useState([]);
   const [newExpertEmail, setNewExpertEmail] = useState('');
   const [newExpertName, setNewExpertName] = useState(''); 
-  const [newExpertOrg, setNewExpertOrg] = useState(''); 
+  const [newExpertOrg, setNewExpertOrg] = useState('');
+  const [newExpertDuration, setNewExpertDuration] = useState('30'); // [추가] 사용 기간 (일 단위) 기본값: 30일
 
   const [currentApp, setCurrentApp] = useState('none');
   const [customKey, setCustomKey] = useState(localStorage.getItem("custom_gemini_key") || "");
@@ -407,19 +408,29 @@ export default function App() {
           const s = await getDocs(q);
           
           if (!s.empty) {
-            setRole('expert');
             const expertDoc = s.docs[0];
             const expertData = expertDoc.data();
             
-            if (expertData.displayName) setExpertName(expertData.displayName);
-            if (expertData.organization) {
-                setUserOrg(expertData.organization); 
+            // 만료일 체크 로직
+            const expirationDate = expertData.expirationDate;
+            const today = new Date().toISOString().split('T')[0];
+            
+            // 만료일이 있고('영구'가 아니고), 오늘 날짜보다 이전이면 (만료됨)
+            if (expirationDate && expirationDate !== '9999-12-31' && expirationDate < today) {
+                setRole('expired'); // 역할 상태를 'expired'로 설정
+                setExpertName(expertData.displayName);
+                showToast("사용 기간이 만료되었습니다. 관리자에게 문의하세요.");
             } else {
-                setUserOrg('');
+                setRole('expert');
+                if (expertData.displayName) setExpertName(expertData.displayName);
+                if (expertData.organization) {
+                    setUserOrg(expertData.organization); 
+                } else {
+                    setUserOrg('');
+                }
+                const expertRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts', expertDoc.id);
+                updateDoc(expertRef, { lastLogin: new Date().toISOString() });
             }
-
-            const expertRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts', expertDoc.id);
-            updateDoc(expertRef, { lastLogin: new Date().toISOString() });
           } else {
             setRole('guest');
             setExpertName('');
@@ -439,7 +450,17 @@ export default function App() {
   useEffect(() => {
     if (role !== 'owner') return;
     const q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts'));
-    const unsub = onSnapshot(q, (s) => setExperts(s.docs.map(d => ({ id: d.id, ...d.data() }))));
+    
+    const unsub = onSnapshot(q, (s) => {
+        const expertList = s.docs.map(d => ({ id: d.id, ...d.data() }));
+        // 만료일 가까운 순으로 정렬 (오름차순), 영구(9999-12-31)는 맨 뒤로
+        expertList.sort((a, b) => {
+            const dateA = a.expirationDate || '9999-12-31';
+            const dateB = b.expirationDate || '9999-12-31';
+            return dateA.localeCompare(dateB);
+        });
+        setExperts(expertList);
+    });
     return () => unsub();
   }, [role]);
 
@@ -463,15 +484,28 @@ export default function App() {
   const handleAddExpert = async (e) => {
     e.preventDefault();
     if(!newExpertEmail || !newExpertName) return;
+
+    // 만료일 계산
+    let expirationDate = '9999-12-31'; // 기본값: 영구
+    if (newExpertDuration !== 'permanent') {
+        const today = new Date();
+        const durationDays = parseInt(newExpertDuration, 10);
+        const targetDate = new Date(today);
+        targetDate.setDate(today.getDate() + durationDays);
+        expirationDate = targetDate.toISOString().split('T')[0]; // YYYY-MM-DD 형식
+    }
+
     await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts'), {
       email: newExpertEmail, 
       displayName: newExpertName, 
       organization: newExpertOrg, 
-      addedAt: new Date().toISOString()
+      addedAt: new Date().toISOString(),
+      expirationDate: expirationDate // [추가] 만료일 저장
     });
     setNewExpertEmail(''); 
     setNewExpertName('');
     setNewExpertOrg(''); 
+    setNewExpertDuration('30'); // 초기화
     showToast("사용자가 추가되었습니다.");
   };
 
@@ -486,12 +520,13 @@ export default function App() {
     if(experts.length === 0) return showToast("내보낼 데이터가 없습니다.");
 
     const BOM = "\uFEFF"; 
-    const headers = ['이름,이메일,소속기관,등록일,최근접속'];
+    const headers = ['이름,이메일,소속기관,등록일,만료일,최근접속'];
     const rows = experts.map(ex => [
       `"${ex.displayName || ''}"`,
       `"${ex.email || ''}"`,
       `"${ex.organization || '-'}"`,
       `"${ex.addedAt ? ex.addedAt.split('T')[0] : '-'}"`,
+      `"${ex.expirationDate === '9999-12-31' ? '무제한' : (ex.expirationDate || '-')}"`,
       `"${ex.lastLogin ? ex.lastLogin.split('T')[0] : '-'}"`
     ].join(','));
 
@@ -507,13 +542,24 @@ export default function App() {
     showToast("파일이 다운로드되었습니다. 구글 드라이브에 업로드하여 여세요.");
   };
 
-  if (!user || role === 'guest') return (
+  if (!user || role === 'guest' || role === 'expired') return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
       {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
       <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md w-full">
         <h1 className="text-3xl font-bold mb-2 text-slate-900">CADA</h1>
         <p className="text-slate-500 mb-6">커리어 AI 대시보드 올인원</p>
-        {user && <div className="bg-red-50 text-red-600 p-3 rounded mb-4 text-sm flex items-center gap-2 justify-center"><AlertCircle size={16}/>접근 권한이 없습니다. 관리자에게 문의하세요.</div>}
+        
+        {role === 'expired' && (
+             <div className="bg-orange-50 text-orange-600 p-3 rounded mb-4 text-sm flex items-center gap-2 justify-center">
+                 <AlertCircle size={16}/>사용 기간이 만료되었습니다.
+             </div>
+        )}
+        {(role === 'guest' || (user && !role)) && (
+            <div className="bg-red-50 text-red-600 p-3 rounded mb-4 text-sm flex items-center gap-2 justify-center">
+                <AlertCircle size={16}/>접근 권한이 없습니다. 관리자에게 문의하세요.
+            </div>
+        )}
+
         {!user ? <button onClick={()=>signInWithPopup(auth, new GoogleAuthProvider())} className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors">Google 로그인</button> 
                : <button onClick={()=>signOut(auth)} className="w-full bg-slate-200 py-3 rounded-xl font-bold hover:bg-slate-300 transition-colors">로그아웃</button>}
       </div>
@@ -702,7 +748,7 @@ export default function App() {
              {!hasPersonalKey && <div className="text-center text-slate-500 text-sm mt-4 animate-bounce">👆 먼저 위에서 API 키를 등록해주세요.</div>}
            </div>
         ) : (
-          /* 관리자 전용 탭 (기존 유지) */
+          /* 관리자 전용 탭 */
           <div className="space-y-8 max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4">
             <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
               <div className="flex justify-between items-center mb-6">
@@ -712,11 +758,31 @@ export default function App() {
                 </button>
               </div>
               
-              <form onSubmit={handleAddExpert} className="flex flex-wrap md:flex-nowrap gap-3 mb-6 bg-slate-50 p-4 rounded-lg">
-                <input value={newExpertName} onChange={e=>setNewExpertName(e.target.value)} className="border p-2.5 rounded-lg w-full md:w-1/4 focus:outline-none focus:border-indigo-500" placeholder="이름 (예: 홍길동)" required/>
-                <input value={newExpertEmail} onChange={e=>setNewExpertEmail(e.target.value)} className="border p-2.5 rounded-lg w-full md:w-1/3 focus:outline-none focus:border-indigo-500" placeholder="구글 이메일 (gmail.com)" required/>
-                <input value={newExpertOrg} onChange={e=>setNewExpertOrg(e.target.value)} className="border p-2.5 rounded-lg w-full md:w-1/3 focus:outline-none focus:border-indigo-500" placeholder="소속 기관 (예: XX대학교)" />
-                <button className="bg-slate-800 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-slate-900 transition-colors w-full md:w-auto">추가</button>
+              <form onSubmit={handleAddExpert} className="flex flex-wrap md:flex-nowrap gap-3 mb-6 bg-slate-50 p-4 rounded-lg items-end">
+                <div className="w-full md:w-1/4">
+                    <label className="block text-xs font-bold text-slate-500 mb-1">이름</label>
+                    <input value={newExpertName} onChange={e=>setNewExpertName(e.target.value)} className="border p-2.5 rounded-lg w-full focus:outline-none focus:border-indigo-500" placeholder="예: 홍길동" required/>
+                </div>
+                <div className="w-full md:w-1/3">
+                    <label className="block text-xs font-bold text-slate-500 mb-1">이메일</label>
+                    <input value={newExpertEmail} onChange={e=>setNewExpertEmail(e.target.value)} className="border p-2.5 rounded-lg w-full focus:outline-none focus:border-indigo-500" placeholder="gmail.com" required/>
+                </div>
+                <div className="w-full md:w-1/4">
+                    <label className="block text-xs font-bold text-slate-500 mb-1">소속</label>
+                    <input value={newExpertOrg} onChange={e=>setNewExpertOrg(e.target.value)} className="border p-2.5 rounded-lg w-full focus:outline-none focus:border-indigo-500" placeholder="소속 기관" />
+                </div>
+                <div className="w-full md:w-1/6">
+                     <label className="block text-xs font-bold text-slate-500 mb-1">사용 기간</label>
+                     <select value={newExpertDuration} onChange={e=>setNewExpertDuration(e.target.value)} className="border p-2.5 rounded-lg w-full focus:outline-none focus:border-indigo-500 bg-white">
+                         <option value="15">15일</option>
+                         <option value="30">30일</option>
+                         <option value="90">90일</option>
+                         <option value="180">180일</option>
+                         <option value="365">365일</option>
+                         <option value="permanent">영구</option>
+                     </select>
+                </div>
+                <button className="bg-slate-800 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-slate-900 transition-colors w-full md:w-auto h-[46px]">추가</button>
               </form>
 
               <div className="overflow-x-auto">
@@ -727,29 +793,37 @@ export default function App() {
                       <th className="px-4 py-3">이메일</th>
                       <th className="px-4 py-3">소속 기관</th>
                       <th className="px-4 py-3">등록일</th>
+                      <th className="px-4 py-3">만료일</th>
                       <th className="px-4 py-3 text-right">관리</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {experts.map(ex => (
-                      <tr key={ex.id} className="hover:bg-slate-50 group transition-colors">
-                        <td className="px-4 py-4 font-bold text-slate-800 flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs shrink-0">{ex.displayName?.[0]}</div>
-                          {ex.displayName}
-                        </td>
-                        <td className="px-4 py-4 text-slate-500">{ex.email}</td>
-                        <td className="px-4 py-4">
-                          {ex.organization ? (
-                            <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-medium">{ex.organization}</span>
-                          ) : <span className="text-slate-300">-</span>}
-                        </td>
-                        <td className="px-4 py-4 text-slate-400 text-xs">{ex.addedAt ? ex.addedAt.split('T')[0] : '-'}</td>
-                        <td className="px-4 py-4 text-right">
-                          <button onClick={()=>handleDeleteExpert(ex.id)} className="text-slate-300 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition-all"><Trash2 size={16}/></button>
-                        </td>
-                      </tr>
-                    ))}
-                    {experts.length === 0 && <tr><td colSpan="5" className="text-center py-8 text-slate-400">등록된 사용자가 없습니다.</td></tr>}
+                    {experts.map(ex => {
+                        const isExpired = ex.expirationDate && ex.expirationDate !== '9999-12-31' && ex.expirationDate < new Date().toISOString().split('T')[0];
+                        return (
+                          <tr key={ex.id} className={`hover:bg-slate-50 group transition-colors ${isExpired ? 'bg-red-50/50' : ''}`}>
+                            <td className="px-4 py-4 font-bold text-slate-800 flex items-center gap-3">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${isExpired ? 'bg-red-100 text-red-600' : 'bg-indigo-100 text-indigo-600'}`}>{ex.displayName?.[0]}</div>
+                              {ex.displayName}
+                            </td>
+                            <td className="px-4 py-4 text-slate-500">{ex.email}</td>
+                            <td className="px-4 py-4">
+                              {ex.organization ? (
+                                <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-medium">{ex.organization}</span>
+                              ) : <span className="text-slate-300">-</span>}
+                            </td>
+                            <td className="px-4 py-4 text-slate-400 text-xs">{ex.addedAt ? ex.addedAt.split('T')[0] : '-'}</td>
+                            <td className={`px-4 py-4 text-xs font-bold ${isExpired ? 'text-red-500' : 'text-slate-500'}`}>
+                                {ex.expirationDate === '9999-12-31' ? <span className="text-green-600">무제한</span> : (ex.expirationDate || '-')}
+                                {isExpired && <span className="ml-1 text-[10px] bg-red-100 text-red-600 px-1 rounded">만료</span>}
+                            </td>
+                            <td className="px-4 py-4 text-right">
+                              <button onClick={()=>handleDeleteExpert(ex.id)} className="text-slate-300 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition-all"><Trash2 size={16}/></button>
+                            </td>
+                          </tr>
+                        );
+                    })}
+                    {experts.length === 0 && <tr><td colSpan="6" className="text-center py-8 text-slate-400">등록된 사용자가 없습니다.</td></tr>}
                   </tbody>
                 </table>
               </div>

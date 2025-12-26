@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-// [Firebase 라이브러리]
+// [Firebase 설정]
 import { auth, db } from './firebase';
 import { 
   signInWithPopup, 
@@ -39,22 +39,23 @@ import LifeDesignApp from './components/LifeDesignApp';
 import LifeCurveApp from './components/LifeCurveApp'; 
 
 // [아이콘 라이브러리]
+// * Menu, Percent 등 누락된 아이콘 없이 모두 포함했습니다.
 import { 
   LayoutDashboard, LogOut, Trash2, Settings, Loader2, Check, 
   User, X, ChevronLeft, Compass, Sparkles, Award, Search, 
   Download, TrendingUp, Target, MonitorPlay, Split, Mic, BarChart3, 
   AlertCircle, ExternalLink, Lightbulb, Lock, ClipboardList,
   FileSpreadsheet, FileText, Briefcase, GraduationCap, BrainCircuit, Key, 
-  Sun, Star, Layout, MapPin, PenTool
+  Sun, Star, Layout, MapPin, PenTool, Percent, PieChart, Menu, UploadCloud, FileCheck
 } from 'lucide-react';
 
 // [설정 구역]
 const OWNER_UID = "TN8orW7kwuTzAnFWNM8jCiixt3r2"; 
-const OWNER_EMAIL = "yangcoach@gmail.com"; // [필수] 개발자 이메일 강제 지정
+const OWNER_EMAIL = "yangcoach@gmail.com"; 
 const APP_ID = 'career-vitamin';
 
 // -----------------------------------------------------------------------------
-// 1. 내부 앱: 직업 탐색 가이드 (JobExplorerApp) - 전체 코드 복원
+// 1. 내부 앱: 직업 탐색 가이드 (JobExplorerApp)
 // -----------------------------------------------------------------------------
 function JobExplorerApp({ onClose }) {
   const [inputs, setInputs] = useState({ job: '' });
@@ -389,7 +390,7 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (u) {
         setUser(u);
-        // [중요] 개발자 이메일 체크 추가 (UID가 바뀌어도 접속 가능하게)
+        // [중요] 개발자 이메일 체크 (UID가 바뀌어도 접속 가능)
         if (u.uid === OWNER_UID || u.email === OWNER_EMAIL) {
             setRole('owner');
             setUserOrg('관리자'); 
@@ -401,7 +402,7 @@ export default function App() {
             const expertDoc = s.docs[0];
             const expertData = expertDoc.data();
             
-            // 만료일 체크 (만료일이 없거나 '9999-12-31'이면 영구 사용자로 처리)
+            // 만료일 체크
             const expirationDate = expertData.expirationDate;
             const today = new Date().toISOString().split('T')[0];
             const isPermanent = !expirationDate || expirationDate === '9999-12-31';
@@ -500,7 +501,6 @@ export default function App() {
     showToast("파일이 다운로드되었습니다.");
   };
 
-  // 로그인 화면
   if (!user || role === 'guest' || role === 'expired') return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
       {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}

@@ -211,7 +211,7 @@ function JobExplorerApp({ onClose }) {
                        </div>
                     </div>
                     <div className="bg-blue-50 p-4 rounded-xl">
-                       <h4 className="font-bold text-blue-800 text-sm mb-3 text-center">Big 5 요인</h4>
+                       <h4 className="font-bold text-blue-800 text-sm mb-3 text-center">Big 5 성격요인</h4>
                        <div className="space-y-2 text-xs">
                          {result.big5?.map((b, i) => (
                            <div key={i} className="flex justify-between items-start border-b border-blue-100 last:border-0 pb-1">

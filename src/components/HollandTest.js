@@ -50,7 +50,7 @@ export default function HollandTestApp({ onClose }) {
       
       다음 JSON 형식을 반드시 따를 것:
       {
-        "overview": "홀랜드 흥미 검사의 개요 및 의의 (2-3문장)",
+        "overview": "직업흥미 표준화 검사의 개요 및 의의 (2-3문장)",
         "rank_table": [
           {"rank": 1, "type": "${getTypeFullName(sortedScores[0].code)}", "score": ${sortedScores[0].score}, "desc": "해당 유형의 특징 및 의미"},
           {"rank": 2, "type": "${getTypeFullName(sortedScores[1].code)}", "score": ${sortedScores[1].score}, "desc": "해당 유형의 특징 및 의미"},

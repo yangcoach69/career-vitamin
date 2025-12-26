@@ -29,19 +29,19 @@ import {
 import { fetchGemini, saveAsPng, saveAsPdf, renderText } from './api';
 import { Toast, EditableContent, Footer } from './components/SharedUI';
 import JobFitScannerApp from './components/JobFitScanner';
-import HollandTestApp from './components/HollandTest'; // 파일명 확인 (HollandTestApp vs HollandTest)
+import HollandTestApp from './components/HollandTest'; 
 import CompanyAnalysisApp from './components/CompanyAnalysis';
 import InterviewPrepApp from './components/InterviewPrep';
-import ExperienceStructApp from './components/ExperienceStructApp'; // 파일명 확인 (ExperienceStructurer vs ExperienceStructApp)
+import ExperienceStructApp from './components/ExperienceStructApp'; 
 import PTInterviewPrepApp from './components/PTInterviewPrep';
 import CareerRoadmapApp from './components/CareerRoadmapApp';
 import RoleModelApp from './components/RoleModelApp';
 import SelfIntroApp from './components/SelfIntroApp';
 import Clinic from './components/Clinic';
 import LifeDesignApp from './components/LifeDesignApp.js';
-import LifeCurveApp from './components/LifeCurveApp.js'; // [NEW] 인생곡선 앱 추가
+import LifeCurveApp from './components/LifeCurveApp.js'; 
 
-// 아이콘 불러오기 (최신화: Star, Percent, Sun, TrendingUp 등)
+// 아이콘 불러오기 (Menu 추가됨)
 import { 
   LayoutDashboard, Building2, LogOut, Trash2, 
   Settings, Loader2, Check, 
@@ -51,16 +51,15 @@ import {
   Globe, ThumbsUp, AlertCircle, ExternalLink, 
   Info, PenTool, Lightbulb, Users, Lock, ClipboardList,
   FileSpreadsheet, FileText, Briefcase, GraduationCap, BrainCircuit, Key, Smile, Meh, Frown, Stethoscope, ArrowRight,
-  UploadCloud, FileCheck, Percent, Sun, PieChart, Star, Layout, MapPin
+  UploadCloud, FileCheck, Percent, Sun, PieChart, Star, Layout, MapPin, Menu
 } from 'lucide-react';
 
 // [설정 구역]
 const OWNER_UID = "TN8orW7kwuTzAnFWNM8jCiixt3r2"; 
-const OWNER_EMAIL = "yangcoach@gmail.com"; // [수정] 개발자 이메일 추가 (접근권한 해결용)
+const OWNER_EMAIL = "yangcoach@gmail.com"; // [필수] 개발자 이메일 추가
 const APP_ID = 'career-vitamin';
 
 // [NEW] 직업 탐색 가이드 앱 (JobExplorerApp)
-// * 원래 App.js 내부에 있던 컴포넌트입니다.
 function JobExplorerApp({ onClose }) {
   const [inputs, setInputs] = useState({ job: '' });
   const [result, setResult] = useState(null);
@@ -387,7 +386,7 @@ export default function App() {
   const [newExpertEmail, setNewExpertEmail] = useState('');
   const [newExpertName, setNewExpertName] = useState(''); 
   const [newExpertOrg, setNewExpertOrg] = useState('');
-  const [newExpertDuration, setNewExpertDuration] = useState('30'); // [추가] 사용 기간 (일 단위) 기본값: 30일
+  const [newExpertDuration, setNewExpertDuration] = useState('30'); // [추가] 사용기간 상태
 
   const [currentApp, setCurrentApp] = useState('none');
   const [customKey, setCustomKey] = useState(localStorage.getItem("custom_gemini_key") || "");
@@ -397,11 +396,12 @@ export default function App() {
   const showToast = (msg) => setToastMsg(msg);
   const [userOrg, setUserOrg] = useState(''); 
 
+  // [수정] 인증 체크 및 기존 사용자 권한 처리 로직
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (u) {
         setUser(u);
-        // [수정] UID가 다르더라도 개발자 이메일이면 Owner 권한 부여
+        // 1. 개발자 이메일 체크 (UID가 바뀌어도 접속 가능)
         if (u.uid === OWNER_UID || u.email === OWNER_EMAIL) {
             setRole('owner');
             setUserOrg(''); 
@@ -413,11 +413,11 @@ export default function App() {
             const expertDoc = s.docs[0];
             const expertData = expertDoc.data();
             
-            // [수정] 만료일 체크 로직 개선
+            // 2. 만료일 체크 로직
             const expirationDate = expertData.expirationDate;
             const today = new Date().toISOString().split('T')[0];
             
-            // 만료일이 없거나(기존 유저) '9999-12-31'이면 영구 사용자로 처리
+            // 만료일이 없거나(기존 사용자) '9999-12-31'이면 영구 사용자로 처리
             const isPermanent = !expirationDate || expirationDate === '9999-12-31';
             
             // 영구가 아닌데 날짜가 지났으면 만료 처리
@@ -455,7 +455,6 @@ export default function App() {
   useEffect(() => {
     if (role !== 'owner') return;
     const q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts'));
-    
     const unsub = onSnapshot(q, (s) => {
         const expertList = s.docs.map(d => ({ id: d.id, ...d.data() }));
         // [수정] 만료일 가까운 순으로 정렬 (오름차순), 영구(없거나 9999)는 맨 뒤로
@@ -490,7 +489,7 @@ export default function App() {
     e.preventDefault();
     if(!newExpertEmail || !newExpertName) return;
 
-    // 만료일 계산
+    // [수정] 만료일 계산 로직
     let expirationDate = '9999-12-31'; // 기본값: 영구
     if (newExpertDuration !== 'permanent') {
         const today = new Date();
@@ -776,6 +775,7 @@ export default function App() {
                     <label className="block text-xs font-bold text-slate-500 mb-1">소속</label>
                     <input value={newExpertOrg} onChange={e=>setNewExpertOrg(e.target.value)} className="border p-2.5 rounded-lg w-full focus:outline-none focus:border-indigo-500" placeholder="소속 기관" />
                 </div>
+                {/* [추가] 사용기간 드롭다운 */}
                 <div className="w-full md:w-1/6">
                      <label className="block text-xs font-bold text-slate-500 mb-1">사용 기간</label>
                      <select value={newExpertDuration} onChange={e=>setNewExpertDuration(e.target.value)} className="border p-2.5 rounded-lg w-full focus:outline-none focus:border-indigo-500 bg-white">
@@ -818,6 +818,7 @@ export default function App() {
                               ) : <span className="text-slate-300">-</span>}
                             </td>
                             <td className="px-4 py-4 text-slate-400 text-xs">{ex.addedAt ? ex.addedAt.split('T')[0] : '-'}</td>
+                            {/* [추가] 만료일 표시 */}
                             <td className={`px-4 py-4 text-xs font-bold ${isExpired ? 'text-red-500' : 'text-slate-500'}`}>
                                 {(!ex.expirationDate || ex.expirationDate === '9999-12-31') ? <span className="text-green-600">무제한</span> : ex.expirationDate}
                                 {isExpired && <span className="ml-1 text-[10px] bg-red-100 text-red-600 px-1 rounded">만료</span>}

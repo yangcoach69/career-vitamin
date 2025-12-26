@@ -599,24 +599,24 @@ export default function App() {
       <main className="flex-1 p-8 overflow-y-auto">
         {activeTab === 'dashboard' ? (
            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
-             {/* AI 키 설정 영역 (기존 유지) */}
-             <div className={`bg-white p-6 rounded-xl shadow-sm border-2 transition-all ${!hasPersonalKey ? 'border-red-400 ring-4 ring-red-50' : 'border-indigo-100'}`}>
-                <div className="flex justify-between items-start mb-4">
-                    <div>
-                        <h2 className={`text-lg font-bold flex items-center gap-2 ${!hasPersonalKey ? 'text-red-600' : 'text-indigo-900'}`}>
-                            <Key className={!hasPersonalKey ? 'text-red-500' : 'text-indigo-500'} size={20}/> AI 모델 설정 (API Key)
-                        </h2>
-                        <p className="text-sm text-slate-500 mt-1">서비스 이용을 위해 본인의 Google AI 키가 반드시 필요합니다.</p>
-                    </div>
-                    <div className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${hasPersonalKey ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700 animate-pulse'}`}>
-                        {hasPersonalKey ? <Check size={12}/> : <Lock size={12}/>} {hasPersonalKey ? "등록 완료" : "등록 필수"}
-                    </div>
+             <div className="bg-slate-50 p-5 rounded-lg mb-6 text-sm text-slate-700 leading-relaxed border border-slate-200">
+                    <h4 className="font-bold text-slate-900 mb-2 flex items-center gap-2">
+                        <Lightbulb size={16} className="text-yellow-500"/> 왜 내 키를 등록해야 하나요?
+                    </h4>
+                    <ul className="list-disc list-inside space-y-1 ml-1 text-slate-600 mb-3">
+                        <li><strong>무료 & 무제한:</strong> Google Gemini API는 개인 계정에 대해 충분한 무료 사용량을 제공합니다.</li>
+                        <li><strong>안정성:</strong> 나만의 키를 사용하므로 다른 사용자의 영향 없이 빠르고 안정적입니다.</li>
+                        <li><strong>보안:</strong> 키는 서버에 저장되지 않고, 오직 <strong>현재 브라우저에만 저장</strong>되어 안전합니다.</li>
+                    </ul>
+                    <a 
+                        href="https://aistudio.google.com/app/apikey" 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-md text-sm"
+                    >
+                        🔑 Google AI Studio에서 무료 키 발급받기 <ExternalLink size={14}/>
+                    </a>
                 </div>
-                <div className="flex gap-2">
-                  <input type="password" value={customKey} onChange={e=>setCustomKey(e.target.value)} className="flex-1 p-3 border rounded-lg focus:ring-2 outline-none" placeholder={hasPersonalKey ? "API 키가 안전하게 등록되어 있습니다." : "AIza로 시작하는 키를 여기에 붙여넣으세요"} disabled={hasPersonalKey}/>
-                  {!hasPersonalKey ? <button onClick={handleSavePersonalKey} className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-bold">등록하기</button> : <button onClick={handleRemovePersonalKey} className="bg-red-100 text-red-600 border border-red-200 px-6 py-3 rounded-lg font-bold">재설정</button>}
-                </div>
-              </div>
 
               <div className={`transition-all duration-500 ${!hasPersonalKey ? 'opacity-40 pointer-events-none grayscale' : ''}`}>
                {/* 1. 기본 앱 섹션 */}

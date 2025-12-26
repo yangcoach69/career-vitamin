@@ -316,7 +316,7 @@ const SERVICES = {
   pt_interview: { name: "[AI] PT 면접 가이드", desc: "주제 추출 및 발표 스크립트", link: null, internal: true, icon: MonitorPlay, color: "rose" },
   clinic: { name: "[AI] 자기소개서 클리닉", desc: "자기소개서 강평 및 수정", link: "/clinic", internal: true, icon: PenTool, color: "rose" },
 
-  // --- [섹션 2] 4050 중장년 컨설팅용 (category: 'senior' 추가) ---
+  // --- [섹션 2] 4060 중장년 컨설팅용 (category: 'senior' 추가) ---
   life_design: { 
     name: "[AI] 인생 8대 영역 설계", 
     desc: "삶의 8가지 영역 밸런스 진단 및 코칭", 
@@ -686,12 +686,12 @@ export default function App() {
                  ))}
                </div>
 
-               {/* 2. [신규] 4050 중장년 섹션 */}
+               {/* 2. [신규] 4060 중장년 섹션 */}
                <div className="relative pt-6">
                  {/* 구분선 */}
                  <div className="absolute top-0 left-0 w-full border-t border-slate-200"></div>
                  <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                    <Sun className="text-amber-500" size={20}/> 4050 중장년용 (Senior Bridge)
+                    <Sun className="text-amber-500" size={20}/> 4060 중장년용 (Senior Bridge)
                  </h3>
                  
                  {seniorApps.length > 0 ? (
@@ -716,7 +716,7 @@ export default function App() {
                  ) : (
                    <div className="bg-slate-100 rounded-lg p-8 text-center text-slate-400 border border-dashed border-slate-300">
                      <Sun className="mx-auto mb-2 opacity-30" size={32}/>
-                     <p>현재 등록된 4050 전용 앱이 없습니다.</p>
+                     <p>현재 등록된 4060 전용 앱이 없습니다.</p>
                    </div>
                  )}
                </div>

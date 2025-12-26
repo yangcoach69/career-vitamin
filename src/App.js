@@ -39,7 +39,7 @@ import Clinic from './components/Clinic';
 import LifeDesignApp from './components/LifeDesignApp';
 import LifeCurveApp from './components/LifeCurveApp'; 
 
-// [아이콘 라이브러리 - Menu 추가됨]
+// [아이콘 라이브러리]
 import { 
   LayoutDashboard, Building2, LogOut, Trash2, 
   Settings, Loader2, Check, 
@@ -56,7 +56,7 @@ import {
 // [설정 구역]
 // ============================================================================
 const OWNER_UID = "TN8orW7kwuTzAnFWNM8jCiixt3r2"; 
-const OWNER_EMAIL = "yangcoach@gmail.com"; // [필수] 개발자 이메일 (UID 달라도 접속 가능)
+const OWNER_EMAIL = "yangcoach@gmail.com"; 
 const APP_ID = 'career-vitamin';
 
 // -----------------------------------------------------------------------------
@@ -173,6 +173,7 @@ function JobExplorerApp({ onClose }) {
               </div>
 
               <div className="space-y-8">
+                {/* 1. 업무 & 고객 & 스트레스 */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    <div className="bg-slate-50 p-5 rounded-xl border border-slate-200">
                       <h3 className="font-bold text-slate-800 mb-3 flex items-center"><Briefcase size={18} className="mr-2 text-emerald-600"/> 주요 업무</h3>
@@ -194,6 +195,7 @@ function JobExplorerApp({ onClose }) {
                    </div>
                 </div>
 
+                {/* 2. 적합 특성 */}
                 <section>
                   <h3 className="text-xl font-bold text-slate-800 mb-4 pb-2 border-b border-slate-200 flex items-center"><User size={20} className="mr-2 text-emerald-600"/> 적합한 인재 특성</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -234,6 +236,7 @@ function JobExplorerApp({ onClose }) {
                   </div>
                 </section>
 
+                {/* 3. KPI & Competencies */}
                 <section>
                    <h3 className="text-xl font-bold text-slate-800 mb-4 pb-2 border-b border-slate-200 flex items-center"><Target size={20} className="mr-2 text-emerald-600"/> 성과 및 역량</h3>
                    <div className="mb-6">
@@ -257,6 +260,7 @@ function JobExplorerApp({ onClose }) {
                    </div>
                 </section>
 
+                {/* 4. 기타 정보 */}
                 <section className="bg-slate-100 p-5 rounded-xl text-sm space-y-4">
                    <div><h4 className="font-bold text-slate-700 mb-1 flex items-center"><GraduationCap size={16} className="mr-2"/> 동기 및 경로</h4><EditableContent className="text-slate-600 leading-relaxed" value={result.motivation_path} onSave={(v)=>handleEdit('motivation_path', null, v)} /></div>
                    <div className="flex gap-6"><div className="flex-1"><h4 className="font-bold text-slate-700 mb-1 flex items-center"><BrainCircuit size={16} className="mr-2"/> 오해와 진실</h4><EditableContent className="text-slate-600 leading-relaxed" value={result.myths} onSave={(v)=>handleEdit('myths', null, v)} /></div><div className="w-1/3 bg-white p-4 rounded-lg text-center border border-slate-200"><h4 className="font-bold text-slate-400 text-xs mb-2">직업 전망 지수</h4><div className="text-4xl font-extrabold text-emerald-600 mb-1">{result.outlook?.score}<span className="text-sm text-slate-400 font-normal">/100</span></div><EditableContent className="text-xs text-slate-500" value={result.outlook?.reason} onSave={(v)=>handleEdit('outlook', 'reason', v)} /></div></div>
@@ -285,7 +289,7 @@ function JobExplorerApp({ onClose }) {
 }
 
 // =============================================================================
-// [핵심: APPS 및 SERVICES 정의 위치 수정 - App 컴포넌트보다 위에 정의]
+// [중요: APPS 및 SERVICES 정의 - App 컴포넌트 위로 이동하여 빌드 에러 해결]
 // =============================================================================
 
 const APPS = [
@@ -369,12 +373,12 @@ export default function App() {
   const [hasPersonalKey, setHasPersonalKey] = useState(!!localStorage.getItem("custom_gemini_key")); 
   const [toastMsg, setToastMsg] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isAuthChecking, setIsAuthChecking] = useState(true); // [로딩 상태]
+  const [isAuthChecking, setIsAuthChecking] = useState(true); // [추가] 로딩 상태
 
   const showToast = (msg) => setToastMsg(msg);
   const [userOrg, setUserOrg] = useState(''); 
 
-  // [인증 체크 로직]
+  // [수정: 인증 체크 및 권한 로직 개선]
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       setIsAuthChecking(true); // 체크 시작
@@ -384,6 +388,7 @@ export default function App() {
         if (u.uid === OWNER_UID || u.email === OWNER_EMAIL) {
             setRole('owner');
             setUserOrg('관리자'); 
+            setIsAuthChecking(false); // 체크 완료
         } else {
           // 2. 일반 사용자 체크
           const q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts'), where('email', '==', u.email));
@@ -407,7 +412,11 @@ export default function App() {
             } else {
                 setRole('expert');
                 if (expertData.displayName) setExpertName(expertData.displayName);
-                setUserOrg(expertData.organization || '');
+                if (expertData.organization) {
+                    setUserOrg(expertData.organization); 
+                } else {
+                    setUserOrg('');
+                }
                 const expertRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts', expertDoc.id);
                 updateDoc(expertRef, { lastLogin: new Date().toISOString() });
             }
@@ -417,14 +426,15 @@ export default function App() {
             setExpertName('');
             setUserOrg(''); 
           }
+          setIsAuthChecking(false); // 체크 완료
         }
       } else { 
         setUser(null); 
         setRole('guest'); 
         setExpertName('');
         setUserOrg(''); 
+        setIsAuthChecking(false); // 체크 완료
       }
-      setIsAuthChecking(false); // 체크 완료
     });
     return () => unsubscribe();
   }, []);
@@ -464,7 +474,6 @@ export default function App() {
       showToast("개인 API 키가 삭제되었습니다.");
   }
 
-  // [사용자 추가]
   const handleAddExpert = async (e) => {
     e.preventDefault();
     if(!newExpertEmail || !newExpertName) return;
@@ -525,7 +534,7 @@ export default function App() {
     showToast("파일이 다운로드되었습니다. 구글 드라이브에 업로드하여 여세요.");
   };
 
-  // [로딩 화면 추가]
+  // [수정: 로딩 화면 추가 (권한 체크 중)]
   if (isAuthChecking) return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
        <Loader2 className="animate-spin text-indigo-600" size={48}/>
@@ -652,6 +661,30 @@ export default function App() {
                   )}
                 </div>
              </div>
+
+             <div className={`transition-all duration-500 ${!hasPersonalKey ? 'opacity-40 pointer-events-none grayscale' : ''}`}>
+               {/* 1. 기본 앱 섹션 */}
+               <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                 <Sparkles className="text-indigo-600" size={20}/> 커리어 AI 대시보드 올인원 (CADA)
+               </h3>
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+                 {mainApps.map(([key, svc]) => (
+                   <div key={key} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md border border-slate-200 transition-all group cursor-pointer h-full relative" onClick={() => {
+                       if(!hasPersonalKey) return;
+                       setCurrentApp(key);
+                     }}>
+                     {!hasPersonalKey && <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/10"><Lock className="text-slate-500 w-8 h-8"/></div>}
+                     <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${COLOR_VARIANTS[svc.color]} group-hover:scale-110 transition-transform`}>
+                       <svc.icon size={24} color={svc.color === 'black' ? '#000' : undefined} /> 
+                     </div>
+                     <h3 className="font-bold text-lg mb-2 group-hover:text-indigo-600 transition-colors">{svc.name}</h3>
+                     <p className="text-sm text-slate-500 mb-4 h-10 line-clamp-2">{svc.desc}</p>
+                     <div className="text-xs font-bold text-indigo-500 flex items-center">
+                       앱 실행하기 <ChevronLeft className="rotate-180 ml-1 w-4 h-4"/>
+                     </div>
+                   </div>
+                 ))}
+               </div>
 
                {/* 2. [신규] 4050 중장년 섹션 */}
                <div className="relative pt-6">
@@ -814,7 +847,7 @@ export default function App() {
       {currentApp === 'holland_test' && <HollandTestApp onClose={()=>setCurrentApp('none')} />}
       {currentApp === 'clinic' && <Clinic onClose={()=>setCurrentApp('none')} />}
       {currentApp === 'life_design' && <LifeDesignApp onClose={()=>setCurrentApp('none')} />} 
-      {currentApp === 'life_curve' && <LifeCurveApp onClose={()=>setCurrentApp('none')} />} 
+      {currentApp === 'life_curve' && <LifeCurveApp onClose={()=>setCurrentApp('none')} />}
     </div>
   );
 }

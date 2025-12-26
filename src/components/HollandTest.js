@@ -96,7 +96,7 @@ export default function HollandTestApp({ onClose }) {
     <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
       {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
       <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
-        <div className="flex items-center gap-3"><ClipboardList className="text-pink-400"/><h1 className="font-bold text-lg">홀랜드 검사 리포트</h1></div>
+        <div className="flex items-center gap-3"><ClipboardList className="text-pink-400"/><h1 className="font-bold text-lg">직업흥미 검사 리포트</h1></div>
         <button onClick={onClose} className="flex items-center text-sm hover:text-pink-200 transition-colors"><ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기</button>
       </header>
       <div className="flex flex-1 overflow-hidden">
@@ -146,7 +146,7 @@ export default function HollandTestApp({ onClose }) {
             <div ref={reportRef} className="w-[210mm] min-h-[297mm] h-fit bg-white shadow-2xl p-12 flex flex-col animate-in fade-in zoom-in-95 duration-500">
               <div className="border-b-4 border-pink-500 pb-6 mb-8">
                 <span className="bg-pink-100 text-pink-800 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">HOLLAND REPORT</span>
-                <h1 className="text-4xl font-extrabold text-slate-900">홀랜드 흥미 검사 분석</h1>
+                <h1 className="text-4xl font-extrabold text-slate-900">직업흥미 검사 분석</h1>
                 <EditableContent className="text-lg text-slate-500 mt-2" value={result.overview} onSave={(v)=>handleEdit('overview', null, v)} />
               </div>
 

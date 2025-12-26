@@ -293,7 +293,7 @@ function JobExplorerApp({ onClose }) {
 // =============================================================================
 
 const APPS = [
-  { id: 'holland', title: '홀랜드 유형 검사', desc: '나의 직업적 성격 유형(RIASEC) 탐색', icon: <ClipboardList size={24} />, color: 'bg-blue-600', component: HollandTestApp },
+  { id: 'holland', title: '직업흥미 리포트', desc: '나의 직업적 성격 유형(RIASEC) 탐색', icon: <ClipboardList size={24} />, color: 'bg-blue-600', component: HollandTestApp },
   { id: 'roadmap', title: '커리어 로드맵', desc: '과거-현재-미래를 잇는 커리어 여정 설계', icon: <MapPin size={24} />, color: 'bg-purple-600', component: CareerRoadmapApp },
   { id: 'jobfit', title: '직무 적합도 진단', desc: '희망 직무와 나의 역량 일치도 분석', icon: <Percent size={24} />, color: 'bg-rose-600', component: JobFitScannerApp },
   { id: 'lifedesign', title: '인생 8대 영역 설계', desc: '삶의 균형과 미래 비전 수립', icon: <Sun size={24} />, color: 'bg-amber-600', component: LifeDesignApp },
@@ -302,7 +302,7 @@ const APPS = [
 ];
 
 const SERVICES = {
-  holland_test: { name: "[AI] 홀랜드(Holland) 검사", desc: "나의 직업적 성격 유형(RIASEC) 탐색", link: null, internal: true, icon: ClipboardList, color: "pink" },
+  holland_test: { name: "[AI] 직업흥미 리포트", desc: "직업흥미검사 프로파일 기반 리포트", link: null, internal: true, icon: ClipboardList, color: "pink" },
   gpt_guide: { name: "[AI] 직업탐색 가이드", desc: "관심 있는 직업/직무 완벽 분석", link: null, internal: true, icon: Compass, color: "emerald" },
   company_analysis: { name: "[AI] 기업분석 리포트", desc: "기업 핵심가치/이슈/SWOT 분석 및 전략", link: null, internal: true, icon: BarChart3, color: "indigo" },
   job_fit: { name: "[AI] 직무 적합도 진단", desc: "채용공고(JD)와 내 입사서류 매칭 분석", link: null, internal: true, icon: Percent, color: "rose" }, // Percent 아이콘

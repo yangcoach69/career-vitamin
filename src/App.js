@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-// [Firebase 라이브러리]
+// [수정 포인트 1] 설정 파일(firebase.js)에서는 초기화된 'auth'와 'db' 객체만 가져옵니다.
 import { auth, db } from './firebase';
+
+// [수정 포인트 2] 인증 함수들은 'firebase/auth' 라이브러리에서 직접 가져옵니다.
 import { 
   signInWithPopup, 
   GoogleAuthProvider, 
   signOut, 
   onAuthStateChanged 
 } from "firebase/auth";
+
+// [수정 포인트 3] DB 함수들도 'firebase/firestore' 라이브러리에서 직접 가져옵니다.
 import { 
   getFirestore,
   collection, 
@@ -21,25 +25,23 @@ import {
   updateDoc 
 } from "firebase/firestore";
 
-// [API 및 공용 UI]
+// [수정 포인트 4] 우리가 분리해서 만든 파일들 불러오기
 import { fetchGemini, saveAsPng, saveAsPdf, renderText } from './api';
 import { Toast, EditableContent, Footer } from './components/SharedUI';
-
-// [앱 컴포넌트]
 import JobFitScannerApp from './components/JobFitScanner';
-import HollandTestApp from './components/HollandTest'; 
+import HollandTestApp from './components/HollandTest'; // 파일명 확인 (HollandTestApp vs HollandTest)
 import CompanyAnalysisApp from './components/CompanyAnalysis';
 import InterviewPrepApp from './components/InterviewPrep';
-import ExperienceStructApp from './components/ExperienceStructApp'; 
+import ExperienceStructApp from './components/ExperienceStructApp'; // 파일명 확인 (ExperienceStructurer vs ExperienceStructApp)
 import PTInterviewPrepApp from './components/PTInterviewPrep';
 import CareerRoadmapApp from './components/CareerRoadmapApp';
 import RoleModelApp from './components/RoleModelApp';
 import SelfIntroApp from './components/SelfIntroApp';
 import Clinic from './components/Clinic';
 import LifeDesignApp from './components/LifeDesignApp.js';
-import LifeCurveApp from './components/LifeCurveApp.js';
+import LifeCurveApp from './components/LifeCurveApp.js'; // [NEW] 인생곡선 앱 추가
 
-// [아이콘]
+// 아이콘 불러오기 (최신화: Star, Percent, Sun, TrendingUp 등)
 import { 
   LayoutDashboard, Building2, LogOut, Trash2, 
   Settings, Loader2, Check, 
@@ -49,17 +51,15 @@ import {
   Globe, ThumbsUp, AlertCircle, ExternalLink, 
   Info, PenTool, Lightbulb, Users, Lock, ClipboardList,
   FileSpreadsheet, FileText, Briefcase, GraduationCap, BrainCircuit, Key, Smile, Meh, Frown, Stethoscope, ArrowRight,
-  UploadCloud, FileCheck, Percent, Sun, PieChart, Star, Layout, MapPin, Menu
+  UploadCloud, FileCheck, Percent, Sun, PieChart, Star, Layout, MapPin
 } from 'lucide-react';
 
 // [설정 구역]
 const OWNER_UID = "TN8orW7kwuTzAnFWNM8jCiixt3r2"; 
-const OWNER_EMAIL = "yangcoach@gmail.com"; // [필수] 개발자 이메일 강제 지정
 const APP_ID = 'career-vitamin';
 
-// -----------------------------------------------------------------------------
-// 1. 내부 앱: 직업 탐색 가이드 (JobExplorerApp)
-// -----------------------------------------------------------------------------
+// [NEW] 직업 탐색 가이드 앱 (JobExplorerApp)
+// * 원래 App.js 내부에 있던 컴포넌트입니다.
 function JobExplorerApp({ onClose }) {
   const [inputs, setInputs] = useState({ job: '' });
   const [result, setResult] = useState(null);
@@ -193,10 +193,11 @@ function JobExplorerApp({ onClose }) {
                    </div>
                 </div>
 
-                {/* 2. 적합 특성 */}
+                {/* 2. 적합 특성 (Holland, Big5, Values) */}
                 <section>
                   <h3 className="text-xl font-bold text-slate-800 mb-4 pb-2 border-b border-slate-200 flex items-center"><User size={20} className="mr-2 text-emerald-600"/> 적합한 인재 특성</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Holland */}
                     <div className="bg-emerald-50 p-4 rounded-xl">
                        <h4 className="font-bold text-emerald-800 text-sm mb-3 text-center">Holland 유형</h4>
                        <div className="space-y-2">
@@ -208,6 +209,7 @@ function JobExplorerApp({ onClose }) {
                          ))}
                        </div>
                     </div>
+                    {/* Big 5 */}
                     <div className="bg-blue-50 p-4 rounded-xl">
                        <h4 className="font-bold text-blue-800 text-sm mb-3 text-center">Big 5 성격</h4>
                        <div className="space-y-2 text-xs">
@@ -220,6 +222,7 @@ function JobExplorerApp({ onClose }) {
                          ))}
                        </div>
                     </div>
+                    {/* Values */}
                     <div className="bg-orange-50 p-4 rounded-xl">
                        <h4 className="font-bold text-orange-800 text-sm mb-3 text-center">직업 가치</h4>
                        <ul className="space-y-2">
@@ -251,18 +254,49 @@ function JobExplorerApp({ onClose }) {
                    <div>
                       <h4 className="font-bold text-sm text-slate-600 mb-2">필요 역량 (K/S/A)</h4>
                       <div className="grid grid-cols-3 gap-4">
-                        <div className="bg-slate-50 p-3 rounded-lg"><div className="text-center font-bold text-slate-500 text-xs mb-2 border-b pb-1">Knowledge (지식)</div><ul className="text-xs space-y-1 list-disc list-inside">{result.competencies?.knowledge?.map((item, i)=><li key={i}><EditableContent value={item} onSave={(v)=>handleEdit('competencies', 'knowledge', v, i, true)} className="inline"/></li>)}</ul></div>
-                        <div className="bg-slate-50 p-3 rounded-lg"><div className="text-center font-bold text-slate-500 text-xs mb-2 border-b pb-1">Skill (기술)</div><ul className="text-xs space-y-1 list-disc list-inside">{result.competencies?.skill?.map((item, i)=><li key={i}><EditableContent value={item} onSave={(v)=>handleEdit('competencies', 'skill', v, i, true)} className="inline"/></li>)}</ul></div>
-                        <div className="bg-slate-50 p-3 rounded-lg"><div className="text-center font-bold text-slate-500 text-xs mb-2 border-b pb-1">Attitude (태도)</div><ul className="text-xs space-y-1 list-disc list-inside">{result.competencies?.attitude?.map((item, i)=><li key={i}><EditableContent value={item} onSave={(v)=>handleEdit('competencies', 'attitude', v, i, true)} className="inline"/></li>)}</ul></div>
+                        <div className="bg-slate-50 p-3 rounded-lg">
+                          <div className="text-center font-bold text-slate-500 text-xs mb-2 border-b pb-1">Knowledge (지식)</div>
+                          <ul className="text-xs space-y-1 list-disc list-inside">{result.competencies?.knowledge?.map((item, i)=><li key={i}><EditableContent value={item} onSave={(v)=>handleEdit('competencies', 'knowledge', v, i, true)} className="inline"/></li>)}</ul>
+                        </div>
+                        <div className="bg-slate-50 p-3 rounded-lg">
+                          <div className="text-center font-bold text-slate-500 text-xs mb-2 border-b pb-1">Skill (기술)</div>
+                          <ul className="text-xs space-y-1 list-disc list-inside">{result.competencies?.skill?.map((item, i)=><li key={i}><EditableContent value={item} onSave={(v)=>handleEdit('competencies', 'skill', v, i, true)} className="inline"/></li>)}</ul>
+                        </div>
+                        <div className="bg-slate-50 p-3 rounded-lg">
+                          <div className="text-center font-bold text-slate-500 text-xs mb-2 border-b pb-1">Attitude (태도)</div>
+                          <ul className="text-xs space-y-1 list-disc list-inside">{result.competencies?.attitude?.map((item, i)=><li key={i}><EditableContent value={item} onSave={(v)=>handleEdit('competencies', 'attitude', v, i, true)} className="inline"/></li>)}</ul>
+                        </div>
                       </div>
                    </div>
                 </section>
 
                 {/* 4. 기타 정보 */}
                 <section className="bg-slate-100 p-5 rounded-xl text-sm space-y-4">
-                   <div><h4 className="font-bold text-slate-700 mb-1 flex items-center"><GraduationCap size={16} className="mr-2"/> 동기 및 경로</h4><EditableContent className="text-slate-600 leading-relaxed" value={result.motivation_path} onSave={(v)=>handleEdit('motivation_path', null, v)} /></div>
-                   <div className="flex gap-6"><div className="flex-1"><h4 className="font-bold text-slate-700 mb-1 flex items-center"><BrainCircuit size={16} className="mr-2"/> 오해와 진실</h4><EditableContent className="text-slate-600 leading-relaxed" value={result.myths} onSave={(v)=>handleEdit('myths', null, v)} /></div><div className="w-1/3 bg-white p-4 rounded-lg text-center border border-slate-200"><h4 className="font-bold text-slate-400 text-xs mb-2">직업 전망 지수</h4><div className="text-4xl font-extrabold text-emerald-600 mb-1">{result.outlook?.score}<span className="text-sm text-slate-400 font-normal">/100</span></div><EditableContent className="text-xs text-slate-500" value={result.outlook?.reason} onSave={(v)=>handleEdit('outlook', 'reason', v)} /></div></div>
-                   <div><h4 className="font-bold text-slate-700 mb-2">전직 가능 직업</h4><div className="flex flex-wrap gap-2">{result.related_jobs?.map((job, i) => (<span key={i} className="bg-white px-3 py-1 rounded-full border border-slate-300 text-xs text-slate-600"><EditableContent value={job} onSave={(v)=>handleEdit('related_jobs', null, v, i)} className="inline"/></span>))}</div></div>
+                   <div>
+                     <h4 className="font-bold text-slate-700 mb-1 flex items-center"><GraduationCap size={16} className="mr-2"/> 동기 및 경로</h4>
+                     <EditableContent className="text-slate-600 leading-relaxed" value={result.motivation_path} onSave={(v)=>handleEdit('motivation_path', null, v)} />
+                   </div>
+                   <div className="flex gap-6">
+                      <div className="flex-1">
+                        <h4 className="font-bold text-slate-700 mb-1 flex items-center"><BrainCircuit size={16} className="mr-2"/> 오해와 진실</h4>
+                        <EditableContent className="text-slate-600 leading-relaxed" value={result.myths} onSave={(v)=>handleEdit('myths', null, v)} />
+                      </div>
+                      <div className="w-1/3 bg-white p-4 rounded-lg text-center border border-slate-200">
+                        <h4 className="font-bold text-slate-400 text-xs mb-2">직업 전망 지수</h4>
+                        <div className="text-4xl font-extrabold text-emerald-600 mb-1">{result.outlook?.score}<span className="text-sm text-slate-400 font-normal">/100</span></div>
+                        <EditableContent className="text-xs text-slate-500" value={result.outlook?.reason} onSave={(v)=>handleEdit('outlook', 'reason', v)} />
+                      </div>
+                   </div>
+                   <div>
+                      <h4 className="font-bold text-slate-700 mb-2">전직 가능 직업</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {result.related_jobs?.map((job, i) => (
+                          <span key={i} className="bg-white px-3 py-1 rounded-full border border-slate-300 text-xs text-slate-600">
+                            <EditableContent value={job} onSave={(v)=>handleEdit('related_jobs', null, v, i)} className="inline"/>
+                          </span>
+                        ))}
+                      </div>
+                   </div>
                 </section>
               </div>
 
@@ -352,29 +386,23 @@ export default function App() {
   const [newExpertEmail, setNewExpertEmail] = useState('');
   const [newExpertName, setNewExpertName] = useState(''); 
   const [newExpertOrg, setNewExpertOrg] = useState('');
-  const [newExpertDuration, setNewExpertDuration] = useState('30'); // [추가] 사용 기간 (일 단위)
+  const [newExpertDuration, setNewExpertDuration] = useState('30'); // [추가] 사용 기간 (일 단위) 기본값: 30일
 
   const [currentApp, setCurrentApp] = useState('none');
-  const [activeAppId, setActiveAppId] = useState(null); 
-  const ActiveApp = activeAppId ? APPS.find(app => app.id === activeAppId)?.component : null;
-
   const [customKey, setCustomKey] = useState(localStorage.getItem("custom_gemini_key") || "");
   const [hasPersonalKey, setHasPersonalKey] = useState(!!localStorage.getItem("custom_gemini_key")); 
   const [toastMsg, setToastMsg] = useState(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const showToast = (msg) => setToastMsg(msg);
   const [userOrg, setUserOrg] = useState(''); 
 
-  // [수정] 인증 및 권한 체크 로직 (완전체)
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (u) {
         setUser(u);
-        // 1. 관리자 프리패스: 이메일 일치 시 무조건 관리자
-        if (u.uid === OWNER_UID || u.email === OWNER_EMAIL) {
+        if (u.uid === OWNER_UID) {
             setRole('owner');
-            setUserOrg('관리자'); 
+            setUserOrg(''); 
         } else {
           const q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts'), where('email', '==', u.email));
           const s = await getDocs(q);
@@ -383,20 +411,23 @@ export default function App() {
             const expertDoc = s.docs[0];
             const expertData = expertDoc.data();
             
-            // 2. 만료일 체크 (기존 사용자 구제 로직 포함)
+            // 만료일 체크 로직
             const expirationDate = expertData.expirationDate;
             const today = new Date().toISOString().split('T')[0];
-            // 만료일 데이터가 없거나 '9999-12-31'이면 영구 사용자로 간주
-            const isPermanent = !expirationDate || expirationDate === '9999-12-31';
             
-            if (!isPermanent && expirationDate < today) {
-                setRole('expired'); 
+            // 만료일이 있고('영구'가 아니고), 오늘 날짜보다 이전이면 (만료됨)
+            if (expirationDate && expirationDate !== '9999-12-31' && expirationDate < today) {
+                setRole('expired'); // 역할 상태를 'expired'로 설정
                 setExpertName(expertData.displayName);
                 showToast("사용 기간이 만료되었습니다. 관리자에게 문의하세요.");
             } else {
                 setRole('expert');
                 if (expertData.displayName) setExpertName(expertData.displayName);
-                setUserOrg(expertData.organization || '');
+                if (expertData.organization) {
+                    setUserOrg(expertData.organization); 
+                } else {
+                    setUserOrg('');
+                }
                 const expertRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts', expertDoc.id);
                 updateDoc(expertRef, { lastLogin: new Date().toISOString() });
             }
@@ -416,14 +447,13 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // [수정] 관리자용 목록 로드 (만료일 순 정렬)
   useEffect(() => {
     if (role !== 'owner') return;
     const q = query(collection(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts'));
     
     const unsub = onSnapshot(q, (s) => {
         const expertList = s.docs.map(d => ({ id: d.id, ...d.data() }));
-        // 정렬: 만료일 빠른 순 (영구는 맨 뒤로)
+        // 만료일 가까운 순으로 정렬 (오름차순), 영구(9999-12-31)는 맨 뒤로
         expertList.sort((a, b) => {
             const dateA = a.expirationDate || '9999-12-31';
             const dateB = b.expirationDate || '9999-12-31';
@@ -451,18 +481,18 @@ export default function App() {
       showToast("개인 API 키가 삭제되었습니다.");
   }
 
-  // [수정] 사용자 추가 (기간 선택 반영)
   const handleAddExpert = async (e) => {
     e.preventDefault();
     if(!newExpertEmail || !newExpertName) return;
 
-    let expirationDate = '9999-12-31'; // 기본: 영구
+    // 만료일 계산
+    let expirationDate = '9999-12-31'; // 기본값: 영구
     if (newExpertDuration !== 'permanent') {
         const today = new Date();
         const durationDays = parseInt(newExpertDuration, 10);
         const targetDate = new Date(today);
         targetDate.setDate(today.getDate() + durationDays);
-        expirationDate = targetDate.toISOString().split('T')[0]; 
+        expirationDate = targetDate.toISOString().split('T')[0]; // YYYY-MM-DD 형식
     }
 
     await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'authorized_experts'), {
@@ -470,12 +500,12 @@ export default function App() {
       displayName: newExpertName, 
       organization: newExpertOrg, 
       addedAt: new Date().toISOString(),
-      expirationDate: expirationDate 
+      expirationDate: expirationDate // [추가] 만료일 저장
     });
     setNewExpertEmail(''); 
     setNewExpertName('');
     setNewExpertOrg(''); 
-    setNewExpertDuration('30');
+    setNewExpertDuration('30'); // 초기화
     showToast("사용자가 추가되었습니다.");
   };
 
@@ -496,7 +526,7 @@ export default function App() {
       `"${ex.email || ''}"`,
       `"${ex.organization || '-'}"`,
       `"${ex.addedAt ? ex.addedAt.split('T')[0] : '-'}"`,
-      `"${(!ex.expirationDate || ex.expirationDate === '9999-12-31') ? '무제한' : ex.expirationDate}"`,
+      `"${ex.expirationDate === '9999-12-31' ? '무제한' : (ex.expirationDate || '-')}"`,
       `"${ex.lastLogin ? ex.lastLogin.split('T')[0] : '-'}"`
     ].join(','));
 
@@ -509,7 +539,7 @@ export default function App() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    showToast("파일이 다운로드되었습니다.");
+    showToast("파일이 다운로드되었습니다. 구글 드라이브에 업로드하여 여세요.");
   };
 
   if (!user || role === 'guest' || role === 'expired') return (
@@ -741,7 +771,6 @@ export default function App() {
                     <label className="block text-xs font-bold text-slate-500 mb-1">소속</label>
                     <input value={newExpertOrg} onChange={e=>setNewExpertOrg(e.target.value)} className="border p-2.5 rounded-lg w-full focus:outline-none focus:border-indigo-500" placeholder="소속 기관" />
                 </div>
-                {/* [추가] 사용기간 드롭다운 */}
                 <div className="w-full md:w-1/6">
                      <label className="block text-xs font-bold text-slate-500 mb-1">사용 기간</label>
                      <select value={newExpertDuration} onChange={e=>setNewExpertDuration(e.target.value)} className="border p-2.5 rounded-lg w-full focus:outline-none focus:border-indigo-500 bg-white">
@@ -784,7 +813,6 @@ export default function App() {
                               ) : <span className="text-slate-300">-</span>}
                             </td>
                             <td className="px-4 py-4 text-slate-400 text-xs">{ex.addedAt ? ex.addedAt.split('T')[0] : '-'}</td>
-                            {/* [추가] 만료일 표시 */}
                             <td className={`px-4 py-4 text-xs font-bold ${isExpired ? 'text-red-500' : 'text-slate-500'}`}>
                                 {ex.expirationDate === '9999-12-31' ? <span className="text-green-600">무제한</span> : (ex.expirationDate || '-')}
                                 {isExpired && <span className="ml-1 text-[10px] bg-red-100 text-red-600 px-1 rounded">만료</span>}
@@ -804,7 +832,20 @@ export default function App() {
         )}
       </main>
       
+      {/* 앱 렌더링 영역 (인생곡선 앱 추가) */}
+      {currentApp === 'company_analysis' && <CompanyAnalysisApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'career_roadmap' && <CareerRoadmapApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'job_fit' && <JobFitScannerApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'pt_interview' && <PTInterviewPrepApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'sit_interview' && <InterviewPrepApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'self_intro' && <SelfIntroApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'exp_structuring' && <ExperienceStructApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'role_model' && <RoleModelApp onClose={()=>setCurrentApp('none')} />}
       {currentApp === 'gpt_guide' && <JobExplorerApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'holland_test' && <HollandTestApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'clinic' && <Clinic onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'life_design' && <LifeDesignApp onClose={()=>setCurrentApp('none')} />} 
+      {currentApp === 'life_curve' && <LifeCurveApp onClose={()=>setCurrentApp('none')} />} {/* [NEW] */}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api'; 
 import { 
-  ChevronLeft, Shirt, BarChart3, // [수정] ChevronRight -> ChevronLeft (돌아가기용)
+  ChevronLeft, Shirt, BarChart3, 
   Info, Download, FileText, User, Loader2,
   ArrowLeft, ArrowRight, CheckCircle2, Briefcase, HelpCircle
 } from 'lucide-react';
@@ -153,7 +153,7 @@ export default function CareerStyleLiteApp({ onClose }) {
     }
   };
 
-  // [막대 그래프 렌더러]
+  // [수정] 막대 그래프 렌더러 (타이틀 중앙 이동 및 여백 확대)
   const renderBar = (title, score, leftLabel, rightLabel, leftColor, rightColor) => {
     const leftWidth = score < 0 ? Math.abs(score) * 20 : 0; 
     const rightWidth = score > 0 ? score * 20 : 0; 
@@ -162,8 +162,10 @@ export default function CareerStyleLiteApp({ onClose }) {
     const rightTextStyle = score > 0 ? "text-slate-900 font-extrabold" : "text-slate-400 font-medium";
 
     return (
-      <div className="mb-6">
-        <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1 border-l-2 border-slate-200 pl-2">
+      <div className="mb-10"> {/* 간격 확대: mb-6 -> mb-10 */}
+        
+        {/* [수정] 타이틀 중앙 정렬 */}
+        <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 text-center">
             {title}
         </h4>
 
@@ -190,7 +192,7 @@ export default function CareerStyleLiteApp({ onClose }) {
     <div className="fixed inset-0 bg-slate-50 z-50 flex flex-col font-sans text-slate-800">
       {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
       
-      {/* 헤더 [수정] 돌아가기 버튼 통일 */}
+      {/* 헤더 */}
       <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-pink-500 rounded flex items-center justify-center text-white">
@@ -349,9 +351,9 @@ export default function CareerStyleLiteApp({ onClose }) {
                   </div>
                 </div>
 
-                {/* 2. 스타일 밸런스 차트 */}
-                <div className="space-y-1">
-                  <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2 border-b pb-2">
+                {/* 2. 스타일 밸런스 차트 (간격 확대 및 중앙 타이틀 적용) */}
+                <div className="space-y-4"> {/* 내부 여백 추가 */}
+                  <h3 className="text-lg font-bold text-slate-800 mb-8 flex items-center gap-2 border-b pb-2">
                     <BarChart3 className="text-pink-500"/> 스타일 밸런스 (Style Balance)
                   </h3>
                   
@@ -360,7 +362,7 @@ export default function CareerStyleLiteApp({ onClose }) {
                   {renderBar("RISK STYLE", scores[3], "안정(S) 추구", "도전(R) 추구", "bg-yellow-600", "bg-purple-600")}
                   {renderBar("OFFICE TYPE", scores[4], "백(B) 오피스", "프론트(F) 오피스", "bg-slate-500", "bg-blue-600")}
                   
-                  <p className="text-[10px] text-slate-400 text-center mt-3 pt-3 border-t border-slate-100">
+                  <p className="text-[10px] text-slate-400 text-center mt-6 pt-3 border-t border-slate-100">
                     * 그래프의 길이가 길수록 해당 스타일의 선호도가 강함을 의미합니다.
                   </p>
                 </div>
@@ -375,7 +377,7 @@ export default function CareerStyleLiteApp({ onClose }) {
                   </div>
                 </section>
 
-                {/* 4. 직업 핏 분석 [수정: 명칭 변경] */}
+                {/* 4. 직업 핏 분석 */}
                 <section>
                   <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2 border-b pb-2">
                     <CheckCircle2 className="text-pink-500"/> 관심 직업 스타일 핏 (Style Fit) 분석
@@ -406,10 +408,11 @@ export default function CareerStyleLiteApp({ onClose }) {
                   </div>
                 </section>
 
-                {/* [추가] 저작권 문구 + Footer */}
-                <div className="mt-8 text-center">
-                    <p className="text-[10px] text-slate-400 mb-4">
-                        "커리어스타일 카드(Career Style)는 2021년 7월 학토재에서 출간되었으며(ISBN: 979-11-85668-70-3) 저작권 등록(제C-2025-030041호)이 완료된 도구입니다."
+                {/* [수정] 저작권 문구 + Footer (중앙 정렬 및 줄바꿈 적용) */}
+                <div className="mt-12 text-center border-t border-slate-100 pt-6">
+                    <p className="text-[10px] text-slate-400 mb-4 leading-relaxed font-medium">
+                        커리어스타일 카드(Career Style)는 2021년 7월 학토재에서 출간되었으며(ISBN: 979-11-85668-70-3)<br/>
+                        저작권 등록(제C-2025-030041호)이 완료된 도구입니다.
                     </p>
                     <Footer />
                 </div>

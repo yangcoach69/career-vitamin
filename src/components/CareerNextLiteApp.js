@@ -4,12 +4,12 @@ import {
   ChevronRight, BarChart3, TrendingUp, Shuffle, 
   Info, Download, FileText, User, Loader2,
   ArrowLeft, ArrowRight, Target, MessageSquareQuote, 
-  BookOpen
+  BookOpen, HelpCircle
 } from 'lucide-react';
 import { Toast, EditableContent, Footer } from './SharedUI'; 
 
 // -------------------------------------------------------------------------
-// [지식 베이스] 커리어넥스트(Career Next)® 오리지널 콘텐츠 (PDF 텍스트 탑재)
+// [지식 베이스] 커리어넥스트(Career Next)® 오리지널 콘텐츠
 // -------------------------------------------------------------------------
 const CN_KNOWLEDGE = {
   model_info: {
@@ -21,7 +21,6 @@ const CN_KNOWLEDGE = {
     1: { 
       easy: "현 직장 고수하기", formal: "제자리 뛰기", formal_en: "Advanced Staying", track: "Continuum", guide: "(퇴사자는 '0' 선택)",
       desc: "현 위치에서 깊이 있는 성장",
-      // PDF 상세 내용
       detail_concept: "자기계발과 도약을 통해 기존 경력과 현재 상황을 그대로 이어가는 여정입니다. 현재 위치에서의 깊이 있는 성장에 집중합니다.",
       detail_features: "전직은 물론 이직도 고려하지 않습니다. 현재 조직 내에서 전문성을 더욱 심화하고, 새로운 프로젝트나 역할을 통해 성장하는 것을 목표로 합니다. 안정성을 중시하면서도 정체되지 않고 지속적으로 발전하고자 하는 분들에게 적합한 경로입니다.",
       detail_tip: "[현 직무 내 전문성 심화] 고객이 현재 위치에서 도약할 수 있도록 필요한 구체적인 자기계발 항목(예: 고급 경력기술 습득, 리더십 훈련, 특정 자격증)을 탐색하는 데 집중합니다. 조직 내에서의 가치 증진 및 영향력 확대 방안을 설계합니다."
@@ -70,7 +69,8 @@ const CN_KNOWLEDGE = {
 
 export default function CareerNextLiteApp({ onClose }) {
   const [ageGroup, setAgeGroup] = useState('50대'); 
-  const [scores, setScores] = useState({ 1:4, 2:4, 3:4, 4:4, 5:4, 6:4 }); 
+  // [기본값] 5점 (정가운데)
+  const [scores, setScores] = useState({ 1:5, 2:5, 3:5, 4:5, 5:5, 6:5 }); 
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [toastMsg, setToastMsg] = useState(null);
@@ -96,45 +96,59 @@ export default function CareerNextLiteApp({ onClose }) {
         id, score, ...CN_KNOWLEDGE.trips[id] 
       }));
 
-    // 1순위 여정 정보 추출
+    const maxScore = sortedTrips[0].score;
+    const minScore = sortedTrips[sortedTrips.length - 1].score;
+    // [중요] 점수 차이가 2점 이내면 '취향이 불분명(Flat)'한 상태로 간주
+    const isFlat = (maxScore - minScore) <= 2; 
+
     const topTrip = sortedTrips[0];
     
-    // 3. 프롬프트 생성 (정교한 분리 요청)
+    // 3. 프롬프트 생성 (줄바꿈 강제 요청 추가)
     const prompt = `
       당신은 4060 신중년 커리어 설계를 돕는 전문 코치입니다.
-      사용자의 진단 데이터를 바탕으로 아래 3가지 섹션을 각각의 목적에 맞게 작성해주세요.
+      사용자의 진단 데이터를 바탕으로 리포트를 작성하되, **가독성을 위해 반드시 줄바꿈(\\n\\n)을 사용하여 문단을 나눠주세요.**
 
       [사용자 데이터]
       - 연령: ${ageGroup}
-      - [Track A] 경력 유지/확장 점수: ${continuumScore}점
-      - [Track B] 경력 전환 점수: ${shiftScore}점
-      - 상세 여정별 점수: ${JSON.stringify(sortedTrips.map(t => `${t.formal}(${t.score}점)`))}
-      - 1순위 여정: ${topTrip.formal}
-
-      [참고: 1순위 여정(${topTrip.formal}) 상세 지식]
-      - 핵심 개념: ${topTrip.detail_concept}
-      - 주요 특징: ${topTrip.detail_features}
-      - 경력설계 Tip: ${topTrip.detail_tip}
-
-      [작성 가이드 - JSON 필드별 지시사항]
+      - [Track A] 경력 유지/확장 점수: ${continuumScore}점 (총 30점)
+      - [Track B] 경력 전환 점수: ${shiftScore}점 (총 30점)
+      - 여정별 점수(10점 만점): ${JSON.stringify(sortedTrips.map(t => `${t.formal}(${t.score}점)`))}
       
-      1. summary_title:
-         - 사용자의 현재 커리어 지향점을 한 줄로 요약하는 매력적인 헤드라인.
+      [상태 판단]
+      - 점수 편차: ${maxScore - minScore}점
+      - ${isFlat ? "상태: 모든 여정의 점수가 비슷함 (방향성 미정)" : "상태: 뚜렷한 선호가 있음"}
 
-      2. overall_insight (종합 진단):
-         - **절대 실행 전략이나 응원을 섞지 말고, 현상 분석에만 집중하세요.**
-         - 점수가 가장 높은 여정들과 낮은 여정들을 언급하며 사용자의 관심사를 설명하세요.
-         - '유지/확장' vs '전환' 트랙 점수를 비교하여, 사용자가 안정을 추구하는지 변화를 원하는지 진단하세요.
-         - 만약 두 트랙 점수가 비슷하다면(차이 3점 이내), "현실과 이상 사이에서 고민 중이거나, 균형을 모색하는 단계"라고 해석해주세요.
+      ${isFlat ? `
+      [지시사항: 점수가 비슷할 때 (Flat Case)]
+      사용자의 점수가 전반적으로 비슷합니다. 이는 특정 방향을 정하지 못했거나, 현재 상태에 안주하고 있음을 의미할 수 있습니다.
+      1. summary_title: 고민과 탐색이 필요한 시점임을 알리는 헤드라인
+      2. overall_insight: 
+         - **(중요) 한 덩어리의 글로 쓰지 말고, 다음 구조로 줄바꿈하여 작성하세요:**
+         - [현상 분석]: 왜 모든 점수가 비슷한지 분석 (예: 정보 부족, 번아웃, 다방면의 관심 등)
+         - [진단]: 현재의 심리 상태나 커리어 단계 진단
+         - [조언]: 섣불리 결정하기보다 탐색이 필요한 이유
+      3. top_strategy: 
+         - **(중요) 특정 여정 전략 대신, '커리어 방향성 탐색 질문'을 3가지 제안하세요.**
+         - 각 질문은 줄바꿈으로 구분하세요.
+         - 제목은 '나를 찾는 질문 3가지'로 설정됩니다.
+      ` : `
+      [지시사항: 선호가 뚜렷할 때 (Clear Case)]
+      1. summary_title: 1순위 여정(${topTrip.formal})의 특징을 살린 헤드라인
+      2. overall_insight: 
+         - **(중요) 한 덩어리의 글로 쓰지 말고, 다음 구조로 줄바꿈(\\n\\n)하여 작성하세요:**
+         - [선호 분석]: 가장 높은 점수를 받은 여정과 낮은 점수의 여정 비교
+         - [트랙 진단]: '유지/확장' vs '전환' 중 어느 쪽 성향이 강한지 분석
+         - [전문가 의견]: 이러한 성향이 ${ageGroup}에 갖는 의미
+      3. top_strategy:
+         - 1순위 여정: ${topTrip.formal}
+         - 개념: ${topTrip.detail_concept}
+         - Tip: ${topTrip.detail_tip}
+         - **위 내용을 바탕으로 구체적인 실행 가이드를 3단계로 나누어 줄바꿈(\\n\\n)하여 작성하세요.**
+      `}
 
-      3. top_strategy (1순위 여정 실행 전략):
-         - **위 [참고: 1순위 여정 상세 지식]의 내용을 바탕으로 작성하세요.**
-         - 해당 여정의 개념을 간단히 짚고, '경력설계 Tip'에 있는 내용을 구체적인 행동 가이드로 변환하여 충실한 분량으로 작성하세요.
-         - 50대라는 연령을 고려하여 현실적이고 구체적인 조언을 주세요.
-
-      4. cheer_message (전문가 응원):
+      4. cheer_message:
          - 분석 내용은 제외하고, 오직 따뜻한 격려만 담으세요.
-         - **은유적 수사법(예: 계절, 항해, 산, 날씨, 2막 등)**을 사용하여 감동적으로 마무리하세요.
+         - 은유적 수사법(예: 계절, 항해, 산, 날씨, 2막 등)을 사용하세요.
 
       [출력 형식: JSON Only]
       {
@@ -153,10 +167,10 @@ export default function CareerNextLiteApp({ onClose }) {
         parsedData = JSON.parse(jsonMatch ? jsonMatch[0] : aiResponse);
       } catch (e) {
         parsedData = {
-            summary_title: "커리어 방향성 진단 결과",
+            summary_title: "진단 결과",
             overall_insight: aiResponse,
-            top_strategy: "분석 결과 생성 중 오류가 발생했습니다.",
-            cheer_message: "다시 시도해주세요."
+            top_strategy: "결과 생성 중 오류가 발생했습니다.",
+            cheer_message: "잠시 후 다시 시도해주세요."
         };
       }
 
@@ -164,7 +178,8 @@ export default function CareerNextLiteApp({ onClose }) {
         ai: parsedData,
         continuum: continuumScore,
         shift: shiftScore,
-        ranking: sortedTrips
+        ranking: sortedTrips,
+        isFlat: isFlat 
       });
     } catch (e) {
       showToast("분석 중 오류가 발생했습니다: " + e.message);
@@ -228,7 +243,7 @@ export default function CareerNextLiteApp({ onClose }) {
                 <TrendingUp size={18} className="text-amber-600"/> 가능성 진단
               </h3>
               <div className="bg-amber-50 p-3 rounded-lg text-xs text-amber-900 mb-6 leading-relaxed">
-                다음 6가지 방향 중, 현재 <strong>본인의 생각이나 흥미가 가는 정도</strong>를 직관적으로 선택해주세요. (기본값: 보통)
+                다음 6가지 방향 중, 현재 <strong>본인의 생각이나 흥미가 가는 정도</strong>를 선택해주세요. (기본값: 5점)
               </div>
 
               <div className="space-y-8 pr-2">
@@ -242,12 +257,13 @@ export default function CareerNextLiteApp({ onClose }) {
                         )}
                       </span>
                       <span className="text-sm font-extrabold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-100">
-                        {scores[id]} <span className="text-slate-400 font-normal text-xs">/ 7</span>
+                        {scores[id]} <span className="text-slate-400 font-normal text-xs">/ 10</span>
                       </span>
                     </div>
                     
+                    {/* [수정 3] 슬라이더 만점 10점으로 변경 */}
                     <input 
-                      type="range" min="0" max="7" step="1"
+                      type="range" min="0" max="10" step="1"
                       value={scores[id]}
                       onChange={(e) => handleScoreChange(id, e.target.value)}
                       className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-amber-500"
@@ -255,7 +271,7 @@ export default function CareerNextLiteApp({ onClose }) {
                     
                     <div className="flex justify-between text-[10px] text-slate-400 mt-1.5 font-medium">
                       <span className="flex items-center gap-0.5"><ArrowLeft size={10}/> 가능성 낮음 (0)</span>
-                      <span className="flex items-center gap-0.5">가능성 높음 (7) <ArrowRight size={10}/></span>
+                      <span className="flex items-center gap-0.5">가능성 높음 (10) <ArrowRight size={10}/></span>
                     </div>
                   </div>
                 ))}
@@ -334,6 +350,13 @@ export default function CareerNextLiteApp({ onClose }) {
                             {result.shift}점
                         </div>
                     </div>
+                    {/* 점수가 비슷할 때 안내 메시지 */}
+                    {result.isFlat && (
+                        <div className="mt-4 p-3 bg-slate-100 rounded-lg text-xs text-slate-500 text-center flex items-center justify-center gap-2">
+                            <Info size={14} className="text-slate-400"/>
+                            두 트랙 간의 점수 차이가 크지 않습니다. 현재 방향성을 탐색하는 단계일 수 있습니다.
+                        </div>
+                    )}
                   </div>
               </div>
 
@@ -353,7 +376,7 @@ export default function CareerNextLiteApp({ onClose }) {
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {result.ranking.map((trip, idx) => (
-                          <tr key={trip.id} className={idx === 0 ? "bg-amber-50" : ""}>
+                          <tr key={trip.id} className={idx === 0 && !result.isFlat ? "bg-amber-50" : ""}>
                             <td className="px-5 py-3 text-center">
                               <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${idx === 0 ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
                                 {idx + 1}
@@ -361,7 +384,7 @@ export default function CareerNextLiteApp({ onClose }) {
                             </td>
                             <td className="px-5 py-3">
                                 <div className="flex flex-col">
-                                    <span className={`font-bold ${idx === 0 ? 'text-amber-900' : 'text-slate-700'}`}>
+                                    <span className={`font-bold ${idx === 0 && !result.isFlat ? 'text-amber-900' : 'text-slate-700'}`}>
                                         {trip.formal} <span className="text-[10px] text-slate-400 font-normal ml-1">{trip.formal_en}</span>
                                     </span>
                                     <span className="text-xs text-slate-500 mt-0.5">{trip.desc}</span>
@@ -388,17 +411,18 @@ export default function CareerNextLiteApp({ onClose }) {
                     <h4 className="font-bold text-indigo-900 mb-3 flex items-center gap-2 text-base">
                         <Info size={18}/> 종합 진단: <span className="text-indigo-700"><EditableContent value={result.ai.summary_title} className="inline"/></span>
                     </h4>
-                    <div className="text-sm text-slate-700 leading-relaxed text-justify bg-white p-4 rounded-lg border border-indigo-100 shadow-sm">
+                    <div className="text-sm text-slate-700 leading-relaxed text-justify bg-white p-4 rounded-lg border border-indigo-100 shadow-sm whitespace-pre-wrap">
                         <EditableContent value={result.ai.overall_insight} onSave={(v)=>console.log(v)}/>
                     </div>
                 </div>
 
-                {/* 카드 2: 핵심 전략 */}
-                <div className="bg-amber-50 border border-amber-100 rounded-xl p-6">
-                    <h4 className="font-bold text-amber-900 mb-3 flex items-center gap-2 text-base">
-                        <Target size={18}/> 1순위 여정 실행 전략 ({result.ranking[0].formal})
+                {/* 카드 2: 핵심 전략 (점수 비슷하면 '탐색 가이드'로 변경) */}
+                <div className={`${result.isFlat ? 'bg-slate-100 border-slate-200' : 'bg-amber-50 border-amber-100'} border rounded-xl p-6`}>
+                    <h4 className={`font-bold ${result.isFlat ? 'text-slate-700' : 'text-amber-900'} mb-3 flex items-center gap-2 text-base`}>
+                        {result.isFlat ? <HelpCircle size={18}/> : <Target size={18}/>} 
+                        {result.isFlat ? "커리어 방향성 탐색 가이드 (나를 찾는 질문)" : `1순위 여정 실행 전략 (${result.ranking[0].formal})`}
                     </h4>
-                    <div className="text-sm text-slate-700 leading-relaxed text-justify bg-white p-4 rounded-lg border border-amber-100 shadow-sm whitespace-pre-wrap">
+                    <div className={`text-sm text-slate-700 leading-relaxed text-justify bg-white p-4 rounded-lg border ${result.isFlat ? 'border-slate-200' : 'border-amber-100'} shadow-sm whitespace-pre-wrap`}>
                         <EditableContent value={result.ai.top_strategy} onSave={(v)=>console.log(v)}/>
                     </div>
                 </div>

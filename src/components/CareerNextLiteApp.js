@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api'; 
 import { 
-  ChevronLeft, ChevronRight, // [수정] ChevronRight 추가 완료!
+  ChevronLeft, ChevronRight, // [빌드 에러 방지용]
   BarChart3, TrendingUp, Shuffle, 
   Info, Download, FileText, User, Loader2,
   ArrowLeft, ArrowRight, Target, MessageSquareQuote, 
@@ -110,10 +110,14 @@ export default function CareerNextLiteApp({ onClose }) {
 
       [사용자 데이터]
       - 연령: ${ageGroup}
-      - [Track A] 경력 유지/확장 점수: ${continuumScore}점
-      - [Track B] 경력 전환 점수: ${shiftScore}점
+      - [Career Continuum] 경력 유지/확장 점수: ${continuumScore}점
+      - [Career Shift] 경력 전환 점수: ${shiftScore}점
       - 여정별 점수: ${JSON.stringify(sortedTrips.map(t => `${t.formal}(${t.score}점)`))}
       
+      [주의사항 - 용어 사용]
+      - 'Track A', 'Track B', '트랙 1', '트랙 2' 같은 용어는 **절대 사용하지 마세요.**
+      - 대신 **'경력 유지/확장(Career Continuum)'**, **'경력 전환(Career Shift)'**이라는 명칭만 사용하세요.
+
       [상태 판단]
       - ${isFlat ? "상태: 점수 편차가 크지 않음 (탐색 필요)" : `상태: 1순위 여정(${topTrip.formal}) 선호 뚜렷함`}
 
@@ -131,7 +135,7 @@ export default function CareerNextLiteApp({ onClose }) {
       1. summary_title: 1순위 여정(${topTrip.formal})을 반영한 매력적인 제목
       2. overall_insight: 
          - 가장 높은 점수를 받은 여정과 낮은 여정들을 비교하며 성향을 분석하세요.
-         - 트랙 간 점수 차이를 언급하며 방향성을 진단하세요.
+         - '경력 유지/확장' vs '경력 전환' 트랙 중 어느 쪽을 지향하는지 진단하세요. (Track A/B 용어 사용 금지)
          - 문단을 나누어 가독성 있게 작성하세요.
       3. top_strategy:
          - 1순위 여정(${topTrip.formal})의 [핵심 개념: ${topTrip.detail_concept}]과 [Tip: ${topTrip.detail_tip}]을 바탕으로 작성하세요.
@@ -277,6 +281,11 @@ export default function CareerNextLiteApp({ onClose }) {
                       <span className="text-sm font-extrabold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-100">
                         {scores[id]} <span className="text-slate-400 font-normal text-xs">/ 10</span>
                       </span>
+                    </div>
+                    
+                    {/* [수정] 좌측 메뉴 설명 추가 */}
+                    <div className="text-xs text-slate-400 font-normal mt-0.5 mb-2">
+                        {CN_KNOWLEDGE.trips[id].desc}
                     </div>
                     
                     <input 

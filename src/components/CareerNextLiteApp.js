@@ -3,7 +3,8 @@ import { fetchGemini, saveAsPng, saveAsPdf } from '../api';
 import { 
   ChevronRight, BarChart3, TrendingUp, Shuffle, 
   Info, Download, FileText, User, Loader2,
-  ArrowLeft, ArrowRight, CheckCircle2, Target, MessageSquareQuote
+  ArrowLeft, ArrowRight, Target, MessageSquareQuote, 
+  BookOpen // 개요 아이콘
 } from 'lucide-react';
 import { Toast, EditableContent, Footer } from './SharedUI'; 
 
@@ -13,26 +14,27 @@ import { Toast, EditableContent, Footer } from './SharedUI';
 const CN_KNOWLEDGE = {
   model_info: {
     title: "커리어넥스트 (Career Next)®",
+    desc: "중장년의 생애 경력을 재설계하는 체계적인 진단 모델입니다. '경력 유지/확장'과 '경력 전환'이라는 두 가지 핵심 트랙과 여섯 가지 세부 여정을 통해 나에게 딱 맞는 커리어 방향을 제시합니다.",
     copyright: "커리어넥스트(Career Next)®는 저작권 등록(C-2025-036548) 및 상표권 등록(40-2433034-0000)이 완료된 도구입니다.",
   },
   trips: {
-    1: { easy: "현 직장 고수하기", formal: "제자리 뛰기", formal_en: "Advanced Staying", desc: "현 위치에서 깊이 있는 성장", track: "Continuum" },
+    1: { easy: "현 직장 고수하기", formal: "제자리 뛰기", formal_en: "Advanced Staying", desc: "현 위치에서 깊이 있는 성장", track: "Continuum", guide: "(퇴사자는 '0' 선택)" },
     2: { easy: "경력으로 이직하기", formal: "경력 사다리", formal_en: "Ladder Transition", desc: "더 나은 조건으로의 수평 이동", track: "Continuum" },
-    3: { easy: "경력으로 홀로서기", formal: "독립 전문가", formal_en: "Solo Expert", desc: "프리랜서 및 1인 지식 기업", track: "Continuum" },
+    3: { easy: "경력으로 독립하기", formal: "독립 전문가", formal_en: "Solo Expert", desc: "프리랜서 및 1인 지식 기업", track: "Continuum" }, // [수정] 용어 변경
     4: { easy: "할만한 일 당장하기", formal: "심플 스타트", formal_en: "Simple Start", desc: "진입장벽 낮은 일로 빠른 전환", track: "Shift" },
     5: { easy: "설레는 일 시작하기", formal: "열정 축", formal_en: "Passion Pivot", desc: "흥미/꿈 기반의 과감한 도전", track: "Shift" },
     6: { easy: "새 경력 준비하기", formal: "경력 리부트", formal_en: "Career Reboot", desc: "완전히 새로운 분야로의 리셋", track: "Shift" }
   },
   tracks: {
-    Continuum: { name: "경력 유지/확장", name_en: "Career Continuum", color: "text-blue-600", bg: "bg-blue-500", border: "border-blue-200", light: "bg-blue-50" },
-    Shift: { name: "경력 전환", name_en: "Career Shift", color: "text-green-600", bg: "bg-green-500", border: "border-green-200", light: "bg-green-50" }
+    Continuum: { name: "경력 유지/확장", name_en: "Career Continuum" },
+    Shift: { name: "경력 전환", name_en: "Career Shift" }
   }
 };
 
 export default function CareerNextLiteApp({ onClose }) {
-  // [State]
+  // [State] 기본 점수 4점으로 초기화
   const [ageGroup, setAgeGroup] = useState('50대'); 
-  const [scores, setScores] = useState({ 1:0, 2:0, 3:0, 4:0, 5:0, 6:0 });
+  const [scores, setScores] = useState({ 1:4, 2:4, 3:4, 4:4, 5:4, 6:4 }); 
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [toastMsg, setToastMsg] = useState(null);
@@ -51,7 +53,7 @@ export default function CareerNextLiteApp({ onClose }) {
     const continuumScore = scores[1] + scores[2] + scores[3];
     const shiftScore = scores[4] + scores[5] + scores[6];
     
-    // 2. 랭킹 정렬 (6개 전체)
+    // 2. 랭킹 정렬
     const sortedTrips = Object.entries(scores)
       .sort(([, a], [, b]) => b - a)
       .map(([id, score]) => ({ 
@@ -71,7 +73,7 @@ export default function CareerNextLiteApp({ onClose }) {
 
       [요청사항]
       1. summary_title: 사용자의 현재 상태를 한 줄로 요약하는 매력적인 헤드라인
-      2. overall_insight: 전체적인 성향과 트랙 방향성에 대한 진단 (2~3문장)
+      2. overall_insight: 전체적인 성향과 트랙 방향성에 대한 진단 (명확하고 간결하게)
       3. top_strategy: 1순위 여정을 실행하기 위한 구체적인 조언 (2~3문장)
       4. cheer_message: ${ageGroup}의 인생을 응원하는 따뜻한 마무리 멘트
 
@@ -86,13 +88,11 @@ export default function CareerNextLiteApp({ onClose }) {
 
     try {
       const aiResponse = await fetchGemini(prompt);
-      // JSON 파싱 시도
       let parsedData;
       try {
         const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
         parsedData = JSON.parse(jsonMatch ? jsonMatch[0] : aiResponse);
       } catch (e) {
-        // 파싱 실패 시 텍스트라도 보여주기 위한 폴백
         parsedData = {
             summary_title: "커리어 방향성 진단 결과",
             overall_insight: aiResponse,
@@ -113,6 +113,9 @@ export default function CareerNextLiteApp({ onClose }) {
       setLoading(false);
     }
   };
+
+  const handleDownload = () => saveAsPng(reportRef, `CareerNext_Lite_${ageGroup}`, showToast);
+  const handlePdfDownload = () => saveAsPdf(reportRef, `CareerNext_Lite_${ageGroup}`, showToast);
 
   return (
     <div className="fixed inset-0 bg-slate-50 z-50 flex flex-col font-sans text-slate-800">
@@ -166,15 +169,19 @@ export default function CareerNextLiteApp({ onClose }) {
                 <TrendingUp size={18} className="text-amber-600"/> 가능성 진단
               </h3>
               <div className="bg-amber-50 p-3 rounded-lg text-xs text-amber-900 mb-6 leading-relaxed">
-                다음 6가지 방향 중, 현재 <strong>본인의 생각이나 흥미가 가는 정도</strong>를 직관적으로 선택해주세요.
+                다음 6가지 방향 중, 현재 <strong>본인의 생각이나 흥미가 가는 정도</strong>를 직관적으로 선택해주세요. (기본값: 보통)
               </div>
 
               <div className="space-y-8 pr-2">
                 {[1, 2, 3, 4, 5, 6].map(id => (
                   <div key={id} className="group">
-                    <div className="flex justify-between items-end mb-2">
-                      <span className="font-bold text-slate-700 text-sm group-hover:text-amber-600 transition-colors">
+                    <div className="flex flex-wrap justify-between items-end mb-2">
+                      <span className="font-bold text-slate-700 text-sm group-hover:text-amber-600 transition-colors flex items-center gap-1">
                         {CN_KNOWLEDGE.trips[id].easy}
+                        {/* [수정] 퇴사자 안내 문구 추가 */}
+                        {CN_KNOWLEDGE.trips[id].guide && (
+                            <span className="text-[10px] text-red-500 font-normal bg-red-50 px-1 rounded">{CN_KNOWLEDGE.trips[id].guide}</span>
+                        )}
                       </span>
                       <span className="text-sm font-extrabold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-100">
                         {scores[id]} <span className="text-slate-400 font-normal text-xs">/ 7</span>
@@ -189,8 +196,8 @@ export default function CareerNextLiteApp({ onClose }) {
                     />
                     
                     <div className="flex justify-between text-[10px] text-slate-400 mt-1.5 font-medium">
-                      <span className="flex items-center gap-0.5"><ArrowLeft size={10}/> 가능성 낮음</span>
-                      <span className="flex items-center gap-0.5">가능성 높음 <ArrowRight size={10}/></span>
+                      <span className="flex items-center gap-0.5"><ArrowLeft size={10}/> 가능성 낮음 (0)</span>
+                      <span className="flex items-center gap-0.5">가능성 높음 (7) <ArrowRight size={10}/></span>
                     </div>
                   </div>
                 ))}
@@ -207,25 +214,76 @@ export default function CareerNextLiteApp({ onClose }) {
           </div>
         </aside>
 
-        {/* [우측] 결과 리포트 */}
-        <main className="flex-1 overflow-y-auto bg-slate-100 p-8 flex justify-center">
+        {/* [우측] 결과 리포트 (스크롤 가능하도록 구조 수정) */}
+        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-100">
           {result ? (
-            <div ref={reportRef} className="w-full max-w-3xl bg-white shadow-xl rounded-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 flex flex-col">
+            // LifeCurveApp 처럼 A4 사이즈 고정 및 스크롤 최적화
+            <div ref={reportRef} className="w-[210mm] min-h-[297mm] h-fit bg-white shadow-2xl p-12 flex flex-col animate-in fade-in zoom-in-95 duration-500">
               
               {/* 리포트 헤더 */}
-              <div className="bg-slate-900 text-white p-8 text-center relative overflow-hidden">
-                <div className="relative z-10">
-                  <h2 className="text-3xl font-extrabold mb-1 tracking-tight">CAREER NEXT® REPORT</h2>
-                  <p className="text-amber-400 text-sm font-bold opacity-90 tracking-widest uppercase">Lite Version for 4060</p>
+              <div className="border-b-4 border-amber-500 pb-6 mb-8">
+                <div className="flex justify-between items-end mb-2">
+                    <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-bold tracking-wider">CAREER NEXT REPORT</span>
+                    <div className="text-right text-slate-500 text-xs">
+                        작성일: {new Date().toLocaleDateString()}
+                    </div>
                 </div>
+                <h1 className="text-4xl font-extrabold text-slate-900">커리어 방향성 진단 리포트</h1>
+                <p className="text-slate-500 mt-2 text-sm font-medium">
+                    {ageGroup} 고객님의 새로운 도약을 위한 커리어넥스트(Career Next)® 분석 결과
+                </p>
               </div>
 
-              <div className="p-10 space-y-10">
-                
-                {/* 1. Ranking Table (6개 전체) */}
-                <section>
-                  <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2 border-b-2 border-slate-100 pb-2">
-                    <Target className="text-amber-600"/> 여정(Trip) 우선순위 분석
+              {/* 0. 커리어넥스트 개요 (추가됨) */}
+              <div className="bg-slate-50 rounded-xl p-6 border border-slate-200 mb-10">
+                <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
+                    <BookOpen className="text-indigo-600" size={20}/> 커리어넥스트(Career Next)® 란?
+                </h3>
+                <p className="text-sm text-slate-600 leading-relaxed text-justify">
+                    {CN_KNOWLEDGE.model_info.desc}
+                </p>
+              </div>
+
+              {/* 1. Track Graph (한글 강조, 영문 병기) */}
+              <div className="mb-10">
+                  <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+                    <Shuffle className="text-amber-600" size={20}/> 트랙(Track) 방향성 비교
+                  </h3>
+                  <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                    <div className="flex items-center justify-between mb-6 px-4">
+                        <div className="text-center w-1/3">
+                            <div className="text-xl font-extrabold text-blue-600 mb-1">경력 유지/확장</div>
+                            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Career Continuum</div>
+                        </div>
+                        <div className="text-slate-300 font-black text-2xl italic">VS</div>
+                        <div className="text-center w-1/3">
+                            <div className="text-xl font-extrabold text-green-600 mb-1">경력 전환</div>
+                            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Career Shift</div>
+                        </div>
+                    </div>
+                    
+                    {/* Graph Bar */}
+                    <div className="h-8 flex rounded-full overflow-hidden bg-slate-100 shadow-inner">
+                        <div 
+                            className="bg-blue-500 flex items-center justify-center text-xs font-bold text-white transition-all duration-1000"
+                            style={{ width: `${(result.continuum / (result.continuum + result.shift || 1)) * 100}%` }}
+                        >
+                            {result.continuum}점
+                        </div>
+                        <div 
+                            className="bg-green-500 flex items-center justify-center text-xs font-bold text-white transition-all duration-1000"
+                            style={{ width: `${(result.shift / (result.continuum + result.shift || 1)) * 100}%` }}
+                        >
+                            {result.shift}점
+                        </div>
+                    </div>
+                  </div>
+              </div>
+
+              {/* 2. Ranking Table */}
+              <div className="mb-10">
+                  <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <Target className="text-amber-600" size={20}/> 여정(Trip) 우선순위 분석
                   </h3>
                   <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                     <table className="w-full text-sm text-left">
@@ -238,7 +296,7 @@ export default function CareerNextLiteApp({ onClose }) {
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {result.ranking.map((trip, idx) => (
-                          <tr key={trip.id} className={idx === 0 ? "bg-amber-50" : "hover:bg-slate-50 transition-colors"}>
+                          <tr key={trip.id} className={idx === 0 ? "bg-amber-50" : ""}>
                             <td className="px-5 py-3 text-center">
                               <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${idx === 0 ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
                                 {idx + 1}
@@ -253,105 +311,62 @@ export default function CareerNextLiteApp({ onClose }) {
                                 </div>
                             </td>
                             <td className="px-5 py-3 text-center font-bold text-slate-700">
-                                {trip.score} <span className="text-slate-300 font-normal text-xs">/ 7</span>
+                                {trip.score}
                             </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                </section>
+              </div>
 
-                {/* 2. Track Graph (Continuum vs Shift) */}
-                <section>
-                  <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2 border-b-2 border-slate-100 pb-2">
-                    <Shuffle className="text-amber-600"/> 트랙(Track) 방향성 비교
-                  </h3>
-                  <div className="bg-slate-50 p-6 rounded-xl border border-slate-200">
-                    <div className="flex items-center justify-between mb-4 px-2">
-                        <div className="text-center">
-                            <div className="text-xs font-bold text-blue-500 uppercase tracking-wider mb-1">Career Continuum</div>
-                            <div className="text-lg font-extrabold text-slate-800">경력 유지/확장</div>
-                        </div>
-                        <div className="text-slate-300 font-black text-xl italic">VS</div>
-                        <div className="text-center">
-                            <div className="text-xs font-bold text-green-500 uppercase tracking-wider mb-1">Career Shift</div>
-                            <div className="text-lg font-extrabold text-slate-800">경력 전환</div>
-                        </div>
-                    </div>
-                    
-                    {/* Graph Bar */}
-                    <div className="h-6 flex rounded-full overflow-hidden bg-slate-200">
-                        <div 
-                            className="bg-blue-500 flex items-center justify-center text-[10px] font-bold text-white transition-all duration-1000"
-                            style={{ width: `${(result.continuum / (result.continuum + result.shift || 1)) * 100}%` }}
-                        >
-                            {result.continuum}점
-                        </div>
-                        <div 
-                            className="bg-green-500 flex items-center justify-center text-[10px] font-bold text-white transition-all duration-1000"
-                            style={{ width: `${(result.shift / (result.continuum + result.shift || 1)) * 100}%` }}
-                        >
-                            {result.shift}점
-                        </div>
-                    </div>
-                    <div className="flex justify-between mt-2 text-xs text-slate-500 px-1">
-                        <span>현재 경력 활용 집중</span>
-                        <span>새로운 기회 탐색 집중</span>
-                    </div>
-                  </div>
-                </section>
+              {/* 3. AI Analysis (Structured) */}
+              <div className="space-y-6 mb-10">
+                <h3 className="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2 border-b pb-2">
+                    <FileText className="text-amber-600" size={20}/> 전문가 심층 분석
+                </h3>
 
-                {/* 3. AI Analysis (Structured Cards) */}
-                <section>
-                  <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2 border-b-2 border-slate-100 pb-2">
-                    <FileText className="text-amber-600"/> 전문가 심층 분석
-                  </h3>
-                  
-                  <div className="space-y-4">
-                    {/* 카드 1: 종합 진단 */}
-                    <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-5">
-                        <h4 className="font-bold text-indigo-900 mb-2 flex items-center gap-2 text-sm">
-                            <Info size={16}/> 종합 진단: <EditableContent value={result.ai.summary_title} className="inline"/>
-                        </h4>
-                        <div className="text-sm text-slate-700 leading-relaxed">
-                            <EditableContent value={result.ai.overall_insight} onSave={(v)=>console.log(v)}/>
-                        </div>
+                {/* 카드 1: 종합 진단 */}
+                <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-6">
+                    <h4 className="font-bold text-indigo-900 mb-3 flex items-center gap-2 text-base">
+                        <Info size={18}/> 종합 진단: <span className="text-indigo-700"><EditableContent value={result.ai.summary_title} className="inline"/></span>
+                    </h4>
+                    <div className="text-sm text-slate-700 leading-relaxed text-justify bg-white p-4 rounded-lg border border-indigo-100 shadow-sm">
+                        <EditableContent value={result.ai.overall_insight} onSave={(v)=>console.log(v)}/>
                     </div>
-
-                    {/* 카드 2: 핵심 전략 */}
-                    <div className="bg-amber-50 border border-amber-100 rounded-xl p-5">
-                        <h4 className="font-bold text-amber-900 mb-2 flex items-center gap-2 text-sm">
-                            <Target size={16}/> 1순위 여정 실행 전략
-                        </h4>
-                        <div className="text-sm text-slate-700 leading-relaxed">
-                            <EditableContent value={result.ai.top_strategy} onSave={(v)=>console.log(v)}/>
-                        </div>
-                    </div>
-
-                    {/* 카드 3: 코치 한마디 */}
-                    <div className="bg-slate-100 border border-slate-200 rounded-xl p-5">
-                        <h4 className="font-bold text-slate-700 mb-2 flex items-center gap-2 text-sm">
-                            <MessageSquareQuote size={16}/> {ageGroup}를 위한 응원
-                        </h4>
-                        <div className="text-sm text-slate-600 italic leading-relaxed">
-                            "<EditableContent value={result.ai.cheer_message} onSave={(v)=>console.log(v)}/>"
-                        </div>
-                    </div>
-                  </div>
-                </section>
-                
-                {/* 저작권 표시 */}
-                <div className="mt-auto">
-                   <div className="flex justify-center mb-6">
-                      <p className="text-[10px] text-slate-400 bg-slate-50 px-3 py-1 rounded-full border border-slate-100">
-                        {CN_KNOWLEDGE.model_info.copyright}
-                      </p>
-                   </div>
-                   <Footer />
                 </div>
 
+                {/* 카드 2: 핵심 전략 */}
+                <div className="bg-amber-50 border border-amber-100 rounded-xl p-6">
+                    <h4 className="font-bold text-amber-900 mb-3 flex items-center gap-2 text-base">
+                        <Target size={18}/> 1순위 여정 실행 전략
+                    </h4>
+                    <div className="text-sm text-slate-700 leading-relaxed text-justify bg-white p-4 rounded-lg border border-amber-100 shadow-sm">
+                        <EditableContent value={result.ai.top_strategy} onSave={(v)=>console.log(v)}/>
+                    </div>
+                </div>
               </div>
+
+              {/* 4. 응원 메시지 (하단 배치) */}
+              <div className="bg-slate-800 text-white p-8 rounded-xl shadow-lg mt-auto">
+                <h3 className="font-bold text-amber-400 mb-4 text-lg flex items-center gap-2">
+                    <MessageSquareQuote className="text-amber-400"/> {ageGroup}를 위한 응원
+                </h3>
+                <div className="leading-relaxed text-slate-200 text-justify text-lg font-medium italic">
+                    "<EditableContent value={result.ai.cheer_message} onSave={(v)=>console.log(v)}/>"
+                </div>
+              </div>
+
+              {/* 저작권 표시 */}
+              <div className="mt-8 text-center">
+                  <p className="text-[10px] text-slate-400 inline-block border-t border-slate-200 pt-4">
+                    {CN_KNOWLEDGE.model_info.copyright}
+                  </p>
+                  <div className="mt-4">
+                     <Footer />
+                  </div>
+              </div>
+
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-slate-400 animate-in fade-in zoom-in-95">
@@ -368,8 +383,8 @@ export default function CareerNextLiteApp({ onClose }) {
           {/* 다운로드 버튼 */}
           {result && (
             <div className="absolute bottom-8 right-8 flex gap-3 z-50">
-              <button onClick={() => saveAsPng(reportRef, `CareerNext_Lite_${ageGroup}`, showToast)} className="bg-slate-900 text-white px-5 py-3 rounded-full font-bold shadow-xl hover:-translate-y-1 transition-transform flex items-center text-sm"><Download className="mr-2" size={16}/> 이미지 저장</button>
-              <button onClick={() => saveAsPdf(reportRef, `CareerNext_Lite_${ageGroup}`, showToast)} className="bg-red-600 text-white px-5 py-3 rounded-full font-bold shadow-xl hover:-translate-y-1 transition-transform flex items-center text-sm"><FileText className="mr-2" size={16}/> PDF 저장</button>
+              <button onClick={handleDownload} className="bg-white text-slate-900 border border-slate-200 px-6 py-3 rounded-full font-bold shadow-xl hover:-translate-y-1 flex items-center transition-transform"><Download className="mr-2" size={20}/> 이미지 저장</button>
+              <button onClick={handlePdfDownload} className="bg-indigo-800 text-white px-6 py-3 rounded-full font-bold shadow-xl hover:-translate-y-1 flex items-center transition-transform"><FileText className="mr-2" size={20}/> PDF 저장</button>
             </div>
           )}
         </main>

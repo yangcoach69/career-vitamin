@@ -1,8 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api'; 
 import { 
-  ChevronLeft, ChevronRight, // [수정] ChevronRight 추가 완료!
-  BarChart3, TrendingUp, Shuffle, 
+  ChevronLeft, BarChart3, TrendingUp, Shuffle, 
   Info, Download, FileText, User, Loader2,
   ArrowLeft, ArrowRight, Target, MessageSquareQuote, 
   BookOpen, HelpCircle
@@ -70,7 +69,6 @@ const CN_KNOWLEDGE = {
 
 export default function CareerNextLiteApp({ onClose }) {
   const [ageGroup, setAgeGroup] = useState('50대'); 
-  // [기본값] 5점 (정가운데)
   const [scores, setScores] = useState({ 1:5, 2:5, 3:5, 4:5, 5:5, 6:5 }); 
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -99,16 +97,14 @@ export default function CareerNextLiteApp({ onClose }) {
 
     const maxScore = sortedTrips[0].score;
     const minScore = sortedTrips[sortedTrips.length - 1].score;
-    
-    // [중요] 점수 차이가 2점 이내면 '취향이 불분명(Flat)'한 상태로 간주
     const isFlat = (maxScore - minScore) <= 2; 
-
     const topTrip = sortedTrips[0];
     
     // 3. 프롬프트 생성
     const prompt = `
       당신은 4060 신중년 커리어 설계를 돕는 전문 코치입니다.
-      사용자의 진단 데이터를 바탕으로 리포트를 작성하되, **반드시 아래 JSON 형식만 출력**하세요. 마크다운(\`\`\`json)을 쓰지 마세요.
+      사용자의 진단 데이터를 바탕으로 리포트를 작성하되, **반드시 아래 JSON 형식만 출력**하세요. 
+      마크다운(\`\`\`json)이나 기타 사족을 붙이지 마세요.
 
       [사용자 데이터]
       - 연령: ${ageGroup}
@@ -123,26 +119,28 @@ export default function CareerNextLiteApp({ onClose }) {
       [지시사항: 점수가 비슷할 때 (Flat Case)]
       1. summary_title: "아직 고민 중인 당신을 위한 커리어 나침반" 같은 탐색 권유형 제목
       2. overall_insight: 
-         - 왜 점수가 비슷한지 분석 (예: 번아웃, 정보 부족, 혹은 다양한 가능성 열어둠)
-         - 섣불리 결정하기보다 '나'를 돌아보는 시간이 필요함을 조언
+         - 점수가 비슷한 이유를 분석하고(정보 부족, 번아웃 등), 섣불리 결정하기보다 '나'를 돌아보는 시간이 필요함을 조언하세요.
+         - 문단을 나누어 가독성 있게 작성하세요.
       3. top_strategy: 
-         - 특정 여정 전략 대신, 자신의 욕구를 발견할 수 있는 '핵심 질문 3가지'를 제안
+         - 특정 여정 전략 대신, 자신의 욕구를 발견할 수 있는 '핵심 질문 3가지'를 제안하세요.
+         - 각 질문은 줄바꿈(\\n)으로 구분하세요.
       ` : `
       [지시사항: 선호가 뚜렷할 때 (Clear Case)]
       1. summary_title: 1순위 여정(${topTrip.formal})을 반영한 매력적인 제목
       2. overall_insight: 
-         - 가장 높은 점수를 받은 여정과 낮은 여정들을 비교하며 성향 분석
-         - '유지/확장' vs '전환' 트랙 중 어느 쪽을 지향하는지 진단
+         - 가장 높은 점수를 받은 여정과 낮은 여정들을 비교하며 성향을 분석하세요.
+         - 트랙 간 점수 차이를 언급하며 방향성을 진단하세요.
+         - 문단을 나누어 가독성 있게 작성하세요.
       3. top_strategy:
-         - 1순위 여정(${topTrip.formal})의 [핵심 개념: ${topTrip.detail_concept}]을 참고
-         - [Tip: ${topTrip.detail_tip}]을 바탕으로 50대에게 맞는 구체적 실행 가이드 작성
+         - 1순위 여정(${topTrip.formal})의 [핵심 개념: ${topTrip.detail_concept}]과 [Tip: ${topTrip.detail_tip}]을 바탕으로 작성하세요.
+         - 50대에게 맞는 구체적 실행 가이드를 3단계로 나누어 줄바꿈(\\n)으로 구분해 작성하세요.
       `}
 
       4. cheer_message:
-         - 분석 내용은 빼고, 오직 따뜻한 격려만 작성
-         - 은유적 표현(계절, 산, 항해 등) 사용
+         - 분석 내용은 빼고, 오직 따뜻한 격려만 작성하세요.
+         - 은유적 표현(계절, 산, 항해 등)을 사용하세요.
 
-      [JSON 출력 형식 - 이 키 이름들을 정확히 지키세요]
+      [JSON 출력 형식 (필수)]
       {
         "summary_title": "제목...",
         "overall_insight": "내용...",
@@ -152,23 +150,31 @@ export default function CareerNextLiteApp({ onClose }) {
     `;
 
     try {
-      const aiResponse = await fetchGemini(prompt);
+      // API 호출
+      let aiResponse = await fetchGemini(prompt);
       
-      // [수정 핵심] 마크다운 코드 블록 제거 및 파싱 강화
-      let cleanedResponse = aiResponse.replace(/```json/g, "").replace(/```/g, "").trim();
+      // [수정 핵심] 1. 응답이 객체일 경우 문자열로 변환 (n.replace 오류 방지)
+      if (typeof aiResponse === 'object') {
+         aiResponse = JSON.stringify(aiResponse);
+      }
+      
+      // [수정 핵심] 2. 문자열에서 JSON 부분만 정밀하게 추출 (코드블록 제거)
+      // 첫 번째 '{' 부터 마지막 '}' 까지만 잘라냄
+      const firstOpen = aiResponse.indexOf('{');
+      const lastClose = aiResponse.lastIndexOf('}');
+      
       let parsedData;
-      
-      try {
-        const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
-        parsedData = JSON.parse(jsonMatch ? jsonMatch[0] : cleanedResponse);
-      } catch (e) {
-        console.error("JSON Parsing Error", e);
-        parsedData = {
-            summary_title: "커리어 진단 결과",
-            overall_insight: aiResponse, 
-            top_strategy: "결과 데이터를 상세 분리하지 못했습니다. 위 내용을 참고해주세요.",
-            cheer_message: "당신의 새로운 도전을 응원합니다."
-        };
+      if (firstOpen !== -1 && lastClose !== -1) {
+          const jsonString = aiResponse.substring(firstOpen, lastClose + 1);
+          try {
+              parsedData = JSON.parse(jsonString);
+          } catch (e) {
+              console.error("JSON Parse Error inside substring", e);
+              throw new Error("JSON 파싱 실패");
+          }
+      } else {
+          // JSON 구조를 찾지 못한 경우
+          throw new Error("유효한 JSON 응답을 받지 못했습니다.");
       }
 
       setResult({
@@ -179,7 +185,21 @@ export default function CareerNextLiteApp({ onClose }) {
         isFlat: isFlat 
       });
     } catch (e) {
-      showToast("분석 중 오류가 발생했습니다: " + e.message);
+      // 에러 발생 시 UI가 깨지지 않도록 기본값 설정
+      console.error("Analysis Error:", e);
+      setResult({
+        ai: {
+            summary_title: "분석 결과를 불러오는데 실패했습니다.",
+            overall_insight: "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해주세요.\n(Error: " + e.message + ")",
+            top_strategy: "다시 진단하기 버튼을 눌러주세요.",
+            cheer_message: "시스템 연결 상태를 확인해주세요."
+        },
+        continuum: continuumScore,
+        shift: shiftScore,
+        ranking: sortedTrips,
+        isFlat: isFlat
+      });
+      showToast("분석 중 오류가 발생했습니다. 다시 시도해주세요.");
     } finally {
       setLoading(false);
     }

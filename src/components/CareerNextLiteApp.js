@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api'; 
 import { 
-  ChevronLeft, BarChart3, TrendingUp, Shuffle, 
+  ChevronLeft, ChevronRight, // [수정] ChevronRight 추가 완료!
+  BarChart3, TrendingUp, Shuffle, 
   Info, Download, FileText, User, Loader2,
   ArrowLeft, ArrowRight, Target, MessageSquareQuote, 
   BookOpen, HelpCircle
@@ -162,10 +163,9 @@ export default function CareerNextLiteApp({ onClose }) {
         parsedData = JSON.parse(jsonMatch ? jsonMatch[0] : cleanedResponse);
       } catch (e) {
         console.error("JSON Parsing Error", e);
-        // 파싱 실패 시 원문을 insight에 넣고 나머지는 기본값 처리 (화면 깨짐 방지)
         parsedData = {
             summary_title: "커리어 진단 결과",
-            overall_insight: aiResponse, // 원문이라도 보여줌
+            overall_insight: aiResponse, 
             top_strategy: "결과 데이터를 상세 분리하지 못했습니다. 위 내용을 참고해주세요.",
             cheer_message: "당신의 새로운 도전을 응원합니다."
         };
@@ -192,7 +192,7 @@ export default function CareerNextLiteApp({ onClose }) {
     <div className="fixed inset-0 bg-slate-50 z-50 flex flex-col font-sans text-slate-800">
       {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
       
-      {/* 헤더 [수정: 돌아가기 스타일] */}
+      {/* 헤더 */}
       <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-amber-500 rounded flex items-center justify-center font-bold text-lg text-slate-900">N</div>
@@ -396,13 +396,13 @@ export default function CareerNextLiteApp({ onClose }) {
                   </div>
               </div>
 
-              {/* 3. AI Analysis (Structured) - [수정] 카드 분리 확실히 적용 */}
+              {/* 3. AI Analysis (Structured) */}
               <div className="space-y-6 mb-10">
                 <h3 className="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2 border-b pb-2">
                     <FileText className="text-amber-600" size={20}/> 전문가 심층 분석
                 </h3>
 
-                {/* 카드 1: 종합 진단 (overall_insight 만 표시) */}
+                {/* 카드 1: 종합 진단 */}
                 <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-6">
                     <h4 className="font-bold text-indigo-900 mb-3 flex items-center gap-2 text-base">
                         <Info size={18}/> 종합 진단: <span className="text-indigo-700"><EditableContent value={result.ai.summary_title} className="inline"/></span>
@@ -412,7 +412,7 @@ export default function CareerNextLiteApp({ onClose }) {
                     </div>
                 </div>
 
-                {/* 카드 2: 핵심 전략 (top_strategy 만 표시) */}
+                {/* 카드 2: 핵심 전략 */}
                 <div className={`${result.isFlat ? 'bg-slate-100 border-slate-200' : 'bg-amber-50 border-amber-100'} border rounded-xl p-6`}>
                     <h4 className={`font-bold ${result.isFlat ? 'text-slate-700' : 'text-amber-900'} mb-3 flex items-center gap-2 text-base`}>
                         {result.isFlat ? <HelpCircle size={18}/> : <Target size={18}/>} 
@@ -424,7 +424,7 @@ export default function CareerNextLiteApp({ onClose }) {
                 </div>
               </div>
 
-              {/* 4. 응원 메시지 (cheer_message 만 표시) */}
+              {/* 4. 응원 메시지 */}
               <div className="bg-slate-800 text-white p-8 rounded-xl shadow-lg mt-auto">
                 <h3 className="font-bold text-amber-400 mb-4 text-lg flex items-center gap-2">
                     <MessageSquareQuote className="text-amber-400"/> {ageGroup}를 위한 응원

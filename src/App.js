@@ -365,7 +365,7 @@ const SERVICES = {
     icon: NIcon, 
     color: "amber", // 중장년 전용 컬러
     category: 'senior',
-    badge: "® EXCLUSIVE" 
+    badge: "©® EXCLUSIVE" 
   },
 };
 

@@ -51,7 +51,7 @@ import {
   Globe, ThumbsUp, AlertCircle, ExternalLink, 
   Info, PenTool, Lightbulb, Users, Lock, ClipboardList,
   FileSpreadsheet, FileText, Briefcase, GraduationCap, BrainCircuit, Key, 
-  Sun, Star, Layout, MapPin, Percent, Menu
+  Sun, Star, Layout, MapPin, Percent, Menu, Shirt
 } from 'lucide-react';
 
 // ============================================================================

@@ -351,6 +351,7 @@ career_next: {
   icon: TrendingUp, 
   color: "amber", // 중장년 전용 컬러
   category: 'senior' 
+  },
 };
 
 

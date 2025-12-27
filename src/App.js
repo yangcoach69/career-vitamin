@@ -345,7 +345,7 @@ const SERVICES = {
   },
   career_next: { 
     name: "커리어넥스트 (Career Next)® Lite", 
-    desc: "4060 신중년 커리어 방향성 진단 (유지 vs 전환)", 
+    desc: "4060 경력 유지/확장이냐 전환이냐", 
     link: null, 
     internal: true, 
     icon: TrendingUp, 

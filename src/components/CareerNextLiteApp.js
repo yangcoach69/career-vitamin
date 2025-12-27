@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api'; 
 import { 
-  ChevronLeft, BarChart3, TrendingUp, Shuffle, 
+  ChevronLeft, ChevronRight, // [수정] ChevronRight 추가 완료!
+  BarChart3, TrendingUp, Shuffle, 
   Info, Download, FileText, User, Loader2,
   ArrowLeft, ArrowRight, Target, MessageSquareQuote, 
   BookOpen, HelpCircle
@@ -69,6 +70,7 @@ const CN_KNOWLEDGE = {
 
 export default function CareerNextLiteApp({ onClose }) {
   const [ageGroup, setAgeGroup] = useState('50대'); 
+  // [기본값] 5점 (정가운데)
   const [scores, setScores] = useState({ 1:5, 2:5, 3:5, 4:5, 5:5, 6:5 }); 
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -159,7 +161,6 @@ export default function CareerNextLiteApp({ onClose }) {
       }
       
       // [수정 핵심] 2. 문자열에서 JSON 부분만 정밀하게 추출 (코드블록 제거)
-      // 첫 번째 '{' 부터 마지막 '}' 까지만 잘라냄
       const firstOpen = aiResponse.indexOf('{');
       const lastClose = aiResponse.lastIndexOf('}');
       

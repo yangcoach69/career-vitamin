@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api'; 
 import { 
-  ChevronRight, Shirt, BarChart3, 
+  ChevronLeft, Shirt, BarChart3, // [수정] ChevronRight -> ChevronLeft (돌아가기용)
   Info, Download, FileText, User, Loader2,
   ArrowLeft, ArrowRight, CheckCircle2, Briefcase, HelpCircle
 } from 'lucide-react';
@@ -153,13 +153,11 @@ export default function CareerStyleLiteApp({ onClose }) {
     }
   };
 
-  // [수정] 막대 그래프 렌더러
+  // [막대 그래프 렌더러]
   const renderBar = (title, score, leftLabel, rightLabel, leftColor, rightColor) => {
-    // 5점 만점 기준 100% 채우기 (기존 *10 -> *20으로 변경)
     const leftWidth = score < 0 ? Math.abs(score) * 20 : 0; 
     const rightWidth = score > 0 ? score * 20 : 0; 
 
-    // 텍스트 스타일
     const leftTextStyle = score < 0 ? "text-slate-900 font-extrabold" : "text-slate-400 font-medium";
     const rightTextStyle = score > 0 ? "text-slate-900 font-extrabold" : "text-slate-400 font-medium";
 
@@ -173,15 +171,10 @@ export default function CareerStyleLiteApp({ onClose }) {
           <span className={`w-36 text-right ${leftTextStyle} transition-colors`}>{leftLabel}</span>
           
           <div className="flex-1 h-5 bg-slate-100 rounded-full relative overflow-hidden flex items-center shadow-inner">
-            {/* Center Line */}
             <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-slate-300 z-10 opacity-50"></div>
-            
-            {/* Left Bar (Center -> Left) */}
             <div className="w-1/2 h-full flex justify-end">
                <div style={{width: `${leftWidth}%`}} className={`h-full ${leftColor} rounded-l-md transition-all duration-1000 ease-out shadow-sm`}></div>
             </div>
-            
-            {/* Right Bar (Center -> Right) */}
             <div className="w-1/2 h-full flex justify-start">
                <div style={{width: `${rightWidth}%`}} className={`h-full ${rightColor} rounded-r-md transition-all duration-1000 ease-out shadow-sm`}></div>
             </div>
@@ -197,7 +190,7 @@ export default function CareerStyleLiteApp({ onClose }) {
     <div className="fixed inset-0 bg-slate-50 z-50 flex flex-col font-sans text-slate-800">
       {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
       
-      {/* 헤더 */}
+      {/* 헤더 [수정] 돌아가기 버튼 통일 */}
       <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-pink-500 rounded flex items-center justify-center text-white">
@@ -209,7 +202,7 @@ export default function CareerStyleLiteApp({ onClose }) {
           </div>
         </div>
         <button onClick={onClose} className="flex items-center text-sm hover:text-pink-300 transition-colors">
-          <ChevronRight className="w-5 h-5"/> 닫기
+          <ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기
         </button>
       </header>
 
@@ -382,10 +375,10 @@ export default function CareerStyleLiteApp({ onClose }) {
                   </div>
                 </section>
 
-                {/* 4. 직업 핏 분석 */}
+                {/* 4. 직업 핏 분석 [수정: 명칭 변경] */}
                 <section>
                   <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2 border-b pb-2">
-                    <CheckCircle2 className="text-pink-500"/> 관심 직업 Fit 분석
+                    <CheckCircle2 className="text-pink-500"/> 관심 직업 스타일 핏 (Style Fit) 분석
                   </h3>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -413,7 +406,13 @@ export default function CareerStyleLiteApp({ onClose }) {
                   </div>
                 </section>
 
-                <Footer />
+                {/* [추가] 저작권 문구 + Footer */}
+                <div className="mt-8 text-center">
+                    <p className="text-[10px] text-slate-400 mb-4">
+                        "커리어스타일 카드(Career Style)는 2021년 7월 학토재에서 출간되었으며(ISBN: 979-11-85668-70-3) 저작권 등록(제C-2025-030041호)이 완료된 도구입니다."
+                    </p>
+                    <Footer />
+                </div>
               </div>
             </div>
           ) : (

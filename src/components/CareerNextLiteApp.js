@@ -327,7 +327,7 @@ export default function CareerNextLiteApp({ onClose }) {
                         작성일: {new Date().toLocaleDateString()}
                     </div>
                 </div>
-                <h1 className="text-4xl font-extrabold text-slate-900">커리어 방향성 진단 리포트</h1>
+                <h1 className="text-4xl font-extrabold text-slate-900">커리어넥스트 진단 리포트</h1>
                 <p className="text-slate-500 mt-2 text-sm font-medium">
                     {ageGroup} 고객님의 새로운 도약을 위한 커리어넥스트(Career Next)® 분석 결과
                 </p>

@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { fetchGemini, saveAsPng, saveAsPdf } from '../api'; 
 import { 
-  ChevronRight, BarChart3, TrendingUp, Shuffle, 
+  ChevronLeft, BarChart3, TrendingUp, Shuffle, 
   Info, Download, FileText, User, Loader2,
   ArrowLeft, ArrowRight, Target, MessageSquareQuote, 
   BookOpen, HelpCircle
@@ -98,79 +98,76 @@ export default function CareerNextLiteApp({ onClose }) {
 
     const maxScore = sortedTrips[0].score;
     const minScore = sortedTrips[sortedTrips.length - 1].score;
+    
     // [중요] 점수 차이가 2점 이내면 '취향이 불분명(Flat)'한 상태로 간주
     const isFlat = (maxScore - minScore) <= 2; 
 
     const topTrip = sortedTrips[0];
     
-    // 3. 프롬프트 생성 (줄바꿈 강제 요청 추가)
+    // 3. 프롬프트 생성
     const prompt = `
       당신은 4060 신중년 커리어 설계를 돕는 전문 코치입니다.
-      사용자의 진단 데이터를 바탕으로 리포트를 작성하되, **가독성을 위해 반드시 줄바꿈(\\n\\n)을 사용하여 문단을 나눠주세요.**
+      사용자의 진단 데이터를 바탕으로 리포트를 작성하되, **반드시 아래 JSON 형식만 출력**하세요. 마크다운(\`\`\`json)을 쓰지 마세요.
 
       [사용자 데이터]
       - 연령: ${ageGroup}
-      - [Track A] 경력 유지/확장 점수: ${continuumScore}점 (총 30점)
-      - [Track B] 경력 전환 점수: ${shiftScore}점 (총 30점)
-      - 여정별 점수(10점 만점): ${JSON.stringify(sortedTrips.map(t => `${t.formal}(${t.score}점)`))}
+      - [Track A] 경력 유지/확장 점수: ${continuumScore}점
+      - [Track B] 경력 전환 점수: ${shiftScore}점
+      - 여정별 점수: ${JSON.stringify(sortedTrips.map(t => `${t.formal}(${t.score}점)`))}
       
       [상태 판단]
-      - 점수 편차: ${maxScore - minScore}점
-      - ${isFlat ? "상태: 모든 여정의 점수가 비슷함 (방향성 미정)" : "상태: 뚜렷한 선호가 있음"}
+      - ${isFlat ? "상태: 점수 편차가 크지 않음 (탐색 필요)" : `상태: 1순위 여정(${topTrip.formal}) 선호 뚜렷함`}
 
       ${isFlat ? `
       [지시사항: 점수가 비슷할 때 (Flat Case)]
-      사용자의 점수가 전반적으로 비슷합니다. 이는 특정 방향을 정하지 못했거나, 현재 상태에 안주하고 있음을 의미할 수 있습니다.
-      1. summary_title: 고민과 탐색이 필요한 시점임을 알리는 헤드라인
+      1. summary_title: "아직 고민 중인 당신을 위한 커리어 나침반" 같은 탐색 권유형 제목
       2. overall_insight: 
-         - **(중요) 한 덩어리의 글로 쓰지 말고, 다음 구조로 줄바꿈하여 작성하세요:**
-         - [현상 분석]: 왜 모든 점수가 비슷한지 분석 (예: 정보 부족, 번아웃, 다방면의 관심 등)
-         - [진단]: 현재의 심리 상태나 커리어 단계 진단
-         - [조언]: 섣불리 결정하기보다 탐색이 필요한 이유
+         - 왜 점수가 비슷한지 분석 (예: 번아웃, 정보 부족, 혹은 다양한 가능성 열어둠)
+         - 섣불리 결정하기보다 '나'를 돌아보는 시간이 필요함을 조언
       3. top_strategy: 
-         - **(중요) 특정 여정 전략 대신, '커리어 방향성 탐색 질문'을 3가지 제안하세요.**
-         - 각 질문은 줄바꿈으로 구분하세요.
-         - 제목은 '나를 찾는 질문 3가지'로 설정됩니다.
+         - 특정 여정 전략 대신, 자신의 욕구를 발견할 수 있는 '핵심 질문 3가지'를 제안
       ` : `
       [지시사항: 선호가 뚜렷할 때 (Clear Case)]
-      1. summary_title: 1순위 여정(${topTrip.formal})의 특징을 살린 헤드라인
+      1. summary_title: 1순위 여정(${topTrip.formal})을 반영한 매력적인 제목
       2. overall_insight: 
-         - **(중요) 한 덩어리의 글로 쓰지 말고, 다음 구조로 줄바꿈(\\n\\n)하여 작성하세요:**
-         - [선호 분석]: 가장 높은 점수를 받은 여정과 낮은 점수의 여정 비교
-         - [트랙 진단]: '유지/확장' vs '전환' 중 어느 쪽 성향이 강한지 분석
-         - [전문가 의견]: 이러한 성향이 ${ageGroup}에 갖는 의미
+         - 가장 높은 점수를 받은 여정과 낮은 여정들을 비교하며 성향 분석
+         - '유지/확장' vs '전환' 트랙 중 어느 쪽을 지향하는지 진단
       3. top_strategy:
-         - 1순위 여정: ${topTrip.formal}
-         - 개념: ${topTrip.detail_concept}
-         - Tip: ${topTrip.detail_tip}
-         - **위 내용을 바탕으로 구체적인 실행 가이드를 3단계로 나누어 줄바꿈(\\n\\n)하여 작성하세요.**
+         - 1순위 여정(${topTrip.formal})의 [핵심 개념: ${topTrip.detail_concept}]을 참고
+         - [Tip: ${topTrip.detail_tip}]을 바탕으로 50대에게 맞는 구체적 실행 가이드 작성
       `}
 
       4. cheer_message:
-         - 분석 내용은 제외하고, 오직 따뜻한 격려만 담으세요.
-         - 은유적 수사법(예: 계절, 항해, 산, 날씨, 2막 등)을 사용하세요.
+         - 분석 내용은 빼고, 오직 따뜻한 격려만 작성
+         - 은유적 표현(계절, 산, 항해 등) 사용
 
-      [출력 형식: JSON Only]
+      [JSON 출력 형식 - 이 키 이름들을 정확히 지키세요]
       {
-        "summary_title": "...",
-        "overall_insight": "...",
-        "top_strategy": "...",
-        "cheer_message": "..."
+        "summary_title": "제목...",
+        "overall_insight": "내용...",
+        "top_strategy": "내용...",
+        "cheer_message": "내용..."
       }
     `;
 
     try {
       const aiResponse = await fetchGemini(prompt);
+      
+      // [수정 핵심] 마크다운 코드 블록 제거 및 파싱 강화
+      let cleanedResponse = aiResponse.replace(/```json/g, "").replace(/```/g, "").trim();
       let parsedData;
+      
       try {
-        const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-        parsedData = JSON.parse(jsonMatch ? jsonMatch[0] : aiResponse);
+        const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
+        parsedData = JSON.parse(jsonMatch ? jsonMatch[0] : cleanedResponse);
       } catch (e) {
+        console.error("JSON Parsing Error", e);
+        // 파싱 실패 시 원문을 insight에 넣고 나머지는 기본값 처리 (화면 깨짐 방지)
         parsedData = {
-            summary_title: "진단 결과",
-            overall_insight: aiResponse,
-            top_strategy: "결과 생성 중 오류가 발생했습니다.",
-            cheer_message: "잠시 후 다시 시도해주세요."
+            summary_title: "커리어 진단 결과",
+            overall_insight: aiResponse, // 원문이라도 보여줌
+            top_strategy: "결과 데이터를 상세 분리하지 못했습니다. 위 내용을 참고해주세요.",
+            cheer_message: "당신의 새로운 도전을 응원합니다."
         };
       }
 
@@ -195,7 +192,7 @@ export default function CareerNextLiteApp({ onClose }) {
     <div className="fixed inset-0 bg-slate-50 z-50 flex flex-col font-sans text-slate-800">
       {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
       
-      {/* 헤더 */}
+      {/* 헤더 [수정: 돌아가기 스타일] */}
       <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-amber-500 rounded flex items-center justify-center font-bold text-lg text-slate-900">N</div>
@@ -205,7 +202,7 @@ export default function CareerNextLiteApp({ onClose }) {
           </div>
         </div>
         <button onClick={onClose} className="flex items-center text-sm hover:text-amber-300 transition-colors">
-          <ChevronRight className="w-5 h-5"/> 닫기
+          <ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기
         </button>
       </header>
 
@@ -261,7 +258,6 @@ export default function CareerNextLiteApp({ onClose }) {
                       </span>
                     </div>
                     
-                    {/* [수정 3] 슬라이더 만점 10점으로 변경 */}
                     <input 
                       type="range" min="0" max="10" step="1"
                       value={scores[id]}
@@ -400,13 +396,13 @@ export default function CareerNextLiteApp({ onClose }) {
                   </div>
               </div>
 
-              {/* 3. AI Analysis (Structured) */}
+              {/* 3. AI Analysis (Structured) - [수정] 카드 분리 확실히 적용 */}
               <div className="space-y-6 mb-10">
                 <h3 className="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2 border-b pb-2">
                     <FileText className="text-amber-600" size={20}/> 전문가 심층 분석
                 </h3>
 
-                {/* 카드 1: 종합 진단 */}
+                {/* 카드 1: 종합 진단 (overall_insight 만 표시) */}
                 <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-6">
                     <h4 className="font-bold text-indigo-900 mb-3 flex items-center gap-2 text-base">
                         <Info size={18}/> 종합 진단: <span className="text-indigo-700"><EditableContent value={result.ai.summary_title} className="inline"/></span>
@@ -416,7 +412,7 @@ export default function CareerNextLiteApp({ onClose }) {
                     </div>
                 </div>
 
-                {/* 카드 2: 핵심 전략 (점수 비슷하면 '탐색 가이드'로 변경) */}
+                {/* 카드 2: 핵심 전략 (top_strategy 만 표시) */}
                 <div className={`${result.isFlat ? 'bg-slate-100 border-slate-200' : 'bg-amber-50 border-amber-100'} border rounded-xl p-6`}>
                     <h4 className={`font-bold ${result.isFlat ? 'text-slate-700' : 'text-amber-900'} mb-3 flex items-center gap-2 text-base`}>
                         {result.isFlat ? <HelpCircle size={18}/> : <Target size={18}/>} 
@@ -428,7 +424,7 @@ export default function CareerNextLiteApp({ onClose }) {
                 </div>
               </div>
 
-              {/* 4. 응원 메시지 */}
+              {/* 4. 응원 메시지 (cheer_message 만 표시) */}
               <div className="bg-slate-800 text-white p-8 rounded-xl shadow-lg mt-auto">
                 <h3 className="font-bold text-amber-400 mb-4 text-lg flex items-center gap-2">
                     <MessageSquareQuote className="text-amber-400"/> {ageGroup}를 위한 응원

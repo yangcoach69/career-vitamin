@@ -153,36 +153,42 @@ export default function CareerStyleLiteApp({ onClose }) {
     }
   };
 
-  // 막대 그래프 렌더러 (업그레이드 버전)
-  const renderBar = (score, leftLabel, rightLabel, leftColor, rightColor) => {
-    // 0점 기준, 좌우로 뻗어 나가는 그래프
-    const leftWidth = score < 0 ? Math.abs(score) * 10 : 0; // max 50%
-    const rightWidth = score > 0 ? score * 10 : 0; // max 50%
+  // [수정] 막대 그래프 렌더러 (타이틀 추가)
+  const renderBar = (title, score, leftLabel, rightLabel, leftColor, rightColor) => {
+    const leftWidth = score < 0 ? Math.abs(score) * 10 : 0; 
+    const rightWidth = score > 0 ? score * 10 : 0; 
 
-    // 텍스트 스타일 (선택된 쪽은 진하게, 아닌 쪽은 연하게)
-    const leftTextStyle = score < 0 ? "text-slate-800 font-extrabold" : "text-slate-400 font-medium";
-    const rightTextStyle = score > 0 ? "text-slate-800 font-extrabold" : "text-slate-400 font-medium";
+    // 텍스트 스타일: 선택된 쪽은 진하게(800), 흐린 쪽은 연하게(400)
+    const leftTextStyle = score < 0 ? "text-slate-900 font-extrabold" : "text-slate-400 font-medium";
+    const rightTextStyle = score > 0 ? "text-slate-900 font-extrabold" : "text-slate-400 font-medium";
 
     return (
-      <div className="flex items-center gap-4 text-sm mb-5">
-        <span className={`w-32 text-right ${leftTextStyle} transition-colors`}>{leftLabel}</span>
-        
-        <div className="flex-1 h-5 bg-slate-100 rounded-full relative overflow-hidden flex items-center shadow-inner">
-          {/* Center Line */}
-          <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-slate-300 z-10 opacity-50"></div>
+      <div className="mb-6">
+        {/* 스타일 카테고리 명칭 (Life Style, Work Style...) */}
+        <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1 border-l-2 border-slate-200 pl-2">
+            {title}
+        </h4>
+
+        <div className="flex items-center gap-3 text-xs">
+          <span className={`w-36 text-right ${leftTextStyle} transition-colors`}>{leftLabel}</span>
           
-          {/* Left Bar (Grow from center to left) */}
-          <div className="w-1/2 h-full flex justify-end">
-             <div style={{width: `${leftWidth}%`}} className={`h-full ${leftColor} rounded-l-md transition-all duration-1000 ease-out shadow-sm`}></div>
+          <div className="flex-1 h-5 bg-slate-100 rounded-full relative overflow-hidden flex items-center shadow-inner">
+            {/* Center Line */}
+            <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-slate-300 z-10 opacity-50"></div>
+            
+            {/* Left Bar */}
+            <div className="w-1/2 h-full flex justify-end">
+               <div style={{width: `${leftWidth}%`}} className={`h-full ${leftColor} rounded-l-md transition-all duration-1000 ease-out shadow-sm`}></div>
+            </div>
+            
+            {/* Right Bar */}
+            <div className="w-1/2 h-full flex justify-start">
+               <div style={{width: `${rightWidth}%`}} className={`h-full ${rightColor} rounded-r-md transition-all duration-1000 ease-out shadow-sm`}></div>
+            </div>
           </div>
           
-          {/* Right Bar (Grow from center to right) */}
-          <div className="w-1/2 h-full flex justify-start">
-             <div style={{width: `${rightWidth}%`}} className={`h-full ${rightColor} rounded-r-md transition-all duration-1000 ease-out shadow-sm`}></div>
-          </div>
+          <span className={`w-36 ${rightTextStyle} transition-colors`}>{rightLabel}</span>
         </div>
-        
-        <span className={`w-32 ${rightTextStyle} transition-colors`}>{rightLabel}</span>
       </div>
     );
   };
@@ -333,7 +339,7 @@ export default function CareerStyleLiteApp({ onClose }) {
 
               <div className="p-10 space-y-10">
                 
-                {/* 0. 개요 (중앙 정렬, 줄바꿈 적용) */}
+                {/* 0. 개요 */}
                 <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 text-center">
                   <p className="text-sm text-slate-600 leading-relaxed font-medium">
                     커리어스타일은 개인의 직업가치를 넘어 스타일로 재정의하여,<br/>
@@ -350,23 +356,23 @@ export default function CareerStyleLiteApp({ onClose }) {
                   </div>
                 </div>
 
-                {/* 2. 스타일 밸런스 차트 (컬러 & 이모티콘 적용) */}
-                <div className="space-y-2">
+                {/* 2. 스타일 밸런스 차트 (수정된 렌더러 적용) */}
+                <div className="space-y-1">
                   <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2 border-b pb-2">
                     <BarChart3 className="text-pink-500"/> 스타일 밸런스 (Style Balance)
                   </h3>
                   
-                  {/* Life: 민트(Teal) vs 다크오렌지(Orange) */}
-                  {renderBar(scores[1], "💰 보상 (M)", "⏰ 시간 (T)", "bg-teal-400", "bg-orange-600")}
+                  {/* [수정] Life Style: 민트(Teal) vs 다크오렌지(Orange) */}
+                  {renderBar("LIFE STYLE", scores[1], "보상(M) 지향", "시간(T) 지향", "bg-teal-400", "bg-orange-600")}
                   
-                  {/* Work: 그린(Green) vs 핑크(Pink) */}
-                  {renderBar(scores[2], "👥 팀 (G)", "👤 독립 (A)", "bg-green-600", "bg-pink-500")}
+                  {/* [수정] Work Style: 그린(Green) vs 핑크(Pink) */}
+                  {renderBar("WORK STYLE", scores[2], "팀(G) 업무 선호", "독립(A) 업무 선호", "bg-green-600", "bg-pink-500")}
                   
-                  {/* Risk: 다크옐로우(Yellow) vs 퍼플(Purple) */}
-                  {renderBar(scores[3], "🛡️ 안정 (S)", "🚀 도전 (R)", "bg-yellow-600", "bg-purple-600")}
+                  {/* [수정] Risk Style: 다크옐로우(Yellow) vs 퍼플(Purple) */}
+                  {renderBar("RISK STYLE", scores[3], "안정(S) 추구", "도전(R) 추구", "bg-yellow-600", "bg-purple-600")}
                   
-                  {/* Office: 슬레이트 vs 블루 */}
-                  {renderBar(scores[4], "💻 백 (B)", "🤝 프론트 (F)", "bg-slate-500", "bg-blue-600")}
+                  {/* [수정] Office Type: 슬레이트 vs 블루 */}
+                  {renderBar("OFFICE TYPE", scores[4], "백(B) 오피스", "프론트(F) 오피스", "bg-slate-500", "bg-blue-600")}
                   
                   <p className="text-[10px] text-slate-400 text-center mt-3 pt-3 border-t border-slate-100">
                     * 그래프의 길이가 길수록 해당 스타일의 선호도가 강함을 의미합니다.
@@ -383,7 +389,7 @@ export default function CareerStyleLiteApp({ onClose }) {
                   </div>
                 </section>
 
-                {/* 4. 직무 핏 분석 (분리) */}
+                {/* 4. 직무 핏 분석 */}
                 <section>
                   <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2 border-b pb-2">
                     <CheckCircle2 className="text-pink-500"/> 관심 직무 Fit 분석

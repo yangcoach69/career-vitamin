@@ -94,7 +94,7 @@ export default function CareerStyleLiteApp({ onClose }) {
   };
 
   const handleAnalyze = async () => {
-    if (!jobs.job1 || !jobs.job2) return showToast("관심 직무 2가지를 모두 입력해주세요.");
+    if (!jobs.job1 || !jobs.job2) return showToast("관심 직업 2가지를 모두 입력해주세요.");
     setLoading(true);
     
     const { code, details } = getAnalysisData();
@@ -107,8 +107,8 @@ export default function CareerStyleLiteApp({ onClose }) {
       - 스타일 코드: **${code}**
       - 상세 성향:
         ${details}
-      - 관심 직무 1: ${jobs.job1}
-      - 관심 직무 2: ${jobs.job2}
+      - 관심 직업 1: ${jobs.job1}
+      - 관심 직업 2: ${jobs.job2}
 
       [지식 베이스]
       ${JSON.stringify(CS_KNOWLEDGE)}
@@ -117,8 +117,8 @@ export default function CareerStyleLiteApp({ onClose }) {
       1. **style_summary (전문가 총평):**
          - 사용자의 스타일 코드(${code})를 해석하여 만연체로 서술하세요.
       
-      2. **job1_analysis, job2_analysis (직무 매칭):**
-         - 직무명: ${jobs.job1}, ${jobs.job2}
+      2. **job1_analysis, job2_analysis (직업 매칭):**
+         - 직업명: ${jobs.job1}, ${jobs.job2}
          - 사용자의 스타일(${code})과 잘 맞는지(Fit) 혹은 안 맞는지(Mismatch) 판단하세요.
          - 스타일(Life, Work, Risk, Office) 관점에서 구체적인 매칭 이유를 설명하세요.
 
@@ -153,18 +153,18 @@ export default function CareerStyleLiteApp({ onClose }) {
     }
   };
 
-  // [수정] 막대 그래프 렌더러 (타이틀 추가)
+  // [수정] 막대 그래프 렌더러
   const renderBar = (title, score, leftLabel, rightLabel, leftColor, rightColor) => {
-    const leftWidth = score < 0 ? Math.abs(score) * 10 : 0; 
-    const rightWidth = score > 0 ? score * 10 : 0; 
+    // 5점 만점 기준 100% 채우기 (기존 *10 -> *20으로 변경)
+    const leftWidth = score < 0 ? Math.abs(score) * 20 : 0; 
+    const rightWidth = score > 0 ? score * 20 : 0; 
 
-    // 텍스트 스타일: 선택된 쪽은 진하게(800), 흐린 쪽은 연하게(400)
+    // 텍스트 스타일
     const leftTextStyle = score < 0 ? "text-slate-900 font-extrabold" : "text-slate-400 font-medium";
     const rightTextStyle = score > 0 ? "text-slate-900 font-extrabold" : "text-slate-400 font-medium";
 
     return (
       <div className="mb-6">
-        {/* 스타일 카테고리 명칭 (Life Style, Work Style...) */}
         <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1 border-l-2 border-slate-200 pl-2">
             {title}
         </h4>
@@ -176,12 +176,12 @@ export default function CareerStyleLiteApp({ onClose }) {
             {/* Center Line */}
             <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-slate-300 z-10 opacity-50"></div>
             
-            {/* Left Bar */}
+            {/* Left Bar (Center -> Left) */}
             <div className="w-1/2 h-full flex justify-end">
                <div style={{width: `${leftWidth}%`}} className={`h-full ${leftColor} rounded-l-md transition-all duration-1000 ease-out shadow-sm`}></div>
             </div>
             
-            {/* Right Bar */}
+            {/* Right Bar (Center -> Right) */}
             <div className="w-1/2 h-full flex justify-start">
                <div style={{width: `${rightWidth}%`}} className={`h-full ${rightColor} rounded-r-md transition-all duration-1000 ease-out shadow-sm`}></div>
             </div>
@@ -287,14 +287,14 @@ export default function CareerStyleLiteApp({ onClose }) {
               </div>
             </div>
 
-            {/* 관심 직무 입력 */}
+            {/* 관심 직업 입력 */}
             <div className="space-y-3 pt-6 border-t border-slate-100">
               <h4 className="font-bold text-sm text-slate-700 flex items-center gap-2">
-                <Briefcase size={16}/> 관심 직무 입력
+                <Briefcase size={16}/> 관심 직업 입력
               </h4>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                    <label className="text-[10px] text-slate-400 block mb-1">관심 직무 1</label>
+                    <label className="text-[10px] text-slate-400 block mb-1">관심 직업 1</label>
                     <input 
                         placeholder="예: 마케터" 
                         value={jobs.job1}
@@ -303,7 +303,7 @@ export default function CareerStyleLiteApp({ onClose }) {
                     />
                 </div>
                 <div>
-                    <label className="text-[10px] text-slate-400 block mb-1">관심 직무 2</label>
+                    <label className="text-[10px] text-slate-400 block mb-1">관심 직업 2</label>
                     <input 
                         placeholder="예: 공무원" 
                         value={jobs.job2}
@@ -356,22 +356,15 @@ export default function CareerStyleLiteApp({ onClose }) {
                   </div>
                 </div>
 
-                {/* 2. 스타일 밸런스 차트 (수정된 렌더러 적용) */}
+                {/* 2. 스타일 밸런스 차트 */}
                 <div className="space-y-1">
                   <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2 border-b pb-2">
                     <BarChart3 className="text-pink-500"/> 스타일 밸런스 (Style Balance)
                   </h3>
                   
-                  {/* [수정] Life Style: 민트(Teal) vs 다크오렌지(Orange) */}
                   {renderBar("LIFE STYLE", scores[1], "보상(M) 지향", "시간(T) 지향", "bg-teal-400", "bg-orange-600")}
-                  
-                  {/* [수정] Work Style: 그린(Green) vs 핑크(Pink) */}
                   {renderBar("WORK STYLE", scores[2], "팀(G) 업무 선호", "독립(A) 업무 선호", "bg-green-600", "bg-pink-500")}
-                  
-                  {/* [수정] Risk Style: 다크옐로우(Yellow) vs 퍼플(Purple) */}
                   {renderBar("RISK STYLE", scores[3], "안정(S) 추구", "도전(R) 추구", "bg-yellow-600", "bg-purple-600")}
-                  
-                  {/* [수정] Office Type: 슬레이트 vs 블루 */}
                   {renderBar("OFFICE TYPE", scores[4], "백(B) 오피스", "프론트(F) 오피스", "bg-slate-500", "bg-blue-600")}
                   
                   <p className="text-[10px] text-slate-400 text-center mt-3 pt-3 border-t border-slate-100">
@@ -389,10 +382,10 @@ export default function CareerStyleLiteApp({ onClose }) {
                   </div>
                 </section>
 
-                {/* 4. 직무 핏 분석 */}
+                {/* 4. 직업 핏 분석 */}
                 <section>
                   <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2 border-b pb-2">
-                    <CheckCircle2 className="text-pink-500"/> 관심 직무 Fit 분석
+                    <CheckCircle2 className="text-pink-500"/> 관심 직업 Fit 분석
                   </h3>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

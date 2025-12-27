@@ -60,6 +60,9 @@ const OWNER_UID = "TN8orW7kwuTzAnFWNM8jCiixt3r2";
 const OWNER_EMAIL = "yangcoach@gmail.com"; 
 const APP_ID = 'career-vitamin';
 
+// [추가] 대시보드용 'N' 아이콘 컴포넌트
+const NIcon = () => <span className="font-black text-2xl font-sans">N</span>;
+
 // -----------------------------------------------------------------------------
 // 1. 내부 앱: 직업 탐색 가이드 (JobExplorerApp)
 // -----------------------------------------------------------------------------
@@ -348,7 +351,7 @@ const SERVICES = {
     desc: "4060 경력 유지/확장이냐 전환이냐", 
     link: null, 
     internal: true, 
-    icon: TrendingUp, 
+    icon: NIcon, 
     color: "amber", // 중장년 전용 컬러
     category: 'senior' 
   },

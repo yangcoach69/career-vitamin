@@ -15,7 +15,7 @@ import { Toast, EditableContent, Footer } from './SharedUI';
 const CN_KNOWLEDGE = {
   model_info: {
     title: "커리어넥스트 (Career Next)®",
-    desc: "중장년의 생애 경력을 재설계하는 체계적인 진단 모델입니다. '경력 유지/확장'과 '경력 전환'이라는 두 가지 핵심 트랙과 여섯 가지 세부 여정을 통해 나에게 딱 맞는 커리어 방향을 제시합니다.",
+    desc: "중장년의 생애 경력을 재설계하는 체계적인 진단 모델입니다. '경력 유지/확장'과 '경력 전환'이라는 두 가지 핵심 트랙(Track)과 여섯 가지 세부 여정(Trip)을 통해 나에게 딱 맞는 커리어 방향을 제시합니다.",
     copyright: "커리어넥스트(Career Next)®는 저작권 등록(C-2025-036548) 및 상표권 등록(40-2433034-0000)이 완료된 도구입니다.",
   },
   trips: {

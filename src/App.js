@@ -323,7 +323,8 @@ const SERVICES = {
     internal: true, 
     icon: Shirt, // lucide-react에서 Shirt import 필요
     color: "pink",
-    category: 'general' 
+    category: 'general'
+    adge: "© ORIGINAL" 
   },
   company_analysis: { name: "기업분석 리포트", desc: "기업 핵심가치/이슈/SWOT 분석 및 전략", link: null, internal: true, icon: BarChart3, color: "indigo" },
   job_fit: { name: "직무 적합도 진단", desc: "채용공고(JD)와 내 입사서류 매칭 분석", link: null, internal: true, icon: Percent, color: "rose" }, // Percent 아이콘
@@ -363,7 +364,8 @@ const SERVICES = {
     internal: true, 
     icon: NIcon, 
     color: "amber", // 중장년 전용 컬러
-    category: 'senior' 
+    category: 'senior'
+    badge: "® ORIGINAL" 
   },
 };
 
@@ -703,6 +705,11 @@ export default function App() {
                        if(!hasPersonalKey) return;
                        setCurrentApp(key);
                      }}>
+                      {svc.badge && (
+                        <span className="absolute top-4 right-4 bg-indigo-900 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm z-20">
+                          {svc.badge}
+                        </span>
+                      )}
                      {!hasPersonalKey && <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/10"><Lock className="text-slate-500 w-8 h-8"/></div>}
                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${COLOR_VARIANTS[svc.color]} group-hover:scale-110 transition-transform`}>
                        <svc.icon size={24} color={svc.color === 'black' ? '#000' : undefined} /> 
@@ -731,6 +738,11 @@ export default function App() {
                             if(!hasPersonalKey) return;
                             setCurrentApp(key);
                           }}>
+                          {svc.badge && (
+                            <span className="absolute top-4 right-4 bg-indigo-900 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm z-20">
+                              {svc.badge}
+                            </span>
+                          )}
                           {!hasPersonalKey && <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/10"><Lock className="text-slate-500 w-8 h-8"/></div>}
                           <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${COLOR_VARIANTS[svc.color || 'amber']} group-hover:scale-110 transition-transform`}>
                             <svc.icon size={24} /> 

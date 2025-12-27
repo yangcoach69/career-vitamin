@@ -411,7 +411,7 @@ export default function CareerStyleLiteApp({ onClose }) {
                 {/* [수정] 저작권 문구 + Footer (중앙 정렬 및 줄바꿈 적용) */}
                 <div className="mt-12 text-center border-t border-slate-100 pt-6">
                     <p className="text-[10px] text-slate-400 mb-4 leading-relaxed font-medium">
-                        커리어스타일 카드(Career Style)는 2021년 7월 학토재에서 출간되었으며(ISBN: 979-11-85668-70-3)<br/>
+                        커리어스타일(Career Style) 카드는 2021년 7월 학토재에서 출간되었으며(ISBN: 979-11-85668-70-3)<br/>
                         저작권 등록(제C-2025-030041호)이 완료된 도구입니다.
                     </p>
                     <Footer />

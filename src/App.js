@@ -359,7 +359,7 @@ const SERVICES = {
   },
   career_next: { 
     name: "커리어넥스트 (Career Next)® Lite", 
-    desc: "4060 경력 유지/확장이냐 전환이냐", 
+    desc: "경력 유지/확장이냐, 전환이냐", 
     link: null, 
     internal: true, 
     icon: NIcon, 

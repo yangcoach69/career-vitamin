@@ -41,13 +41,13 @@ export const Footer = () => {
       {/* [좌측 하단] 기본 문구로 고정 */}
       <div className="mb-2 md:mb-0">
         <span className="text-slate-400 font-medium">
-             Career AI Dashboard All-in-One (CADA)
+             © 2025 Career Vitamin. All Rights Reserved.
         </span>
       </div>
 
       {/* [우측 하단] 로고 및 Enterprise 뱃지 */}
       <div className="flex items-center gap-1">
-        <span className="opacity-70">Powered by</span>
+        <span className="opacity-70">CADA Powered by</span>
         <strong className="text-indigo-600 opacity-90">Google Gemini API</strong>
         <span className="ml-2 bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded border border-indigo-100 text-[10px] font-bold tracking-tight">
           ENTERPRISE

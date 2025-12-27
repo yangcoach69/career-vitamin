@@ -804,7 +804,7 @@ export default function App() {
                          <option value="permanent">영구</option>
                      </select>
                 </div>
-                <button className="bg-slate-800 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-slate-900 transition-colors w-full md:w-auto h-[46px]">추가</button>
+                <button className="bg-slate-800 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-slate-900 transition-colors w-full md:w-auto h-[46px] whitespace-nowrap shrink-0">추가</button>
               </form>
 
               <div className="overflow-x-auto">

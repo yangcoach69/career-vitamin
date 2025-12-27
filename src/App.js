@@ -37,7 +37,8 @@ import RoleModelApp from './components/RoleModelApp';
 import SelfIntroApp from './components/SelfIntroApp';
 import Clinic from './components/Clinic';
 import LifeDesignApp from './components/LifeDesignApp';
-import LifeCurveApp from './components/LifeCurveApp'; 
+import LifeCurveApp from './components/LifeCurveApp';
+import CareerNextLiteApp from './components/CareerNextLiteApp'; // [New] 커리어넥스트 추가
 
 // [아이콘 라이브러리]
 import { 
@@ -342,18 +343,16 @@ const SERVICES = {
     color: "indigo",
     category: 'senior'
   },
-  // src/App.js 내 SERVICES 객체
-career_next: { 
-  name: "커리어넥스트 (Career Next)® Lite", 
-  desc: "4060 신중년 커리어 방향성 진단 (유지 vs 전환)", 
-  link: null, 
-  internal: true, 
-  icon: TrendingUp, 
-  color: "amber", // 중장년 전용 컬러
-  category: 'senior' 
+  career_next: { 
+    name: "커리어넥스트 (Career Next)® Lite", 
+    desc: "4060 신중년 커리어 방향성 진단 (유지 vs 전환)", 
+    link: null, 
+    internal: true, 
+    icon: TrendingUp, 
+    color: "amber", // 중장년 전용 컬러
+    category: 'senior' 
   },
 };
-
 
 const COLOR_VARIANTS = {
   emerald: "bg-emerald-100 text-emerald-600",

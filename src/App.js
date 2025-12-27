@@ -38,7 +38,8 @@ import SelfIntroApp from './components/SelfIntroApp';
 import Clinic from './components/Clinic';
 import LifeDesignApp from './components/LifeDesignApp';
 import LifeCurveApp from './components/LifeCurveApp';
-import CareerNextLiteApp from './components/CareerNextLiteApp'; // [New] 커리어넥스트 추가
+import CareerNextLiteApp from './components/CareerNextLiteApp';
+import CareerStyleLiteApp from './components/CareerStyleLiteApp';
 
 // [아이콘 라이브러리]
 import { 
@@ -315,6 +316,15 @@ const APPS = [
 const SERVICES = {
   holland_test: { name: "직업흥미 검사 리포트", desc: "직업흥미검사 프로파일 기반 리포트", link: null, internal: true, icon: ClipboardList, color: "pink" },
   gpt_guide: { name: "직업탐색 가이드", desc: "관심 있는 직업/직무 완벽 분석", link: null, internal: true, icon: Compass, color: "emerald" },
+  career_style: { 
+    name: "커리어스타일 Lite", 
+    desc: "직업가치를 넘어 나만의 커리어스타일 찾기", 
+    link: null, 
+    internal: true, 
+    icon: Shirt, // lucide-react에서 Shirt import 필요
+    color: "pink",
+    category: 'general' 
+  },
   company_analysis: { name: "기업분석 리포트", desc: "기업 핵심가치/이슈/SWOT 분석 및 전략", link: null, internal: true, icon: BarChart3, color: "indigo" },
   job_fit: { name: "직무 적합도 진단", desc: "채용공고(JD)와 내 입사서류 매칭 분석", link: null, internal: true, icon: Percent, color: "rose" }, // Percent 아이콘
   
@@ -869,6 +879,7 @@ export default function App() {
       {currentApp === 'life_design' && <LifeDesignApp onClose={()=>setCurrentApp('none')} />} 
       {currentApp === 'life_curve' && <LifeCurveApp onClose={()=>setCurrentApp('none')} />}
       {currentApp === 'career_next' && <CareerNextLiteApp onClose={()=>setCurrentApp('none')} />}
+      {currentApp === 'career_style' && <CareerStyleLiteApp onClose={()=>setCurrentApp('none')} />}
     </div>
   );
 }

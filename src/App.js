@@ -341,10 +341,8 @@ const SERVICES = {
     icon: TrendingUp, // TrendingUp 아이콘
     color: "indigo",
     category: 'senior'
-  }
-};
-
-// src/App.js 내 SERVICES 객체
+  },
+  // src/App.js 내 SERVICES 객체
 career_next: { 
   name: "커리어넥스트 (Career Next)® Lite", 
   desc: "4060 신중년 커리어 방향성 진단 (유지 vs 전환)", 
@@ -353,7 +351,8 @@ career_next: {
   icon: TrendingUp, 
   color: "amber", // 중장년 전용 컬러
   category: 'senior' 
-},
+};
+
 
 const COLOR_VARIANTS = {
   emerald: "bg-emerald-100 text-emerald-600",

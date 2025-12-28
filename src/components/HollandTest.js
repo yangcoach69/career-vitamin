@@ -1,4 +1,3 @@
-// src/components/HollandTest.js
 import React, { useState, useRef } from 'react';
 import { 
   ClipboardList, ChevronLeft, Settings, Loader2, 
@@ -99,51 +98,59 @@ export default function HollandTestApp({ onClose }) {
         <div className="flex items-center gap-3"><ClipboardList className="text-pink-400"/><h1 className="font-bold text-lg">직업흥미 검사 리포트</h1></div>
         <button onClick={onClose} className="flex items-center text-sm hover:text-pink-200 transition-colors"><ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기</button>
       </header>
+      
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-80 bg-white border-r p-6 shrink-0 flex flex-col h-full">
-        <div className="flex-1 overflow-y-auto p-6"></div>
-          <div className="space-y-6">
-            <div>
-              <h3 className="font-bold text-sm text-pink-700 flex items-center uppercase tracking-wider mb-2"><Settings size={16} className="mr-2"/> 점수 입력 (표준점수)</h3>
-              <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs text-slate-600 mb-4">
-                 <div className="flex justify-between mb-1"><span>📉 낮음 (-)</span> <span className="font-bold">40 이하</span></div>
-                 <div className="flex justify-between mb-1"><span>➖ 중간 (=)</span> <span className="font-bold">41 ~ 59</span></div>
-                 <div className="flex justify-between"><span>📈 높음 (+)</span> <span className="font-bold">60 이상</span></div>
+        {/* [수정] aside 구조 개선: 스크롤 영역과 고정 영역 분리 */}
+        <aside className="w-80 bg-white border-r flex flex-col h-full shrink-0">
+          
+          {/* 1. 스크롤 가능한 입력 영역 */}
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="space-y-6">
+              <div>
+                <h3 className="font-bold text-sm text-pink-700 flex items-center uppercase tracking-wider mb-2"><Settings size={16} className="mr-2"/> 점수 입력 (표준점수)</h3>
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs text-slate-600 mb-4">
+                   <div className="flex justify-between mb-1"><span>📉 낮음 (-)</span> <span className="font-bold">40 이하</span></div>
+                   <div className="flex justify-between mb-1"><span>➖ 중간 (=)</span> <span className="font-bold">41 ~ 59</span></div>
+                   <div className="flex justify-between"><span>📈 높음 (+)</span> <span className="font-bold">60 이상</span></div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                {['R', 'I', 'A', 'S', 'E', 'C'].map(code => (
+                  <div key={code}>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">{
+                      code === 'R' ? '현실형 (R)' : 
+                      code === 'I' ? '탐구형 (I)' : 
+                      code === 'A' ? '예술형 (A)' : 
+                      code === 'S' ? '사회형 (S)' : 
+                      code === 'E' ? '진취형 (E)' : '관습형 (C)'
+                    }</label>
+                    <input 
+                      type="number" 
+                      value={scores[code]} 
+                      onChange={e=>setScores({...scores, [code]: e.target.value})} 
+                      className="w-full p-2 border rounded-lg text-center font-bold text-slate-700 focus:border-pink-500 outline-none" 
+                      placeholder="0"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="pt-4 border-t border-slate-100">
+                 <h4 className="font-bold text-xs text-slate-500 mb-2">관심 직업</h4>
+                 <input value={jobs.job1} onChange={e=>setJobs({...jobs, job1: e.target.value})} className="w-full p-2 border rounded-lg text-sm mb-2" placeholder="1순위 희망 직업" />
+                 <input value={jobs.job2} onChange={e=>setJobs({...jobs, job2: e.target.value})} className="w-full p-2 border rounded-lg text-sm" placeholder="2순위 희망 직업" />
               </div>
             </div>
-            
-            <div className="grid grid-cols-2 gap-3">
-              {['R', 'I', 'A', 'S', 'E', 'C'].map(code => (
-                <div key={code}>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">{
-                    code === 'R' ? '현실형 (R)' : 
-                    code === 'I' ? '탐구형 (I)' : 
-                    code === 'A' ? '예술형 (A)' : 
-                    code === 'S' ? '사회형 (S)' : 
-                    code === 'E' ? '진취형 (E)' : '관습형 (C)'
-                  }</label>
-                  <input 
-                    type="number" 
-                    value={scores[code]} 
-                    onChange={e=>setScores({...scores, [code]: e.target.value})} 
-                    className="w-full p-2 border rounded-lg text-center font-bold text-slate-700 focus:border-pink-500 outline-none" 
-                    placeholder="0"
-                  />
-                </div>
-              ))}
-            </div>
-
-            <div className="pt-4 border-t border-slate-100">
-               <h4 className="font-bold text-xs text-slate-500 mb-2">관심 직업</h4>
-               <input value={jobs.job1} onChange={e=>setJobs({...jobs, job1: e.target.value})} className="w-full p-2 border rounded-lg text-sm mb-2" placeholder="1순위 희망 직업" />
-               <input value={jobs.job2} onChange={e=>setJobs({...jobs, job2: e.target.value})} className="w-full p-2 border rounded-lg text-sm" placeholder="2순위 희망 직업" />
-            </div>
           </div>
 
-            {/* 2. 바닥에 고정된 발 */}
+          {/* 2. 바닥에 고정된 발 (버튼 기능 복구) */}
           <div className="p-4 border-t bg-white shrink-0"> 
-            <button className="w-full ...">실행</button> {/* ✅ 항상 보임! */}
+            <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-pink-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-pink-700 transition-colors disabled:bg-slate-300 flex items-center justify-center">
+              {loading ? <Loader2 className="animate-spin"/> : "분석 시작"}
+            </button>
           </div>
+        </aside>
         
         <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
           {result ? (

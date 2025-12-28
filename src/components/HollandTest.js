@@ -100,7 +100,8 @@ export default function HollandTestApp({ onClose }) {
         <button onClick={onClose} className="flex items-center text-sm hover:text-pink-200 transition-colors"><ChevronLeft className="w-5 h-5 mr-1"/> 돌아가기</button>
       </header>
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-80 bg-white border-r p-6 shrink-0 overflow-y-auto">
+        <aside className="w-80 bg-white border-r p-6 shrink-0 flex flex-col h-full">
+        <div className="flex-1 overflow-y-auto p-6"></div>
           <div className="space-y-6">
             <div>
               <h3 className="font-bold text-sm text-pink-700 flex items-center uppercase tracking-wider mb-2"><Settings size={16} className="mr-2"/> 점수 입력 (표준점수)</h3>
@@ -137,10 +138,13 @@ export default function HollandTestApp({ onClose }) {
                <input value={jobs.job1} onChange={e=>setJobs({...jobs, job1: e.target.value})} className="w-full p-2 border rounded-lg text-sm mb-2" placeholder="1순위 희망 직업" />
                <input value={jobs.job2} onChange={e=>setJobs({...jobs, job2: e.target.value})} className="w-full p-2 border rounded-lg text-sm" placeholder="2순위 희망 직업" />
             </div>
-
-            <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-pink-600 text-white py-3.5 rounded-xl font-bold mt-2 shadow-lg disabled:bg-slate-400">{loading ? <Loader2 className="animate-spin mx-auto"/> : "리포트 생성"}</button>
           </div>
-        </aside>
+
+            {/* 2. 바닥에 고정된 발 */}
+          <div className="p-4 border-t bg-white shrink-0"> 
+            <button className="w-full ...">실행</button> {/* ✅ 항상 보임! */}
+          </div>
+        
         <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
           {result ? (
             <div ref={reportRef} className="w-[210mm] min-h-[297mm] h-fit bg-white shadow-2xl p-12 flex flex-col animate-in fade-in zoom-in-95 duration-500">

@@ -92,7 +92,8 @@ export default function HollandTestApp({ onClose }) {
   const handlePdfDownload = () => saveAsPdf(reportRef, `홀랜드리포트`, showToast);
 
   return (
-    <div className="fixed inset-0 bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
+    // [수정 1] h-[100dvh] 추가: 모바일/태블릿 브라우저 주소창 변화에 대응하는 '진짜' 전체화면 높이
+    <div className="fixed inset-0 h-[100dvh] bg-slate-100 z-50 flex flex-col font-sans text-slate-800">
       {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
       <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
         <div className="flex items-center gap-3"><ClipboardList className="text-pink-400"/><h1 className="font-bold text-lg">직업흥미 검사 리포트</h1></div>
@@ -100,11 +101,11 @@ export default function HollandTestApp({ onClose }) {
       </header>
       
       <div className="flex flex-1 overflow-hidden">
-        {/* [수정 1] overflow-hidden 추가: 전체 틀이 흔들리지 않게 고정 */}
+        {/* 사이드바 틀: 높이 고정 */}
         <aside className="w-80 bg-white border-r flex flex-col h-full shrink-0 overflow-hidden">
           
-          {/* [수정 2] min-h-0 추가: 스크롤 영역이 버튼을 밀어내지 않게 제한 */}
-          <div className="flex-1 overflow-y-auto p-6 min-h-0">
+          {/* [수정 2] overscroll-contain 추가: 스크롤이 부모에게 전파되지 않도록 막음 */}
+          <div className="flex-1 overflow-y-auto p-6 min-h-0 overscroll-contain">
             <div className="space-y-6">
               <div>
                 <h3 className="font-bold text-sm text-pink-700 flex items-center uppercase tracking-wider mb-2"><Settings size={16} className="mr-2"/> 점수 입력 (표준점수)</h3>
@@ -142,17 +143,20 @@ export default function HollandTestApp({ onClose }) {
                  <input value={jobs.job2} onChange={e=>setJobs({...jobs, job2: e.target.value})} className="w-full p-2 border rounded-lg text-sm" placeholder="2순위 희망 직업" />
               </div>
             </div>
+            
+            {/* 스크롤 끝부분 여백 확보 (모바일 키보드 대비) */}
+            <div className="h-4"></div>
           </div>
 
           {/* 하단 고정 버튼 영역 */}
-          <div className="p-4 border-t bg-white shrink-0"> 
+          <div className="p-4 border-t bg-white shrink-0 z-10"> 
             <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-pink-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-pink-700 transition-colors disabled:bg-slate-300 flex items-center justify-center">
               {loading ? <Loader2 className="animate-spin"/> : "분석 시작"}
             </button>
           </div>
         </aside>
         
-        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50">
+        <main className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-50 overscroll-contain">
           {result ? (
             <div ref={reportRef} className="w-[210mm] min-h-[297mm] h-fit bg-white shadow-2xl p-12 flex flex-col animate-in fade-in zoom-in-95 duration-500">
               <div className="border-b-4 border-pink-500 pb-6 mb-8">

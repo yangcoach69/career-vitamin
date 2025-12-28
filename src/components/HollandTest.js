@@ -160,7 +160,7 @@ export default function HollandTestApp({ onClose }) {
           {result ? (
             <div ref={reportRef} className="w-[210mm] min-h-[297mm] h-fit bg-white shadow-2xl p-12 flex flex-col animate-in fade-in zoom-in-95 duration-500">
               <div className="border-b-4 border-pink-500 pb-6 mb-8">
-                <span className="bg-pink-100 text-pink-800 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">HOLLAND REPORT</span>
+                <span className="bg-pink-100 text-pink-800 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 inline-block">JOB INTEREST REPORT</span>
                 <h1 className="text-4xl font-extrabold text-slate-900">직업흥미 검사 분석</h1>
                 <EditableContent className="text-lg text-slate-500 mt-2" value={result.overview} onSave={(v)=>handleEdit('overview', null, v)} />
               </div>

@@ -100,10 +100,10 @@ export default function HollandTestApp({ onClose }) {
       </header>
       
       <div className="flex flex-1 overflow-hidden">
-        {/* [수정] aside 구조 개선: flex-col, h-full, overflow-hidden 적용 */}
+        {/* [수정 1] overflow-hidden 추가: 전체 틀이 흔들리지 않게 고정 */}
         <aside className="w-80 bg-white border-r flex flex-col h-full shrink-0 overflow-hidden">
           
-          {/* [수정] 1. 스크롤 영역 (min-h-0 필수) */}
+          {/* [수정 2] min-h-0 추가: 스크롤 영역이 버튼을 밀어내지 않게 제한 */}
           <div className="flex-1 overflow-y-auto p-6 min-h-0">
             <div className="space-y-6">
               <div>
@@ -144,7 +144,7 @@ export default function HollandTestApp({ onClose }) {
             </div>
           </div>
 
-          {/* [수정] 2. 하단 고정 버튼 영역 */}
+          {/* 하단 고정 버튼 영역 */}
           <div className="p-4 border-t bg-white shrink-0"> 
             <button onClick={handleAIAnalysis} disabled={loading} className="w-full bg-pink-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-pink-700 transition-colors disabled:bg-slate-300 flex items-center justify-center">
               {loading ? <Loader2 className="animate-spin"/> : "분석 시작"}
